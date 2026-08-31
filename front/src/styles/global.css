@@ -1,0 +1,59 @@
+/* ── Variables de design (design tokens) ──────────────────────────────────────
+   Centralisées ici pour changer le thème en un seul endroit.
+   Référencées partout dans les composants via var(--color-...).
+*/
+
+:root {
+  /* Couleurs */
+  --color-background:  #171210;   /* fond principal */
+  --color-surface:     #1e1916;   /* surfaces légèrement plus claires */
+  --color-card:        #221e1b;   /* cartes, inputs */
+  --color-border:      #2e2924;   /* bordures subtiles */
+  --color-primary:     #e09a5a;   /* orange accent — boutons, liens actifs */
+
+  /* Texte */
+  --color-text:        #f0e8e0;   /* texte principal */
+  --color-text-muted:  #a89880;   /* texte secondaire */
+  --color-text-dim:    #6e5f52;   /* texte tertiaire / labels */
+
+  /* Typographie */
+  --font-body:         'Inter', system-ui, sans-serif;
+  --font-display:      'Playfair Display', Georgia, serif;
+}
+
+/* ── Reset minimal ─────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  /* Pas d'overflow:hidden ici — chaque page gère son propre scroll.
+     AuthPage scroll librement, les autres pages utilisent overflow-y-auto
+     sur leur conteneur interne. */
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar discrète (WebKit) */
+::-webkit-scrollbar        { width: 4px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--color-border); border-radius: 2px; }
+
+/* Supprime le contour par défaut sur les boutons */
+button { cursor: pointer; border: none; background: none; }
+
+/* Utilitaire Tailwind manquant : line-clamp */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
