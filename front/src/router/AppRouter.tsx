@@ -6,6 +6,7 @@ import HomePage         from "../pages/HomePage";
 import RecipeDetailPage from "../pages/RecipeDetailPage";
 import ProfilePage      from "../pages/ProfilePage";
 import BottomNav        from "../components/layout/BottomNav";
+import AddRecipePage from "../components/recipe/AddRecipePage";
 
 export default function AppRouter() {
   const [authed,     setAuthed]     = useState(false);
@@ -43,7 +44,9 @@ export default function AppRouter() {
   const handleNavChange = (tab: NavTab) => { setActiveNav(tab); };
 
   const renderPage = () => {
+    console.log(activeNav);
     if (activeNav === "profile") return <ProfilePage />;
+    if (activeNav === "addrecipe") return <AddRecipePage onCancel={function (): void {} } />;
     if (activeNav === "saved") return (
       <div
         style={{

@@ -130,9 +130,9 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
         >
           {recipe.title}
         </h1>
-        <p style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: 20 }}>
+        {/* <p style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: 20 }}>
           {recipe.subtitle}
-        </p>
+        </p> */}
 
         {/* Stats prépa / cuisson / note */}
         <div
@@ -167,9 +167,9 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
         </div>
 
         {/* Description */}
-        <p style={{ fontSize: 14, lineHeight: 1.7, color: "var(--color-text-muted)", marginBottom: 20 }}>
+        {/* <p style={{ fontSize: 14, lineHeight: 1.7, color: "var(--color-text-muted)", marginBottom: 20 }}>
           {recipe.description}
-        </p>
+        </p> */}
 
         {/* ── Astuces du chef (accordion) ── */}
         {recipe.tips.length > 0 && (

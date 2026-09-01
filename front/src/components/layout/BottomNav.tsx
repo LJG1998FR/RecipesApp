@@ -1,5 +1,5 @@
 import type { NavTab } from "../../types";
-import { HomeIcon, BookmarkIcon, PersonIcon } from "../icons";
+import { HomeIcon, BookmarkIcon, PersonIcon, PlusNavIcon } from "../icons";
 
 interface Props {
   active: NavTab;
@@ -9,6 +9,7 @@ interface Props {
 const NAV_ITEMS: { key: NavTab; icon: (active: boolean) => JSX.Element; label: string }[] = [
   { key: "home",    icon: (a) => <HomeIcon active={a} />,     label: "Accueil"     },
   { key: "saved",   icon: (a) => <BookmarkIcon active={a} />, label: "Sauvegardés" },
+  { key: "addrecipe",   icon: (a) => <PlusNavIcon active={a} />, label: "Ajouter une recette" },
   { key: "profile", icon: (a) => <PersonIcon active={a} />,   label: "Profil"      },
 ];
 
