@@ -47,13 +47,18 @@ export async function login(email: string, password: string) {
   return data;
 }
 
-export async function register(email: string, password: string, username: string) {
+export async function register(
+  email: string,
+  password: string,
+  firstName: string,
+  lastName: string
+  ) {
   const res = await fetch(`${BASE_URL}/api/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, username }),
+    body: JSON.stringify({ email, password, firstName, lastName }),
   });
-  const data = await handleResponse<{ token: string }>(res);
+  const data = await handleResponse<{ token: string; user: object }>(res);
   localStorage.setItem("token", data.token);
   return data;
 }

@@ -49,7 +49,7 @@ class Recipe
      * @var Collection<int, RecipeIngredient>
      */
     #[ORM\OneToMany(targetEntity: RecipeIngredient::class, mappedBy: 'recipe', cascade: ['persist', 'remove'])]
-    private Collection $ingredients;
+    private Collection $recipeIngredients;
 
     #[ORM\ManyToOne(inversedBy: 'recipes')]
     private ?User $user = null;
@@ -57,7 +57,7 @@ class Recipe
     public function __construct()
     {
         $this->steps = new ArrayCollection();
-        $this->ingredients = new ArrayCollection();
+        $this->recipeIngredients = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -180,17 +180,17 @@ class Recipe
     }
 
     /**
-     * @return Collection<int, Ingredient>
+     * @return Collection<int, RecipeIngredient>
      */
     public function getIngredients(): Collection
     {
-        return $this->ingredients;
+        return $this->recipeIngredients;
     }
 
     public function addRecipeIngredient(RecipeIngredient $recipeIngredient): static
     {
-        if (!$this->ingredients->contains($recipeIngredient)) {
-            $this->ingredients->add($recipeIngredient);
+        if (!$this->recipeIngredients->contains($recipeIngredient)) {
+            $this->recipeIngredients->add($recipeIngredient);
             $recipeIngredient->setRecipe($this);
         }
  
@@ -199,7 +199,7 @@ class Recipe
  
     public function removeRecipeIngredient(RecipeIngredient $recipeIngredient): static
     {
-        if ($this->ingredients->removeElement($recipeIngredient)) {
+        if ($this->recipeIngredients->removeElement($recipeIngredient)) {
             if ($recipeIngredient->getRecipe() === $this) {
                 $recipeIngredient->setRecipe(null);
             }

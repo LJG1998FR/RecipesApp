@@ -16,6 +16,35 @@ security:
             # Ensure dev tools and static assets are always allowed
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
+        cors_preflight:
+            pattern: ^/api/
+            methods: [OPTIONS]
+            security: false 
+        #refresh:    
+        #    pattern: ^/api/token/refresh
+        #    refresh_jwt: ~
+        register:    
+            pattern: ^/api/register
+            security: false
+        login:
+            pattern: ^/api/login
+            stateless: true
+            json_login:
+                check_path: /api/login
+                username_path: email
+                password_path: password
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+        # api_auth_logout:
+        #     pattern: ^/api/token/invalidate
+        #     stateless: true
+        #     logout:
+        #         path: api_token_invalidate
+        api:
+            pattern: ^/api
+            stateless: true  # APIs must never generate PHP sessions
+            jwt: ~  # Activates JWT authentication on all requests
         main:
             lazy: true
             provider: app_user_provider
@@ -29,7 +58,9 @@ security:
     # Note: Only the *first* matching rule is applied
     access_control:
         # - { path: ^/admin, roles: ROLE_ADMIN }
-        # - { path: ^/profile, roles: ROLE_USER }
+        - { path: ^/api/login,    roles: PUBLIC_ACCESS }
+        - { path: ^/api/register, roles: PUBLIC_ACCESS }
+        - { path: ^/api/,         roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
     security:

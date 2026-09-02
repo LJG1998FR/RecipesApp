@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { AuthMode } from "../types";
 import { EyeIcon, MailIcon, LockIcon } from "../components/icons";
+import { login, register } from "../api";
 
 interface Props {
   onAuth: () => void;
@@ -15,7 +16,7 @@ export default function AuthPage({ onAuth }: Props) {
   const [showPwd, setShowPwd]     = useState(false);
   const [error, setError]         = useState("");
 
-  const handleSubmit = () => {
+  /*const handleSubmit = () => {
     setError("");
     if (mode === "signup" && (!firstName || !lastName))
       return setError("Veuillez renseigner votre prénom et nom.");
@@ -24,6 +25,26 @@ export default function AuthPage({ onAuth }: Props) {
     if (password.length < 8)
       return setError("Le mot de passe doit faire au moins 8 caractères.");
     onAuth();
+  };*/
+  const handleSubmit = async () => {
+    setError("");
+    if (mode === "signup" && (!firstName || !lastName))
+      return setError("Veuillez renseigner votre prénom et nom.");
+    if (!email.includes("@"))
+      return setError("Adresse e-mail invalide.");
+    if (password.length < 8)
+      return setError("Le mot de passe doit faire au moins 8 caractères.");
+
+    try {
+      if (mode === "login") {
+        await login(email, password);
+      } else {
+        await register(email, password, firstName, lastName);
+      }
+      onAuth();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Une erreur est survenue.");
+    }
   };
 
   return (
