@@ -47,6 +47,37 @@ class UserController extends AbstractController
         return $this->json($this->serialize($user), Response::HTTP_OK);
     }
 
+    // ── GET by email /api/users/getUser ────────────────────────────────────────────────────
+        #[Route('/getUser', name: 'findByEmail', methods: ['POST'])]
+    public function findByEmail(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!isset($data["email"])) {
+            return $this->json(
+                ['error' => "There is no email parameter in the Request."],
+                Response::HTTP_INTERNAL_SERVER_ERROR,
+            );
+        }
+        $user = $this->userRepository->findOneBy(["email" => $data["email"]]);
+
+        if (!$user) {
+            return $this->json(
+                ['error' => "User not found."],
+                Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        if (!$this->canAccessUser($user)) {
+            return $this->json(
+                ['error' => 'You are not allowed to view this user.'],
+                Response::HTTP_FORBIDDEN,
+            );
+        }
+
+        return $this->json($this->serialize($user), Response::HTTP_OK);
+    }
+
     // ── PUT /api/users/{id} ────────────────────────────────────────────────────
 
     #[Route('/{id}', name: 'update', methods: ['PUT'], requirements: ['id' => '\d+'])]
@@ -199,13 +230,14 @@ class UserController extends AbstractController
     private function serialize(User $user): array
     {
         return [
-            'id'        => $user->getId(),
+            //'id'        => $user->getId(),
             'email'     => $user->getEmail(),
             'firstName' => $user->getFirstName(),
             'lastName'  => $user->getLastName(),
-            'roles'     => $user->getRoles(),
+            'memberSince' => $user->getCreatedAt(),
+            //'roles'     => $user->getRoles(),
             'recipes'   => $user->getRecipes()->map(fn($r) => [
-                'id'    => $r->getId(),
+                //'id'    => $r->getId(),
                 'title' => $r->getTitle(),
                 'type'  => $r->getType()?->value,
             ])->toArray(),

@@ -7,8 +7,13 @@
  */
 
 import AppRouter from "./router/AppRouter";
+import { UserProvider } from "./context/UserContext";
 import "./styles/global.css";
 
 export default function App() {
-  return <AppRouter />;
+  return (
+    <UserProvider>
+      <AppRouter />
+    </UserProvider>
+  );
 }

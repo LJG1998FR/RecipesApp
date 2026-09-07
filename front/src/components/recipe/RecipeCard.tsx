@@ -50,7 +50,7 @@ export default function RecipeCard({ recipe, onSelect }: Props) {
             backdropFilter: "blur(4px)",
           }}
         >
-          {recipe.prepTime} + {recipe.cookTime}
+          {recipe.prepTime} min. {parseInt(recipe.cookTime) > 0 ? "+" + recipe.cookTime + " min." : ""}
         </span>
       </div>
 
@@ -79,7 +79,7 @@ export default function RecipeCard({ recipe, onSelect }: Props) {
             WebkitBoxOrient: "vertical",
           }}
         >
-          {recipe.subtitle}
+          {/* {recipe.subtitle} */}
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <StarIcon />

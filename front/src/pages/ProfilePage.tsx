@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { EyeIcon, LockIcon, CheckIcon } from "../components/icons";
+import { useUser, getInitials } from "../context/UserContext";
+import { formatMemberSince } from "./AuthPage";
 
 export default function ProfilePage() {
+  const { user } = useUser();
+
   const [editingPassword, setEditingPassword] = useState(false);
   const [currentPwd,  setCurrentPwd]  = useState("");
   const [newPwd,      setNewPwd]      = useState("");
@@ -13,8 +17,8 @@ export default function ProfilePage() {
 
   const handleSave = () => {
     setError("");
-    if (!currentPwd)          return setError("Entrez votre mot de passe actuel.");
-    if (newPwd.length < 8)    return setError("Le nouveau mot de passe doit faire au moins 8 caractères.");
+    if (!currentPwd)           return setError("Entrez votre mot de passe actuel.");
+    if (newPwd.length < 8)     return setError("Le nouveau mot de passe doit faire au moins 8 caractères.");
     if (newPwd !== confirmPwd) return setError("Les mots de passe ne correspondent pas.");
     setSaved(true);
     setEditingPassword(false);
@@ -22,7 +26,7 @@ export default function ProfilePage() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  // ── Champ lecture seule ──────────────────────────────────────────────────────
+  // ── Champ lecture seule ────────────────────────────────────────────────────
   const ReadonlyField = ({ label, value }: { label: string; value: string }) => (
     <div style={{ marginBottom: 16 }}>
       <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 8 }}>
@@ -31,8 +35,7 @@ export default function ProfilePage() {
       <div
         style={{
           display: "flex", alignItems: "center",
-          padding: "13px 16px",
-          borderRadius: 14,
+          padding: "13px 16px", borderRadius: 14,
           backgroundColor: "var(--color-card)",
           border: "1px solid var(--color-border)",
         }}
@@ -40,11 +43,9 @@ export default function ProfilePage() {
         <span style={{ fontSize: 14, color: "var(--color-text)", flex: 1 }}>{value}</span>
         <span
           style={{
-            fontSize: 12,
-            color: "var(--color-text-dim)",
+            fontSize: 12, color: "var(--color-text-dim)",
             backgroundColor: "rgba(255,255,255,0.05)",
-            padding: "3px 10px",
-            borderRadius: 99,
+            padding: "3px 10px", borderRadius: 99,
             border: "1px solid var(--color-border)",
             whiteSpace: "nowrap",
           }}
@@ -55,7 +56,7 @@ export default function ProfilePage() {
     </div>
   );
 
-  // ── Champ mot de passe (input) ───────────────────────────────────────────────
+  // ── Champ mot de passe ─────────────────────────────────────────────────────
   const PwdField = ({
     label, value, onChange, show, onToggle, placeholder,
   }: {
@@ -69,15 +70,12 @@ export default function ProfilePage() {
       <div
         style={{
           display: "flex", alignItems: "center",
-          padding: "0 14px", height: 48,
-          borderRadius: 12,
+          padding: "0 14px", height: 48, borderRadius: 12,
           backgroundColor: "var(--color-surface)",
           border: "1px solid var(--color-border)",
         }}
       >
-        <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}>
-          <LockIcon />
-        </span>
+        <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}><LockIcon /></span>
         <input
           type={show ? "text" : "password"}
           value={value}
@@ -123,7 +121,7 @@ export default function ProfilePage() {
             marginBottom: 14,
           }}
         >
-          M
+          {getInitials(user)}
         </div>
         <p
           style={{
@@ -133,35 +131,33 @@ export default function ProfilePage() {
             marginBottom: 4,
           }}
         >
-          Marie Dupont
+          {user.firstName} {user.lastName}
         </p>
         <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-          membre depuis août 2024
+          membre depuis {formatMemberSince(user.memberSince)}
         </p>
       </div>
 
       <div style={{ padding: "0 20px" }}>
+
         {/* ── Section Informations ── */}
         <p
           style={{
-            fontSize: 11, fontWeight: 700,
-            letterSpacing: "0.1em", textTransform: "uppercase",
-            color: "var(--color-text-dim)",
-            marginBottom: 14,
+            fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
+            textTransform: "uppercase", color: "var(--color-text-dim)", marginBottom: 14,
           }}
         >
           Informations
         </p>
-        <ReadonlyField label="Prénom"          value="Marie" />
-        <ReadonlyField label="Nom"             value="Dupont" />
-        <ReadonlyField label="Adresse e-mail"  value="marie.dupont@example.com" />
+        <ReadonlyField label="Prénom"         value={user.firstName} />
+        <ReadonlyField label="Nom"            value={user.lastName} />
+        <ReadonlyField label="Adresse e-mail" value={user.email} />
 
         {/* ── Section Sécurité ── */}
         <p
           style={{
-            fontSize: 11, fontWeight: 700,
-            letterSpacing: "0.1em", textTransform: "uppercase",
-            color: "var(--color-text-dim)",
+            fontSize: 11, fontWeight: 700, letterSpacing: "0.1em",
+            textTransform: "uppercase", color: "var(--color-text-dim)",
             marginTop: 28, marginBottom: 14,
           }}
         >
@@ -173,12 +169,10 @@ export default function ProfilePage() {
         </label>
 
         {!editingPassword ? (
-          // Ligne mot de passe masqué + bouton Modifier
           <div
             style={{
               display: "flex", alignItems: "center",
-              padding: "13px 16px",
-              borderRadius: 14,
+              padding: "13px 16px", borderRadius: 14,
               backgroundColor: "var(--color-card)",
               border: "1px solid var(--color-border)",
               marginBottom: 24,
@@ -190,25 +184,19 @@ export default function ProfilePage() {
                   key={i}
                   style={{
                     width: 7, height: 7, borderRadius: "50%",
-                    backgroundColor: "var(--color-text-muted)",
-                    display: "inline-block",
+                    backgroundColor: "var(--color-text-muted)", display: "inline-block",
                   }}
                 />
               ))}
             </div>
             <button
               onClick={() => setEditingPassword(true)}
-              style={{
-                fontSize: 13, fontWeight: 600,
-                color: "var(--color-primary)",
-                cursor: "pointer",
-              }}
+              style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)", cursor: "pointer" }}
             >
               Modifier
             </button>
           </div>
         ) : (
-          // Formulaire changement mot de passe
           <div
             style={{
               borderRadius: 16, padding: 16,
@@ -237,8 +225,7 @@ export default function ProfilePage() {
               <div
                 style={{
                   display: "flex", alignItems: "center",
-                  padding: "0 14px", height: 48,
-                  borderRadius: 12,
+                  padding: "0 14px", height: 48, borderRadius: 12,
                   backgroundColor: "var(--color-surface)",
                   border: "1px solid var(--color-border)",
                 }}
@@ -263,14 +250,16 @@ export default function ProfilePage() {
 
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <button
-                onClick={() => { setEditingPassword(false); setError(""); setCurrentPwd(""); setNewPwd(""); setConfirmPwd(""); }}
+                onClick={() => {
+                  setEditingPassword(false); setError("");
+                  setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
+                }}
                 style={{
                   flex: 1, padding: "12px 0", borderRadius: 12,
                   fontSize: 14, fontWeight: 600,
                   backgroundColor: "var(--color-surface)",
                   color: "var(--color-text-muted)",
-                  border: "1px solid var(--color-border)",
-                  cursor: "pointer",
+                  border: "1px solid var(--color-border)", cursor: "pointer",
                 }}
               >
                 Annuler
@@ -281,8 +270,7 @@ export default function ProfilePage() {
                   flex: 1, padding: "12px 0", borderRadius: 12,
                   fontSize: 14, fontWeight: 600,
                   backgroundColor: "var(--color-primary)",
-                  color: "#171210",
-                  cursor: "pointer",
+                  color: "#171210", cursor: "pointer",
                 }}
               >
                 Enregistrer
@@ -291,7 +279,6 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Confirmation sauvegarde */}
         {saved && (
           <div
             style={{
@@ -308,17 +295,12 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Bouton déconnexion */}
         <button
           style={{
-            width: "100%",
-            padding: "15px 0",
-            borderRadius: 16,
+            width: "100%", padding: "15px 0", borderRadius: 16,
             fontSize: 14, fontWeight: 600,
-            backgroundColor: "rgba(180,50,50,0.15)",
-            color: "#e07070",
-            border: "1px solid rgba(180,50,50,0.25)",
-            cursor: "pointer",
+            backgroundColor: "rgba(180,50,50,0.15)", color: "#e07070",
+            border: "1px solid rgba(180,50,50,0.25)", cursor: "pointer",
           }}
         >
           Se déconnecter

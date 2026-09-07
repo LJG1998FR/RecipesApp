@@ -109,7 +109,7 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
               border: "1px solid rgba(224,154,90,0.3)",
             }}
           >
-            {recipe.category}
+            {recipe.type}
           </span>
         </div>
       </div>

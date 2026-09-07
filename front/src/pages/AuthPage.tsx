@@ -1,61 +1,56 @@
 import { useState } from "react";
 import type { AuthMode } from "../types";
+import type { UserData } from "../context/UserContext";
 import { EyeIcon, MailIcon, LockIcon } from "../components/icons";
-import { login, register } from "../api";
+import { getUserData, login } from "../api";
 
 interface Props {
-  onAuth: () => void;
+  onAuth: (userData: UserData) => void;
+}
+
+// Formate "août 2024" depuis la date courante
+export function formatMemberSince(userTsp: number): string {
+  return new Date(userTsp * 1000).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
 export default function AuthPage({ onAuth }: Props) {
-  const [mode, setMode]           = useState<AuthMode>("login");
-  const [email, setEmail]         = useState("");
-  const [password, setPassword]   = useState("");
+  const [mode,      setMode]      = useState<AuthMode>("login");
+  const [email,     setEmail]     = useState("");
+  const [password,  setPassword]  = useState("");
   const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName]   = useState("");
-  const [showPwd, setShowPwd]     = useState(false);
-  const [error, setError]         = useState("");
+  const [lastName,  setLastName]  = useState("");
+  const [showPwd,   setShowPwd]   = useState(false);
+  const [error,     setError]     = useState("");
 
-  /*const handleSubmit = () => {
-    setError("");
-    if (mode === "signup" && (!firstName || !lastName))
-      return setError("Veuillez renseigner votre prénom et nom.");
-    if (!email.includes("@"))
-      return setError("Adresse e-mail invalide.");
-    if (password.length < 8)
-      return setError("Le mot de passe doit faire au moins 8 caractères.");
-    onAuth();
-  };*/
   const handleSubmit = async () => {
     setError("");
-    if (mode === "signup" && (!firstName || !lastName))
+    if (mode === "signup" && (!firstName.trim() || !lastName.trim()))
       return setError("Veuillez renseigner votre prénom et nom.");
     if (!email.includes("@"))
       return setError("Adresse e-mail invalide.");
     if (password.length < 8)
       return setError("Le mot de passe doit faire au moins 8 caractères.");
 
-    try {
-      if (mode === "login") {
-        await login(email, password);
-      } else {
-        await register(email, password, firstName, lastName);
-      }
-      onAuth();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Une erreur est survenue.");
-    }
+    /*const userData: UserData =
+      mode === "signup"
+        ? { firstName: firstName.trim(), lastName: lastName.trim(), email, memberSince: formatMemberSince() }
+        : { firstName: "Marie", lastName: "Dupont", email, memberSince: "août 2024" };*/
+
+        var userData: UserData;
+        if (mode === "signup") {
+          userData = { firstName: firstName.trim(), lastName: lastName.trim(), email, memberSince: Date.now() };
+        } else {
+          const res = await login(email, password);
+          userData = await getUserData(email);
+        }
+
+    onAuth(userData);
   };
 
   return (
-    /*
-     * Container principal : min-h-full (et non h-full) pour que la page
-     * soit scrollable sur petits écrans quand le clavier mobile s'ouvre,
-     * sans être bloquée par overflow:hidden.
-     */
     <div
       style={{
-        minHeight: "100dvh",           /* dvh = tient compte de la barre URL mobile */
+        minHeight: "100dvh",
         display: "flex",
         flexDirection: "column",
         fontFamily: "var(--font-body)",
@@ -64,17 +59,13 @@ export default function AuthPage({ onAuth }: Props) {
         margin: "0 auto",
       }}
     >
-      {/* ── Hero : image + dégradé + titre ────────────────────────────────── */}
-      <div
-        className="relative flex-shrink-0"
-        style={{ height: "clamp(260px, 45vh, 360px)" }}  /* responsive : jamais trop petit ni trop grand */
-      >
+      {/* ── Hero ── */}
+      <div className="relative flex-shrink-0" style={{ height: "clamp(260px, 45vh, 360px)" }}>
         <img
           src="https://images.unsplash.com/photo-1493770348161-369560ae357d?w=800&h=600&fit=crop&auto=format"
           alt="Cuisine"
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
         />
-        {/* Dégradé plus prononcé en bas pour que le titre soit lisible */}
         <div
           className="absolute inset-0"
           style={{
@@ -82,7 +73,6 @@ export default function AuthPage({ onAuth }: Props) {
               "linear-gradient(to bottom, rgba(23,18,16,0.15) 0%, rgba(23,18,16,0.5) 50%, rgba(23,18,16,1) 100%)",
           }}
         />
-        {/* Titre positionné en bas du hero, calé sur le padding du formulaire */}
         <div className="absolute" style={{ bottom: 32, left: 24 }}>
           <h1
             style={{
@@ -103,20 +93,10 @@ export default function AuthPage({ onAuth }: Props) {
         </div>
       </div>
 
-      {/* ── Formulaire ─────────────────────────────────────────────────────── */}
-      {/*
-       * On utilise un div scrollable indépendant (overflow-y: auto) pour que
-       * le formulaire scroll sans affecter le hero. Le padding-bottom laisse
-       * de l'air en bas, surtout sur mobile avec barre de navigation.
-       */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "109px 24px 48px",
-        }}
-      >
-        {/* Toggle Connexion / Inscription */}
+      {/* ── Formulaire ── */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "109px 24px 48px" }}>
+
+        {/* Toggle */}
         <div
           style={{
             display: "flex",
@@ -147,7 +127,7 @@ export default function AuthPage({ onAuth }: Props) {
           ))}
         </div>
 
-        {/* Champs prénom + nom (inscription uniquement) */}
+        {/* Prénom + Nom (inscription) */}
         {mode === "signup" && (
           <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
             {[
@@ -180,17 +160,15 @@ export default function AuthPage({ onAuth }: Props) {
           </div>
         )}
 
-        {/* Champ e-mail */}
+        {/* E-mail */}
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
             Adresse e-mail
           </label>
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "0 16px",
-              height: 52,
+              display: "flex", alignItems: "center",
+              padding: "0 16px", height: 52,
               borderRadius: 12,
               backgroundColor: "var(--color-card)",
               border: "1px solid var(--color-border)",
@@ -203,29 +181,22 @@ export default function AuthPage({ onAuth }: Props) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="marie@example.com"
               style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                fontSize: 14,
-                color: "var(--color-text)",
-                caretColor: "var(--color-primary)",
+                flex: 1, background: "transparent", border: "none", outline: "none",
+                fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
               }}
             />
           </div>
         </div>
 
-        {/* Champ mot de passe */}
+        {/* Mot de passe */}
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
             Mot de passe
           </label>
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "0 16px",
-              height: 52,
+              display: "flex", alignItems: "center",
+              padding: "0 16px", height: 52,
               borderRadius: 12,
               backgroundColor: "var(--color-card)",
               border: "1px solid var(--color-border)",
@@ -238,25 +209,16 @@ export default function AuthPage({ onAuth }: Props) {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min. 8 caractères"
               style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                fontSize: 14,
-                color: "var(--color-text)",
-                caretColor: "var(--color-primary)",
+                flex: 1, background: "transparent", border: "none", outline: "none",
+                fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
               }}
             />
-            <button
-              onClick={() => setShowPwd((s) => !s)}
-              style={{ color: "var(--color-text-dim)", flexShrink: 0, marginLeft: 8 }}
-            >
+            <button onClick={() => setShowPwd((s) => !s)} style={{ color: "var(--color-text-dim)", flexShrink: 0, marginLeft: 8 }}>
               <EyeIcon off={!showPwd} />
             </button>
           </div>
         </div>
 
-        {/* Lien mot de passe oublié */}
         {mode === "login" && (
           <div style={{ textAlign: "right", marginBottom: 8 }}>
             <button style={{ fontSize: 12, color: "var(--color-primary)" }}>
@@ -265,23 +227,16 @@ export default function AuthPage({ onAuth }: Props) {
           </div>
         )}
 
-        {/* Message d'erreur */}
         {error && (
           <p style={{ fontSize: 12, color: "#e07070", marginTop: 12, marginBottom: 4 }}>{error}</p>
         )}
 
-        {/* Bouton principal */}
         <button
           onClick={handleSubmit}
           style={{
-            width: "100%",
-            marginTop: 24,
-            padding: "16px 0",
-            borderRadius: 16,
-            fontSize: 15,
-            fontWeight: 600,
-            backgroundColor: "var(--color-primary)",
-            color: "#171210",
+            width: "100%", marginTop: 24, padding: "16px 0",
+            borderRadius: 16, fontSize: 15, fontWeight: 600,
+            backgroundColor: "var(--color-primary)", color: "#171210",
             transition: "opacity 0.2s",
           }}
           onMouseOver={(e) => (e.currentTarget.style.opacity = "0.88")}
@@ -290,14 +245,12 @@ export default function AuthPage({ onAuth }: Props) {
           {mode === "login" ? "Se connecter" : "Créer mon compte"}
         </button>
 
-        {/* Séparateur "ou" */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0" }}>
           <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border)" }} />
           <span style={{ fontSize: 12, color: "var(--color-text-dim)" }}>ou</span>
           <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border)" }} />
         </div>
 
-        {/* Lien switch connexion ↔ inscription */}
         <p style={{ fontSize: 12, textAlign: "center", color: "var(--color-text-dim)" }}>
           {mode === "login" ? "Pas encore de compte ? " : "Déjà un compte ? "}
           <button

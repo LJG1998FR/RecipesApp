@@ -46,6 +46,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Recipe::class, mappedBy: 'user')]
     private Collection $recipes;
 
+    #[ORM\Column]
+    private ?int $created_at = null;
+
     public function __construct()
     {
         $this->recipes = new ArrayCollection();
@@ -182,6 +185,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $recipe->setUser(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getCreatedAt(): ?int
+    {
+        return $this->created_at;
+    }
+
+    public function setCreatedAt(int $created_at): static
+    {
+        $this->created_at = $created_at;
 
         return $this;
     }

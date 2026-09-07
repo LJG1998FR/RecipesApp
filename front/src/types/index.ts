@@ -3,7 +3,7 @@ export interface Recipe {
   id: number;
   title: string;
   subtitle: string;
-  category: string;
+  type: string;
   prepTime: string;
   cookTime: string;
   rating: number;
@@ -13,6 +13,14 @@ export interface Recipe {
   tips: string[];
   ingredients: string[];
   steps: string[];
+}
+
+// Données user
+
+export interface User {
+  firstname: string;
+  lastname: string;
+  email: string;
 }
 
 // ── Catégories disponibles ─────────────────────────────────────────────────────

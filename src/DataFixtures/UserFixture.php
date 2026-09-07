@@ -23,6 +23,7 @@ class UserFixture extends Fixture implements FixtureGroupInterface
         $user->setEmail('ljgalt1@gmail.com');
         $user->setFirstName('Loïc');
         $user->setLastName('Gueret');
+        $user->setCreatedAt(time());
         $user->setRoles(['ROLE_SUPER_ADMIN']);
 
         $password = $this->hasher->hashPassword($user, 'test1234');
@@ -34,6 +35,7 @@ class UserFixture extends Fixture implements FixtureGroupInterface
         $secondUser->setEmail('test@test.dev');
         $secondUser->setFirstName('Second');
         $secondUser->setLastName('User');
+        $user->setCreatedAt(time());
 
         $password = $this->hasher->hashPassword($secondUser, 'test1235');
         $secondUser->setPassword($password);
@@ -44,6 +46,7 @@ class UserFixture extends Fixture implements FixtureGroupInterface
         $thirdUser->setEmail('lucas.grey@test.dev');
         $thirdUser->setFirstName('Lucas');
         $thirdUser->setLastName('Grey');
+        $user->setCreatedAt(time());
 
         $password = $this->hasher->hashPassword($thirdUser, 'test1236');
         $thirdUser->setPassword($password);

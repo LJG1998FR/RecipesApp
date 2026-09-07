@@ -1,23 +1,35 @@
-import { useState } from "react";
-import type { Category } from "../types";
+import { useEffect, useState } from "react";
+import type { Category, Recipe } from "../types";
 import { CATEGORIES } from "../types";
 import { recipes } from "../data/recipes";
+import { fetchRecipes } from "../api/index";
 import RecipeCard from "../components/recipe/RecipeCard";
 import { SearchIcon } from "../components/icons";
+import { useUser, getInitials } from "../context/UserContext";
 
 interface Props {
   onSelectRecipe: (id: number) => void;
 }
 
 export default function HomePage({ onSelectRecipe }: Props) {
+  const { user } = useUser();
   const [activeCategory, setActiveCategory] = useState<Category>("Tout");
   const [search, setSearch] = useState("");
+  const [fetched, setFetched] = useState<Recipe[]>([]);
 
-  const filtered = recipes.filter(
+ 
+  const filtered = fetched.filter(
     (r) =>
-      (activeCategory === "Tout" || r.category === activeCategory) &&
+      (activeCategory === "Tout" || r.type === activeCategory) &&
       (search === "" || r.title.toLowerCase().includes(search.toLowerCase()))
   );
+
+  useEffect(() => {
+    fetchRecipes()
+    .then((res) => {
+      setFetched(res);
+    })
+  }, [activeCategory, search])
 
   return (
     <div style={{ fontFamily: "var(--font-body)" }}>
@@ -33,7 +45,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
       >
         {/* Salutation */}
         <p style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text)" }}>
-          Bonjour, Marie 👋
+          Bonjour, {user.firstName} 👋
         </p>
 
         {/* Avatar circulaire */}
@@ -53,7 +65,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
             flexShrink: 0,
           }}
         >
-          M
+          {getInitials(user)}
         </div>
       </div>
 

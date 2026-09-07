@@ -1,25 +1,34 @@
 import { useState } from "react";
 import type { AppView, NavTab } from "../types";
+import type { UserData } from "../context/UserContext";
+import { useUser } from "../context/UserContext";
 
 import AuthPage         from "../pages/AuthPage";
 import HomePage         from "../pages/HomePage";
 import RecipeDetailPage from "../pages/RecipeDetailPage";
 import ProfilePage      from "../pages/ProfilePage";
 import BottomNav        from "../components/layout/BottomNav";
-import AddRecipePage from "../components/recipe/AddRecipePage";
+import AddRecipePage    from "../components/recipe/AddRecipePage";
 
 export default function AppRouter() {
+  const { setUser }  = useUser();
   const [authed,     setAuthed]     = useState(false);
   const [view,       setView]       = useState<AppView>("home");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [activeNav,  setActiveNav]  = useState<NavTab>("home");
 
-  // ── Non connecté ──────────────────────────────────────────────────────────
+  // ── Connexion : on hydrate le contexte avec les données reçues ─────────────
+  const handleAuth = (userData: UserData) => {
+    setUser(userData);
+    setAuthed(true);
+  };
+
+  // ── Non connecté ───────────────────────────────────────────────────────────
   if (!authed) {
-    return <AuthPage onAuth={() => setAuthed(true)} />;
+    return <AuthPage onAuth={handleAuth} />;
   }
 
-  // ── Détail recette : plein écran sans BottomNav ───────────────────────────
+  // ── Détail recette : plein écran sans BottomNav ────────────────────────────
   if (view === "detail" && selectedId !== null) {
     return (
       <div
@@ -38,16 +47,14 @@ export default function AppRouter() {
     );
   }
 
-  // ── Pages principales ─────────────────────────────────────────────────────
+  // ── Pages principales ──────────────────────────────────────────────────────
   const openRecipe = (id: number) => { setSelectedId(id); setView("detail"); };
-
   const handleNavChange = (tab: NavTab) => { setActiveNav(tab); };
 
   const renderPage = () => {
-    console.log(activeNav);
-    if (activeNav === "profile") return <ProfilePage />;
-    if (activeNav === "addrecipe") return <AddRecipePage onCancel={function (): void {} } />;
-    if (activeNav === "saved") return (
+    if (activeNav === "profile")   return <ProfilePage />;
+    if (activeNav === "addrecipe") return <AddRecipePage onCancel={() => {}} />;
+    if (activeNav === "saved")     return (
       <div
         style={{
           display: "flex", flexDirection: "column",
@@ -65,12 +72,6 @@ export default function AppRouter() {
   };
 
   return (
-    /*
-     * Le container principal est scrollable (overflowY: auto).
-     * La BottomNav est en position:fixed dans son propre composant,
-     * donc elle ne fait pas partie du flux et n'a pas besoin d'un
-     * wrapper flex-col ici.
-     */
     <div
       style={{
         backgroundColor: "var(--color-background)",
@@ -78,7 +79,6 @@ export default function AppRouter() {
         margin: "0 auto",
         minHeight: "100dvh",
         overflowY: "auto",
-        /* Empêche le contenu de passer sous la BottomNav fixe (~72px) */
         paddingBottom: 80,
       }}
     >

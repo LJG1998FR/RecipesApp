@@ -10,6 +10,9 @@
  *   VITE_API_URL=http://localhost:8000
  */
 
+import { Recipe, User } from "@/types";
+import { useState } from "react";
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -47,6 +50,16 @@ export async function login(email: string, password: string) {
   return data;
 }
 
+export async function getUserData(email: string) {
+  const res = await fetch(`${BASE_URL}/api/users/getUser`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ email }),
+  });
+  const data = await handleResponse<{ email: string, firstName: string, lastName: string, memberSince: number, recipes: Recipe[] }>(res);
+  return data;
+}
+
 export async function register(
   email: string,
   password: string,
@@ -69,12 +82,12 @@ export function logout() {
 
 // ── Recettes ───────────────────────────────────────────────────────────────────
 
-export async function fetchRecipes() {
+export async function fetchRecipes() : Promise<Recipe[]> {
   const res = await fetch(`${BASE_URL}/api/recipes`, { headers: authHeaders() });
   return handleResponse(res);
 }
 
-export async function fetchRecipe(id: number) {
+export async function fetchRecipe(id: number) : Promise<Recipe> {
   const res = await fetch(`${BASE_URL}/api/recipes/${id}`, { headers: authHeaders() });
   return handleResponse(res);
 }
