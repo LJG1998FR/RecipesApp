@@ -9,10 +9,11 @@ import RecipeDetailPage from "../pages/RecipeDetailPage";
 import ProfilePage      from "../pages/ProfilePage";
 import BottomNav        from "../components/layout/BottomNav";
 import AddRecipePage    from "../components/recipe/AddRecipePage";
+import { isAuthenticated } from "../api";
 
 export default function AppRouter() {
   const { setUser }  = useUser();
-  const [authed,     setAuthed]     = useState(false);
+  const [authed, setAuthed] = useState<boolean>(isAuthenticated());
   const [view,       setView]       = useState<AppView>("home");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [activeNav,  setActiveNav]  = useState<NavTab>("home");

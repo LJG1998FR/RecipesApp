@@ -1,4 +1,6 @@
-import { createContext, useContext, useState } from "react";
+import { tokenStorage } from "../api/client";
+import { getUserData } from "../api";
+import { createContext, useContext, useEffect, useState } from "react";
 
 // ── Type UserData ──────────────────────────────────────────────────────────────
 export interface UserData {
@@ -8,25 +10,40 @@ export interface UserData {
   memberSince: number;
 }
 
-// ── Valeurs par défaut (remplacées après login) ────────────────────────────────
-const DEFAULT_USER: UserData = {
-  firstName:   "Marie",
-  lastName:    "Dupont",
-  email:       "marie.dupont@example.com",
-  memberSince: 1784890472,
-};
-
 // ── Contexte ───────────────────────────────────────────────────────────────────
 interface UserContextValue {
-  user: UserData;
-  setUser: (data: UserData) => void;
+  user: UserData | null;
+  setUser: (data: UserData | null) => void;
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
 
 // ── Provider ───────────────────────────────────────────────────────────────────
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserData>(DEFAULT_USER);
+  const [user, setUser] = useState<UserData | null>(null);
+
+  // if there is an existing token, get user profile
+  useEffect(() => {
+    const init = async () => {
+        if (tokenStorage.getAccess()) {
+          try {
+            const data = await getUserData();
+            setUser(data);
+          } catch {
+            tokenStorage.clear();
+          }
+        }
+        //setLoading(false);
+    };
+    init();
+  }, []);
+
+  // Listen to global event sent by interceptor
+  useEffect(() => {
+      const handleLogout = () => setUser(null);
+      window.addEventListener('auth:logout', handleLogout);
+      return () => window.removeEventListener('auth:logout', handleLogout);
+  }, []);
 
   return (
     <UserContext.Provider value={{ user, setUser }}>
@@ -36,7 +53,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────────
-export function useUser(): UserContextValue {
+export function useUser() : any {
   const ctx = useContext(UserContext);
   if (!ctx) throw new Error("useUser must be used inside <UserProvider>");
   return ctx;

@@ -4,10 +4,12 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -67,5 +69,25 @@ class AuthController extends AbstractController
                 'lastName'  => $user->getLastName(),
             ],
         ], 201);
+    }
+
+    #[Route('/logout', name: 'logout', methods: ['POST'])]
+    public function logout(Request $request, RefreshTokenManagerInterface $refreshTokenManager): JsonResponse {
+        $data = $request->request->all();
+        $tokenString = $data['refresh_token'] ?? null;
+
+        if (!$tokenString) {
+            return $this->json(['error' => 'Missing refresh token'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $refreshToken = $refreshTokenManager->get($tokenString);
+
+        if (!$refreshToken) {
+            return $this->json(['error' => 'Invalid token'], Response::HTTP_NOT_FOUND);
+        }
+
+        $refreshTokenManager->delete($refreshToken);
+
+        return $this->json(['message' => 'Logout successful'], Response::HTTP_OK);
     }
 }

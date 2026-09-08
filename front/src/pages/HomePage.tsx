@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Category, Recipe } from "../types";
 import { CATEGORIES } from "../types";
-import { recipes } from "../data/recipes";
 import { fetchRecipes } from "../api/index";
 import RecipeCard from "../components/recipe/RecipeCard";
 import { SearchIcon } from "../components/icons";
@@ -18,7 +17,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
   const [fetched, setFetched] = useState<Recipe[]>([]);
 
  
-  const filtered = fetched.filter(
+  /*const filtered = fetched.filter(
     (r) =>
       (activeCategory === "Tout" || r.type === activeCategory) &&
       (search === "" || r.title.toLowerCase().includes(search.toLowerCase()))
@@ -29,7 +28,28 @@ export default function HomePage({ onSelectRecipe }: Props) {
     .then((res) => {
       setFetched(res);
     })
-  }, [activeCategory, search])
+  }, [activeCategory, search])*/
+
+  // ✅ Fetch une seule fois au montage du composant
+  useEffect(() => {
+    fetchRecipes().then((res) => setFetched(res));
+  }, []); // ← tableau vide = une seule fois
+
+  // ✅ Le filtre se fait en mémoire, pas via l'API
+  const filtered = fetched.filter(
+    (r) =>
+      (activeCategory === "Tout" || r.type === activeCategory) &&
+      (search === "" || r.title.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  // ✅ Garde-fou pendant le chargement de l'utilisateur
+  if (!user) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
+        <p style={{ color: "var(--color-text-muted)", fontSize: 14 }}>Chargement…</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: "var(--font-body)" }}>

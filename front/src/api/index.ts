@@ -12,13 +12,14 @@
 
 import { Recipe, User } from "@/types";
 import { useState } from "react";
+import apiClient, { tokenStorage } from "./client";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function getToken(): string | null {
-  return localStorage.getItem("token");
+  return tokenStorage.getAccess();
 }
 
 function authHeaders(): HeadersInit {
@@ -46,18 +47,17 @@ export async function login(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
   const data = await handleResponse<{ token: string }>(res);
-  localStorage.setItem("token", data.token);
+  tokenStorage.setTokens(data);
   return data;
 }
 
-export async function getUserData(email: string) {
+export async function getUserData() {
   const res = await fetch(`${BASE_URL}/api/users/getUser`, {
     method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({ email }),
+    headers: authHeaders()
   });
-  const data = await handleResponse<{ email: string, firstName: string, lastName: string, memberSince: number, recipes: Recipe[] }>(res);
-  return data;
+  //const data = await handleResponse<{ email: string, firstName: string, lastName: string, memberSince: number, recipes: Recipe[] }>(res);
+  return res.json();
 }
 
 export async function register(
@@ -72,12 +72,18 @@ export async function register(
     body: JSON.stringify({ email, password, firstName, lastName }),
   });
   const data = await handleResponse<{ token: string; user: object }>(res);
-  localStorage.setItem("token", data.token);
+  //localStorage.setItem("token", data.token);
+  tokenStorage.setTokens(data);
   return data;
 }
 
-export function logout() {
-  localStorage.removeItem("token");
+export async function logout() {
+  const resp = await apiClient.post('/api/token/invalidate', { refresh_token: tokenStorage.getRefresh() });
+	tokenStorage.clear();
+}
+
+export function isAuthenticated(): boolean {
+  return getToken() !== null;
 }
 
 // ── Recettes ───────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { EyeIcon, LockIcon, CheckIcon } from "../components/icons";
 import { useUser, getInitials } from "../context/UserContext";
 import { formatMemberSince } from "./AuthPage";
+import { logout } from "../api";
 
 export default function ProfilePage() {
   const { user } = useUser();
@@ -92,6 +93,16 @@ export default function ProfilePage() {
       </div>
     </div>
   );
+
+  async function handleLogout() {
+	try {
+		await logout();
+		//navigate('/login', { replace: true });
+    console.log("logout");
+	} catch (error) {
+		console.error(error);
+	}
+};
 
   return (
     <div
@@ -302,6 +313,7 @@ export default function ProfilePage() {
             backgroundColor: "rgba(180,50,50,0.15)", color: "#e07070",
             border: "1px solid rgba(180,50,50,0.25)", cursor: "pointer",
           }}
+          onClick={handleLogout}
         >
           Se déconnecter
         </button>

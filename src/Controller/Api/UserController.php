@@ -48,24 +48,21 @@ class UserController extends AbstractController
     }
 
     // ── GET by email /api/users/getUser ────────────────────────────────────────────────────
-        #[Route('/getUser', name: 'findByEmail', methods: ['POST'])]
-    public function findByEmail(Request $request): JsonResponse
+    #[Route('/getUser', name: 'getUserData', methods: ['POST'])]
+    public function getUserData(): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
+        $user = $this->getUser();
+        if(!$user){
+            $response = [
+                "success" => false,
+                 'error' => [
+                    'code' => 'INVALID_PARAMETER',
+                    'message' => "No user"
+                ]
+            ];
 
-        if (!isset($data["email"])) {
-            return $this->json(
-                ['error' => "There is no email parameter in the Request."],
-                Response::HTTP_INTERNAL_SERVER_ERROR,
-            );
-        }
-        $user = $this->userRepository->findOneBy(["email" => $data["email"]]);
-
-        if (!$user) {
-            return $this->json(
-                ['error' => "User not found."],
-                Response::HTTP_NOT_FOUND,
-            );
+            
+            return new JsonResponse($response, 404);
         }
 
         if (!$this->canAccessUser($user)) {

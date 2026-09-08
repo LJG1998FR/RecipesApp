@@ -31,17 +31,12 @@ export default function AuthPage({ onAuth }: Props) {
     if (password.length < 8)
       return setError("Le mot de passe doit faire au moins 8 caractères.");
 
-    /*const userData: UserData =
-      mode === "signup"
-        ? { firstName: firstName.trim(), lastName: lastName.trim(), email, memberSince: formatMemberSince() }
-        : { firstName: "Marie", lastName: "Dupont", email, memberSince: "août 2024" };*/
-
         var userData: UserData;
         if (mode === "signup") {
           userData = { firstName: firstName.trim(), lastName: lastName.trim(), email, memberSince: Date.now() };
         } else {
           const res = await login(email, password);
-          userData = await getUserData(email);
+          userData = await getUserData();
         }
 
     onAuth(userData);
