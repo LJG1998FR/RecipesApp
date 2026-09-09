@@ -39,6 +39,14 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
   const [activeTab, setActiveTab] = useState<"ingredients" | "steps">("ingredients");
   const [tipsOpen,  setTipsOpen]  = useState(false);
 
+  var statsIcons = [
+    { icon: <ClockIcon size={16} />, value: recipe.prepTime,          label: "Préparation" }
+  ];
+
+  if(recipe.cookTime !== null){
+    statsIcons.push({ icon: <FlameIcon />,           value: recipe.cookTime,           label: "Cuisson"     });
+  }
+
   return (
     <div
       style={{
@@ -130,9 +138,6 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
         >
           {recipe.title}
         </h1>
-        {/* <p style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: 20 }}>
-          {recipe.subtitle}
-        </p> */}
 
         {/* Stats prépa / cuisson / note */}
         <div
@@ -144,11 +149,7 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
             overflow: "hidden",
           }}
         >
-          {[
-            { icon: <ClockIcon size={16} />, value: recipe.prepTime,          label: "Préparation" },
-            { icon: <FlameIcon />,           value: recipe.cookTime,           label: "Cuisson"     },
-            { icon: <StarIcon />,            value: `${recipe.rating}`,        label: `${recipe.reviews} avis` },
-          ].map(({ icon, value, label }, idx) => (
+          {statsIcons.map(({ icon, value, label }, idx) => (
             <div
               key={idx}
               style={{
@@ -165,11 +166,6 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
             </div>
           ))}
         </div>
-
-        {/* Description */}
-        {/* <p style={{ fontSize: 14, lineHeight: 1.7, color: "var(--color-text-muted)", marginBottom: 20 }}>
-          {recipe.description}
-        </p> */}
 
         {/* ── Astuces du chef (accordion) ── */}
         {recipe.tips.length > 0 && (

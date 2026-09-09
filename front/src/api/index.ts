@@ -56,7 +56,6 @@ export async function getUserData() {
     method: "POST",
     headers: authHeaders()
   });
-  //const data = await handleResponse<{ email: string, firstName: string, lastName: string, memberSince: number, recipes: Recipe[] }>(res);
   return res.json();
 }
 
@@ -72,14 +71,37 @@ export async function register(
     body: JSON.stringify({ email, password, firstName, lastName }),
   });
   const data = await handleResponse<{ token: string; user: object }>(res);
-  //localStorage.setItem("token", data.token);
   tokenStorage.setTokens(data);
   return data;
 }
 
-export async function logout() {
-  const resp = await apiClient.post('/api/token/invalidate', { refresh_token: tokenStorage.getRefresh() });
-	tokenStorage.clear();
+export async function updateUser(
+  email: string,
+  password: string
+  ) {
+  const res = await fetch(`${BASE_URL}/api/users/update`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await handleResponse<{ user: object }>(res);
+  return data;
+}
+
+export async function logout(): Promise<void> {
+  
+  const res = await fetch(`${BASE_URL}/api/logout`, {
+    method: "POST",
+    headers: authHeaders(),
+    redirect: "manual",
+    body: JSON.stringify({refresh_token: tokenStorage.getRefresh()})
+  });
+
+  tokenStorage.clear();
+
+  if (!res.ok) {
+    throw new Error(`Erreur serveur lors de la déconnexion : ${res.status}`);
+  }
 }
 
 export function isAuthenticated(): boolean {

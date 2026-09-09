@@ -1,5 +1,8 @@
-import { recipes } from "../data/recipes";
+//import { recipes } from "../data/recipes";
+import { Recipe } from "@/types";
+import { fetchRecipe } from "../api";
 import RecipeDetail from "../components/recipe/RecipeDetail";
+import { useEffect, useState } from "react";
 
 interface Props {
   recipeId: number;
@@ -7,7 +10,13 @@ interface Props {
 }
 
 export default function RecipeDetailPage({ recipeId, onBack }: Props) {
-  const recipe = recipes.find((r) => r.id === recipeId);
+  //const recipe = recipes.find((r) => r.id === recipeId);
+  const [recipe, setRecipe] = useState<Recipe|null>(null);
+
+  // ✅ Fetch une seule fois au montage du composant
+  useEffect(() => {
+    fetchRecipe(recipeId).then((res) => setRecipe(res));
+  }, []); // ← tableau vide = une seule fois
 
   // Garde-fou : recette introuvable
   if (!recipe) {

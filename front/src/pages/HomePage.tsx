@@ -16,20 +16,6 @@ export default function HomePage({ onSelectRecipe }: Props) {
   const [search, setSearch] = useState("");
   const [fetched, setFetched] = useState<Recipe[]>([]);
 
- 
-  /*const filtered = fetched.filter(
-    (r) =>
-      (activeCategory === "Tout" || r.type === activeCategory) &&
-      (search === "" || r.title.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  useEffect(() => {
-    fetchRecipes()
-    .then((res) => {
-      setFetched(res);
-    })
-  }, [activeCategory, search])*/
-
   // ✅ Fetch une seule fois au montage du composant
   useEffect(() => {
     fetchRecipes().then((res) => setFetched(res));

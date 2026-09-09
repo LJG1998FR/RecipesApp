@@ -75,16 +75,26 @@ class UserController extends AbstractController
         return $this->json($this->serialize($user), Response::HTTP_OK);
     }
 
-    // ── PUT /api/users/{id} ────────────────────────────────────────────────────
+    // ── PUT /api/users/update ────────────────────────────────────────────────────
 
-    #[Route('/{id}', name: 'update', methods: ['PUT'], requirements: ['id' => '\d+'])]
-    public function update(int $id, Request $request): JsonResponse
+    #[Route('/update', name: 'update', methods: ['PUT'])]
+    public function update(Request $request): JsonResponse
     {
-        $user = $this->userRepository->find($id);
+        
+        $data = json_decode($request->getContent(), true);
+
+        if (!is_array($data)) {
+            return $this->json(
+                ['error' => 'Invalid JSON body.'],
+                Response::HTTP_BAD_REQUEST,
+            );
+        }
+
+        $user = $this->userRepository->findOneBy(["email" => $data["email"]]);
 
         if (!$user) {
             return $this->json(
-                ['error' => "User with id $id not found."],
+                ['error' => "User with email " . $data['email'] . " not found."],
                 Response::HTTP_NOT_FOUND,
             );
         }
@@ -93,15 +103,6 @@ class UserController extends AbstractController
             return $this->json(
                 ['error' => 'You are not allowed to update this user.'],
                 Response::HTTP_FORBIDDEN,
-            );
-        }
-
-        $data = json_decode($request->getContent(), true);
-
-        if (!is_array($data)) {
-            return $this->json(
-                ['error' => 'Invalid JSON body.'],
-                Response::HTTP_BAD_REQUEST,
             );
         }
 

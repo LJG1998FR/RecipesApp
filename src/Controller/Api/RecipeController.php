@@ -61,7 +61,7 @@ class RecipeController extends AbstractController
             'nbPeople'    => $recipe->getNbPeople(),
             'prepTime'    => $recipe->getPrepTime(),
             'cookingTime' => $recipe->getCookingTime(),
-            'tips'        => $recipe->getTips(),
+            'tips'        => ($recipe->getTips() === null) ? [] : explode('\n', $recipe->getTips()),
             'steps'       => $recipe->getSteps()->map(fn($s) => [
                 'index'       => $s->getIndex(),
                 'description' => $s->getDescription(),

@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { AuthMode } from "../types";
 import type { UserData } from "../context/UserContext";
 import { EyeIcon, MailIcon, LockIcon } from "../components/icons";
-import { getUserData, login } from "../api";
+import { getUserData, login, register } from "../api";
 
 interface Props {
   onAuth: (userData: UserData) => void;
@@ -33,11 +33,11 @@ export default function AuthPage({ onAuth }: Props) {
 
         var userData: UserData;
         if (mode === "signup") {
-          userData = { firstName: firstName.trim(), lastName: lastName.trim(), email, memberSince: Date.now() };
+          await register(email, password, firstName, lastName);
         } else {
-          const res = await login(email, password);
-          userData = await getUserData();
+          await login(email, password);
         }
+        userData = await getUserData();
 
     onAuth(userData);
   };
@@ -248,7 +248,7 @@ export default function AuthPage({ onAuth }: Props) {
 
         <p style={{ fontSize: 12, textAlign: "center", color: "var(--color-text-dim)" }}>
           {mode === "login" ? "Pas encore de compte ? " : "Déjà un compte ? "}
-          <button
+          <button type="submit"
             onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
             style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)" }}
           >

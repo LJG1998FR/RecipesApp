@@ -36,11 +36,6 @@ security:
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
 
-        api_auth_logout:
-            pattern: ^/api/token/invalidate
-            stateless: true
-            logout:
-                path: api_token_invalidate
         api:
             pattern: ^/api
             stateless: true  # APIs must never generate PHP sessions

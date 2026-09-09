@@ -71,9 +71,10 @@ class AuthController extends AbstractController
         ], 201);
     }
 
-    #[Route('/logout', name: 'logout', methods: ['POST'])]
+    #[Route('/api/logout', name: 'api_auth_logout', methods: ['POST'])]
     public function logout(Request $request, RefreshTokenManagerInterface $refreshTokenManager): JsonResponse {
-        $data = $request->request->all();
+        
+        $data = json_decode($request->getContent(), true);
         $tokenString = $data['refresh_token'] ?? null;
 
         if (!$tokenString) {

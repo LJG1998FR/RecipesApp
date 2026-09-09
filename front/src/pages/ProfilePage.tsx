@@ -2,10 +2,77 @@ import { useState } from "react";
 import { EyeIcon, LockIcon, CheckIcon } from "../components/icons";
 import { useUser, getInitials } from "../context/UserContext";
 import { formatMemberSince } from "./AuthPage";
-import { logout } from "../api";
+import { logout, updateUser } from "../api";
+
+// ── Champ lecture seule ────────────────────────────────────────────────────
+const ReadonlyField = ({ label, value }: { label: string; value: string }) => (
+  <div style={{ marginBottom: 16 }}>
+    <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 8 }}>
+      {label}
+    </label>
+    <div
+      style={{
+        display: "flex", alignItems: "center",
+        padding: "13px 16px", borderRadius: 14,
+        backgroundColor: "var(--color-card)",
+        border: "1px solid var(--color-border)",
+      }}
+    >
+      <span style={{ fontSize: 14, color: "var(--color-text)", flex: 1 }}>{value}</span>
+      <span
+        style={{
+          fontSize: 12, color: "var(--color-text-dim)",
+          backgroundColor: "rgba(255,255,255,0.05)",
+          padding: "3px 10px", borderRadius: 99,
+          border: "1px solid var(--color-border)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Non modifiable
+      </span>
+    </div>
+  </div>
+);
+
+// ── Champ mot de passe ─────────────────────────────────────────────────────
+const PwdField = ({
+  label, value, onChange, show, onToggle, placeholder,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  show: boolean; onToggle: () => void; placeholder: string;
+}) => (
+  <div style={{ marginBottom: 12 }}>
+    <label style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
+      {label}
+    </label>
+    <div
+      style={{
+        display: "flex", alignItems: "center",
+        padding: "0 14px", height: 48, borderRadius: 12,
+        backgroundColor: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+      }}
+    >
+      <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}><LockIcon /></span>
+      <input
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          flex: 1, background: "transparent", border: "none", outline: "none",
+          fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
+        }}
+      />
+      <button onClick={onToggle} style={{ color: "var(--color-text-dim)", flexShrink: 0, marginLeft: 8 }}>
+        <EyeIcon off={!show} />
+      </button>
+    </div>
+  </div>
+);
 
 export default function ProfilePage() {
-  const { user } = useUser();
+  const { user, setUser } = useUser();
 
   const [editingPassword, setEditingPassword] = useState(false);
   const [currentPwd,  setCurrentPwd]  = useState("");
@@ -16,93 +83,42 @@ export default function ProfilePage() {
   const [saved,       setSaved]       = useState(false);
   const [error,       setError]       = useState("");
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    await updateUser(user.email, newPwd);
+
     setError("");
     if (!currentPwd)           return setError("Entrez votre mot de passe actuel.");
     if (newPwd.length < 8)     return setError("Le nouveau mot de passe doit faire au moins 8 caractères.");
     if (newPwd !== confirmPwd) return setError("Les mots de passe ne correspondent pas.");
+
     setSaved(true);
     setEditingPassword(false);
     setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
-    setTimeout(() => setSaved(false), 3000);
+    
+
+    setTimeout(() => {
+      setSaved(false);
+    }, 3000);
   };
 
-  // ── Champ lecture seule ────────────────────────────────────────────────────
-  const ReadonlyField = ({ label, value }: { label: string; value: string }) => (
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 8 }}>
-        {label}
-      </label>
-      <div
-        style={{
-          display: "flex", alignItems: "center",
-          padding: "13px 16px", borderRadius: 14,
-          backgroundColor: "var(--color-card)",
-          border: "1px solid var(--color-border)",
-        }}
-      >
-        <span style={{ fontSize: 14, color: "var(--color-text)", flex: 1 }}>{value}</span>
-        <span
-          style={{
-            fontSize: 12, color: "var(--color-text-dim)",
-            backgroundColor: "rgba(255,255,255,0.05)",
-            padding: "3px 10px", borderRadius: 99,
-            border: "1px solid var(--color-border)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Non modifiable
-        </span>
-      </div>
-    </div>
-  );
 
-  // ── Champ mot de passe ─────────────────────────────────────────────────────
-  const PwdField = ({
-    label, value, onChange, show, onToggle, placeholder,
-  }: {
-    label: string; value: string; onChange: (v: string) => void;
-    show: boolean; onToggle: () => void; placeholder: string;
-  }) => (
-    <div style={{ marginBottom: 12 }}>
-      <label style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
-        {label}
-      </label>
-      <div
-        style={{
-          display: "flex", alignItems: "center",
-          padding: "0 14px", height: 48, borderRadius: 12,
-          backgroundColor: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-        }}
-      >
-        <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}><LockIcon /></span>
-        <input
-          type={show ? "text" : "password"}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          style={{
-            flex: 1, background: "transparent", border: "none", outline: "none",
-            fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
-          }}
-        />
-        <button onClick={onToggle} style={{ color: "var(--color-text-dim)", flexShrink: 0, marginLeft: 8 }}>
-          <EyeIcon off={!show} />
-        </button>
-      </div>
-    </div>
-  );
+async function handleLogout() {
+  try {
+    await logout();
+    setUser(null);
+    window.location.href = "/";
+  } catch (error) {
+    console.error("Erreur lors de la déconnexion :", error);
+  }
+}
 
-  async function handleLogout() {
-	try {
-		await logout();
-		//navigate('/login', { replace: true });
-    console.log("logout");
-	} catch (error) {
-		console.error(error);
-	}
-};
+  if (!user) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
+        <p style={{ color: "var(--color-text-muted)", fontSize: 14 }}>Chargement…</p>
+      </div>
+    );
+  }
 
   return (
     <div
