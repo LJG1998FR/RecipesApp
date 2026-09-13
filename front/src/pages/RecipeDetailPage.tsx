@@ -2,6 +2,7 @@
 import { Recipe } from "@/types";
 import { fetchRecipe } from "../api";
 import RecipeDetail from "../components/recipe/RecipeDetail";
+import Loading from "../components/layout/Loading";
 import { useEffect, useState } from "react";
 
 interface Props {
@@ -10,24 +11,40 @@ interface Props {
 }
 
 export default function RecipeDetailPage({ recipeId, onBack }: Props) {
-  //const recipe = recipes.find((r) => r.id === recipeId);
-  const [recipe, setRecipe] = useState<Recipe|null>(null);
+
+  const [recipe,    setRecipe]    = useState<Recipe | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error,     setError]     = useState(false);
 
   // ✅ Fetch une seule fois au montage du composant
   useEffect(() => {
-    fetchRecipe(recipeId).then((res) => setRecipe(res));
-  }, []); // ← tableau vide = une seule fois
+    fetchRecipe(recipeId)
+      .then((res) => setRecipe(res))
+      .catch(() => setError(true))
+      .finally(() => setIsLoading(false));
+  }, [recipeId]); // ← recipeId en dépendance : si l'id change, on re-fetch
 
-  // Garde-fou : recette introuvable
-  if (!recipe) {
+
+  if (isLoading) {
+    return <Loading />;
+  }
+
+  if (error || !recipe) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-4xl">🍽️</p>
-        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>Recette introuvable.</p>
+      <div
+        style={{
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          minHeight: "100dvh", gap: 12,
+        }}
+      >
+        <p style={{ fontSize: 40 }}>🍽️</p>
+        <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
+          Recette introuvable.
+        </p>
         <button
           onClick={onBack}
-          className="text-sm font-medium"
-          style={{ color: "var(--color-primary)" }}
+          style={{ fontSize: 14, fontWeight: 600, color: "var(--color-primary)" }}
         >
           ← Retour
         </button>

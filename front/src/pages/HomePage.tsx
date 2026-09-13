@@ -5,6 +5,7 @@ import { fetchRecipes } from "../api/index";
 import RecipeCard from "../components/recipe/RecipeCard";
 import { SearchIcon } from "../components/icons";
 import { useUser, getInitials } from "../context/UserContext";
+import Loading from "../components/layout/Loading";
 
 interface Props {
   onSelectRecipe: (id: number) => void;
@@ -14,11 +15,14 @@ export default function HomePage({ onSelectRecipe }: Props) {
   const { user } = useUser();
   const [activeCategory, setActiveCategory] = useState<Category>("Tout");
   const [search, setSearch] = useState("");
-  const [fetched, setFetched] = useState<Recipe[]>([]);
+  const [fetched,   setFetched]   = useState<Recipe[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // ✅ Fetch une seule fois au montage du composant
   useEffect(() => {
-    fetchRecipes().then((res) => setFetched(res));
+    fetchRecipes()
+      .then((res) => setFetched(res))
+      .finally(() => setIsLoading(false));
   }, []); // ← tableau vide = une seule fois
 
   // ✅ Le filtre se fait en mémoire, pas via l'API
@@ -28,13 +32,9 @@ export default function HomePage({ onSelectRecipe }: Props) {
       (search === "" || r.title.toLowerCase().includes(search.toLowerCase()))
   );
 
-  // ✅ Garde-fou pendant le chargement de l'utilisateur
-  if (!user) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
-        <p style={{ color: "var(--color-text-muted)", fontSize: 14 }}>Chargement…</p>
-      </div>
-    );
+  // ✅ Garde-fous : user non chargé OU recettes en cours de fetch
+  if (!user || isLoading) {
+    return <Loading />;
   }
 
   return (

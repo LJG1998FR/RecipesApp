@@ -3,6 +3,7 @@ import { EyeIcon, LockIcon, CheckIcon } from "../components/icons";
 import { useUser, getInitials } from "../context/UserContext";
 import { formatMemberSince } from "./AuthPage";
 import { logout, updateUser } from "../api";
+import Loading from '../components/layout/Loading';
 
 // ── Champ lecture seule ────────────────────────────────────────────────────
 const ReadonlyField = ({ label, value }: { label: string; value: string }) => (
@@ -84,21 +85,27 @@ export default function ProfilePage() {
   const [error,       setError]       = useState("");
 
   const handleSave = async () => {
-    await updateUser(user.email, newPwd);
 
     setError("");
     if (!currentPwd)           return setError("Entrez votre mot de passe actuel.");
     if (newPwd.length < 8)     return setError("Le nouveau mot de passe doit faire au moins 8 caractères.");
     if (newPwd !== confirmPwd) return setError("Les mots de passe ne correspondent pas.");
 
-    setSaved(true);
-    setEditingPassword(false);
-    setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
-    
+    try {
+      await updateUser(user.email, newPwd);
 
-    setTimeout(() => {
-      setSaved(false);
-    }, 3000);
+      setSaved(true);
+      setEditingPassword(false);
+      setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
+
+      setTimeout(() => {
+        setSaved(false);
+      }, 3000);
+    } catch (error) {
+      setError("Une erreur est survenue. Veuillez réessayer.");
+    }
+
+
   };
 
 
@@ -113,11 +120,7 @@ async function handleLogout() {
 }
 
   if (!user) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
-        <p style={{ color: "var(--color-text-muted)", fontSize: 14 }}>Chargement…</p>
-      </div>
-    );
+    return <Loading />
   }
 
   return (

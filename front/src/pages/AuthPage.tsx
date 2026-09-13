@@ -3,6 +3,7 @@ import type { AuthMode } from "../types";
 import type { UserData } from "../context/UserContext";
 import { EyeIcon, MailIcon, LockIcon } from "../components/icons";
 import { getUserData, login, register } from "../api";
+import Loading from "../components/layout/Loading";
 
 interface Props {
   onAuth: (userData: UserData) => void;
@@ -21,6 +22,7 @@ export default function AuthPage({ onAuth }: Props) {
   const [lastName,  setLastName]  = useState("");
   const [showPwd,   setShowPwd]   = useState(false);
   const [error,     setError]     = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async () => {
     setError("");
@@ -31,16 +33,25 @@ export default function AuthPage({ onAuth }: Props) {
     if (password.length < 8)
       return setError("Le mot de passe doit faire au moins 8 caractères.");
 
-        var userData: UserData;
-        if (mode === "signup") {
-          await register(email, password, firstName, lastName);
-        } else {
-          await login(email, password);
-        }
-        userData = await getUserData();
-
-    onAuth(userData);
+        try {
+      setIsLoading(true);
+      if (mode === "signup") {
+        await register(email, password, firstName, lastName);
+      } else {
+        await login(email, password);
+      }
+      const userData: UserData = await getUserData();
+      onAuth(userData);
+    } catch {
+      setError("Une erreur est survenue. Vérifiez vos identifiants.");
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  if (isLoading) {
+    return <Loading />;
+  }
 
   return (
     <div
