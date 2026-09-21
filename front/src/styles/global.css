@@ -1,3 +1,4 @@
+@import 'tailwindcss';
 /* ── Variables de design (design tokens) ──────────────────────────────────────
    Centralisées ici pour changer le thème en un seul endroit.
    Référencées partout dans les composants via var(--color-...).

@@ -1,19 +1,28 @@
 /**
- * App.tsx — point d'entrée de l'application.
+ * App.tsx — définition des routes de l'application.
+ 
+ * (routing URL) :
+ *   /          → AppRouter (app recettes)
+ *   /admin/*   → AdminApp (back-office)
  *
- * Ce fichier est volontairement minimal : il ne contient aucune logique.
- * Toute la navigation est déléguée à AppRouter.
- * Les styles globaux (variables CSS, reset) sont dans styles/global.css.
+ * Le /* sur /admin/* est important : il signifie "et tous les sous-chemins".
+ * Sans lui, /admin/users ne matcherait pas.
  */
 
-import AppRouter from "./router/AppRouter";
-import { UserProvider } from "./context/UserContext";
+import { Routes, Route, Navigate } from "react-router-dom";
+import AppRouter  from "./router/AppRouter";
+import AdminApp   from "./admin/AdminApp";
 import "./styles/global.css";
 
 export default function App() {
   return (
-    <UserProvider>
-      <AppRouter />
-    </UserProvider>
+    <Routes>
+
+      <Route path="/*" element={<AppRouter />} />
+
+      <Route path="/admin/*" element={<AdminApp />} />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

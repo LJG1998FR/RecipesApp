@@ -33,8 +33,8 @@ export default function AuthPage({ onAuth }: Props) {
     if (password.length < 8)
       return setError("Le mot de passe doit faire au moins 8 caractères.");
 
-        try {
-      setIsLoading(true);
+      try {
+        setIsLoading(true);
       if (mode === "signup") {
         await register(email, password, firstName, lastName);
       } else {
@@ -79,7 +79,7 @@ export default function AuthPage({ onAuth }: Props) {
               "linear-gradient(to bottom, rgba(23,18,16,0.15) 0%, rgba(23,18,16,0.5) 50%, rgba(23,18,16,1) 100%)",
           }}
         />
-        <div className="absolute" style={{ bottom: 32, left: 24 }}>
+        <div className="absolute">
           <h1
             style={{
               fontFamily: "var(--font-display)",

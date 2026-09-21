@@ -8,7 +8,7 @@ interface Props {
 
 export default function RecipeCard({ recipe, onSelect }: Props) {
   return (
-    <button
+    <div
       onClick={onSelect}
       style={{
         textAlign: "left",
@@ -41,7 +41,7 @@ export default function RecipeCard({ recipe, onSelect }: Props) {
         {/* Badge temps — coin haut gauche */}
         <span
           style={{
-            position: "absolute", top: 12, left: 12,
+            position: "absolute", top: 24, left: 12,
             fontSize: 12, fontWeight: 600,
             padding: "4px 10px",
             borderRadius: 99,
@@ -91,6 +91,6 @@ export default function RecipeCard({ recipe, onSelect }: Props) {
           </span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

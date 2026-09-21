@@ -4,10 +4,13 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 // ── Type UserData ──────────────────────────────────────────────────────────────
 export interface UserData {
+  id: number;
   firstName: string;
   lastName:  string;
   email:     string;
   memberSince: number;
+  role:string;
+  createdAt: number;
 }
 
 // ── Contexte ───────────────────────────────────────────────────────────────────
@@ -53,7 +56,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────────
-export function useUser() : any {
+export function useUser() : UserContextValue {
   const ctx = useContext(UserContext);
   if (!ctx) throw new Error("useUser must be used inside <UserProvider>");
   return ctx;

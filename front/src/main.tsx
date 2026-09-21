@@ -1,21 +1,24 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 
-// Vite injecte le CSS global via l'import dans App.tsx (import "./styles/global.css")
-// Si ce n'est pas le cas, décommentez la ligne suivante :
-//import "./styles/global.css";
+// BrowserRouter doit envelopper toute l'application UNE SEULE FOIS.
+// Règle absolue : jamais de BrowserRouter imbriqué dans un composant enfant.
+// Tout composant sous BrowserRouter peut utiliser useNavigate, useParams, etc.
 
 const container = document.getElementById("root");
 
 if (!container) {
   throw new Error(
-    'Élément #root introuvable dans index.html. Vérifiez que <div id="root"></div> est présent.'
+    'Élément #root introuvable dans index.html.'
   );
 }
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </StrictMode>
 );

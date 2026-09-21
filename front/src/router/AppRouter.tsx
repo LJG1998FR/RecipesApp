@@ -1,7 +1,22 @@
+/**
+ * AppRouter.tsx — navigation interne de l'app recettes.
+ *
+ * On conserve le routing par état (useState) pour les onglets principaux
+ * car ils ne nécessitent pas d'URL dédiée (pas de lien direct possible de toute façon).
+ *
+ * EXCEPTION : la page détail d'une recette.
+ * Elle utilise useNavigate pour pousser une entrée dans l'historique du navigateur,
+ * ce qui permet au bouton "retour" natif de fonctionner.
+ *
+ * Pourquoi ne pas tout migrer vers des <Route> imbriqués ?
+ * Pour un projet de cette taille, c'est du sur-engineering.
+ * La règle pragmatique : une URL dédiée seulement si l'utilisateur
+ * doit pouvoir partager/bookmarker cette page.
+ */
+
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { AppView, NavTab } from "../types";
-import type { UserData } from "../context/UserContext";
-import { useUser } from "../context/UserContext";
 
 import AuthPage         from "../pages/AuthPage";
 import HomePage         from "../pages/HomePage";
@@ -10,26 +25,22 @@ import ProfilePage      from "../pages/ProfilePage";
 import BottomNav        from "../components/layout/BottomNav";
 import AddRecipePage    from "../components/recipe/AddRecipePage";
 import { isAuthenticated } from "../api";
+import { UserProvider } from "../context/UserContext";
 
 export default function AppRouter() {
-  const { setUser }  = useUser();
+  const navigate = useNavigate();
+
   const [authed, setAuthed] = useState<boolean>(isAuthenticated());
   const [view,       setView]       = useState<AppView>("home");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [activeNav,  setActiveNav]  = useState<NavTab>("home");
 
-  // ── Connexion : on hydrate le contexte avec les données reçues ─────────────
-  const handleAuth = (userData: UserData) => {
-    setUser(userData);
-    setAuthed(true);
-  };
-
-  // ── Non connecté ───────────────────────────────────────────────────────────
+  // ── Non connecté ────────────────────────────────────────────────────────────
   if (!authed) {
-    return <AuthPage onAuth={handleAuth} />;
+    return <AuthPage onAuth={() => setAuthed(true)} />;
   }
 
-  // ── Détail recette : plein écran sans BottomNav ────────────────────────────
+  // ── Détail recette : plein écran sans BottomNav ─────────────────────────────
   if (view === "detail" && selectedId !== null) {
     return (
       <div
@@ -42,20 +53,28 @@ export default function AppRouter() {
       >
         <RecipeDetailPage
           recipeId={selectedId}
-          onBack={() => { setView("home"); setSelectedId(null); }}
+          onBack={() => {
+            // navigate(-1) = "retour arrière" dans l'historique du navigateur.
+            // Équivalent du bouton ← natif. Bien plus propre que setView("home").
+            //navigate(-1);
+            setView("home");
+            setSelectedId(null);
+          }}
         />
       </div>
     );
   }
 
-  // ── Pages principales ──────────────────────────────────────────────────────
-  const openRecipe = (id: number) => { setSelectedId(id); setView("detail"); };
-  const handleNavChange = (tab: NavTab) => { setActiveNav(tab); };
+  // ── Pages principales ────────────────────────────────────────────────────────
+  const openRecipe = (id: number) => {
+    setSelectedId(id);
+    setView("detail");
+  };
 
   const renderPage = () => {
     if (activeNav === "profile")   return <ProfilePage />;
-    if (activeNav === "addrecipe") return <AddRecipePage onCancel={() => {}} />;
-    if (activeNav === "saved")     return (
+    if (activeNav === "addrecipe") return <AddRecipePage onCancel={() => setActiveNav("home")} />;
+    if (activeNav === "saved") return (
       <div
         style={{
           display: "flex", flexDirection: "column",
@@ -73,18 +92,20 @@ export default function AppRouter() {
   };
 
   return (
-    <div
-      style={{
-        backgroundColor: "var(--color-background)",
-        maxWidth: 430,
-        margin: "0 auto",
-        minHeight: "100dvh",
-        overflowY: "auto",
-        paddingBottom: 80,
-      }}
-    >
-      {renderPage()}
-      <BottomNav active={activeNav} onChange={handleNavChange} />
-    </div>
+    <UserProvider>
+      <div
+        style={{
+          backgroundColor: "var(--color-background)",
+          maxWidth: 430,
+          margin: "0 auto",
+          minHeight: "100dvh",
+          overflowY: "auto",
+          paddingBottom: 80,
+        }}
+      >
+        {renderPage()}
+        <BottomNav active={activeNav} onChange={setActiveNav} />
+      </div>
+    </UserProvider>
   );
 }

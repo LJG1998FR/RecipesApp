@@ -1,0 +1,230 @@
+/*
+ * admin.css — styles isolés du back-office
+ *
+ * STRATÉGIE DOUBLE :
+ *   - .admin-scope {} pour tous les styles propres à l'admin
+ *   - body:has(.admin-scope) {} pour neutraliser global.css sur body
+ *     sans toucher à global.css directement
+ *
+ * L'opérateur :has() est supporté par tous les navigateurs modernes (2023+).
+ * Alternative si besoin IE : un !important ciblé sur body depuis ici.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* ── 1. Neutraliser global.css sur body quand l'admin est monté ─────────────
+ *
+ * "body:has(.admin-scope)" signifie :
+ * "le body QUI CONTIENT un élément .admin-scope quelque part dedans"
+ * → ne s'active que sur la route /admin, jamais sur le front.
+ */
+body:has(.admin-scope) {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* ── 2. Conteneur racine admin ───────────────────────────────────────────────
+ *
+ * Prend toute la hauteur et pose les variables CSS locales à l'admin.
+ * Les variables --admin-* ne pollueront jamais le front car elles
+ * sont déclarées sur .admin-scope, pas sur :root.
+ */
+.admin-scope {
+  min-height: 100vh;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --admin-primary:       #4f46e5;
+  --admin-primary-hover: #4338ca;
+  --admin-border:        #e2e8f0;
+  --admin-muted:         #64748b;
+}
+
+/* ── 3. Scrollbar ────────────────────────────────────────────────────────────*/
+.admin-scope * {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* ── 4. Reset du bouton hérité de global.css ─────────────────────────────────
+ *
+ * global.css pose : button { cursor: pointer; border: none; background: none; }
+ * Nos .btn-* ont besoin de border et background → on les rétablit dans le scope.
+ * On ne peut pas préfixer les sélecteurs nus de global.css, donc on surcharge
+ * explicitement ici avec une spécificité plus haute (.admin-scope button).
+ */
+.admin-scope button {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── 5. Navigation latérale ──────────────────────────────────────────────────*/
+.admin-scope .sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #475569;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.admin-scope .sidebar-link:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.admin-scope .sidebar-link.active {
+  background-color: #eef2ff;
+  color: #4f46e5;
+}
+
+/* ── 6. Boutons ──────────────────────────────────────────────────────────────*/
+.admin-scope .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background-color: #4f46e5;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.admin-scope .btn-primary:hover {
+  background-color: #4338ca;
+}
+
+.admin-scope .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  background-color: #ffffff;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  border: 1px solid #e2e8f0;
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.admin-scope .btn-secondary:hover {
+  background-color: #f8fafc;
+}
+
+.admin-scope .btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem 0.75rem;
+  background-color: #fff1f2;
+  color: #e11d48;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  border: 1px solid #fecdd3;
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.admin-scope .btn-danger:hover {
+  background-color: #ffe4e6;
+}
+
+/* ── 7. Champs de formulaire ─────────────────────────────────────────────────*/
+.admin-scope .input-field {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  color: #0f172a;
+  background-color: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.admin-scope .input-field:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* ── 8. Tableau ──────────────────────────────────────────────────────────────*/
+.admin-scope .table-th {
+  padding: 0.625rem 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.admin-scope .table-td {
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  color: #374151;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.admin-scope .table-tr:hover td {
+  background-color: #fafafa;
+}
+
+/* ── 9. Badge ────────────────────────────────────────────────────────────────*/
+.admin-scope .badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ── 10. Modale ──────────────────────────────────────────────────────────────*/
+.admin-scope .modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  animation: admin-fadeIn 0.15s ease;
+}
+
+.admin-scope .modal-box {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: admin-slideUp 0.2s ease;
+}
+
+@keyframes admin-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes admin-slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

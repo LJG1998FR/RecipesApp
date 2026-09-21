@@ -200,4 +200,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return $this;
     }
+
+    public function getHighestRole() : string {
+        $userRoles = $this->getRoles();
+        if (in_array("ROLE_SUPER_ADMIN", $userRoles) === true) {
+            return "ROLE_SUPER_ADMIN";
+        } else if(in_array("ROLE_ADMIN", $userRoles) === true){
+            return "ROLE_ADMIN";
+        } else {
+            return "ROLE_USER";
+        }
+    }
 }

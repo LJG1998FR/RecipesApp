@@ -233,7 +233,7 @@ class UserController extends AbstractController
             'firstName' => $user->getFirstName(),
             'lastName'  => $user->getLastName(),
             'memberSince' => $user->getCreatedAt(),
-            //'roles'     => $user->getRoles(),
+            'role'     => $user->getHighestRole(),
             'recipes'   => $user->getRecipes()->map(fn($r) => [
                 //'id'    => $r->getId(),
                 'title' => $r->getTitle(),
