@@ -23,6 +23,34 @@ class UserController extends AbstractController
         private readonly UserPasswordHasherInterface $passwordHasher,
     ) {}
 
+    #[Route('', name: 'recipes_list', methods: ['GET'])]
+    public function list(): JsonResponse
+    {
+        $users = $this->userRepository->findAll();
+
+        $user = $this->getUser();
+        if (!$this->canAccessUser($user)) {
+            return $this->json(
+                ['error' => 'You are not allowed to view this user.'],
+                Response::HTTP_FORBIDDEN,
+            );
+        }
+
+        $data = array_map(fn(User $r) => [
+            'id'          => $r->getId(),
+            'firstName'       => $r->getFirstName(),
+            'lastName' =>  $r->getLastName(),
+            'email' => $r->getEmail(),
+            'role'        => $r->getHighestRole(),
+            'createdAt'    => $r->getCreatedAt(),
+        ], $users);
+
+        return $this->json(
+            $data,
+            Response::HTTP_OK,
+        );
+    }
+
     // ── GET /api/users/{id} ────────────────────────────────────────────────────
 
     #[Route('/{id}', name: 'show', methods: ['GET'], requirements: ['id' => '\d+'])]

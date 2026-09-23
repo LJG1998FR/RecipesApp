@@ -8,11 +8,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState } from "react";
-import type { User } from "../types";
+import type { User, UserRole } from "../types";
 import Table, { type Column } from "../components/ui/Table";
 import { RoleBadge } from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
+import { formatDate } from "./Overview";
 
 interface UsersProps {
   users: User[];
@@ -106,12 +107,12 @@ export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) 
     {
       header: "Rôle",
       width: "120px",
-      render: (u) => <RoleBadge role={u.role} />,
+      render: (u) => <RoleBadge role={u.role as UserRole} />,
     },
     {
       header: "Créé le",
       width: "110px",
-      render: (u) => <span style={{ color: "#94a3b8" }}>{u.createdAt}</span>,
+      render: (u) => <span style={{ color: "#94a3b8" }}>{formatDate(u.createdAt)}</span>,
     },
     {
       header: "Actions",
@@ -203,9 +204,9 @@ export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) 
                   value={form.role}
                   onChange={(e) => setField("role", e.target.value)}
                 >
-                  <option value="USER">Utilisateur</option>
-                  <option value="EDITOR">Éditeur</option>
-                  <option value="ADMIN">Admin</option>
+                  <option value="ROLE_SUPER_ADMIN">Super Admin</option>
+                  <option value="ROLE_ADMIN">Admin</option>
+                  <option value="ROLE_USER">Utilisateur</option>
                 </select>
               </div>
             </Modal.Body>

@@ -10,9 +10,10 @@
  *   VITE_API_URL=http://localhost:8000
  */
 
-import { Recipe, User } from "@/types";
+import { Recipe } from "@/types";
 import { useState } from "react";
 import apiClient, { tokenStorage } from "./client";
+import { User, Recipe as AdminRecipe } from "@/admin/types";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -115,6 +116,11 @@ export async function fetchRecipes() : Promise<Recipe[]> {
   return handleResponse(res);
 }
 
+export async function fetchAdminRecipes() : Promise<AdminRecipe[]> {
+  const res = await fetch(`${BASE_URL}/api/recipes`, { headers: authHeaders() });
+  return handleResponse(res);
+}
+
 export async function fetchRecipe(id: number) : Promise<Recipe> {
   const res = await fetch(`${BASE_URL}/api/recipes/${id}`, { headers: authHeaders() });
   return handleResponse(res);
@@ -155,6 +161,30 @@ export async function fetchIngredients() {
 
 export async function fetchRecipesByIngredients(ids: number[]) {
   const res = await fetch(`${BASE_URL}/api/ingredients/recipes?ids=${ids.join(",")}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// ── Utilisateurs ────────────────────────────────────────────────────────────────
+
+export async function fetchUsers() : Promise<User[]>{
+  const res = await fetch(`${BASE_URL}/api/users`, { headers: authHeaders() });
+  return handleResponse(res);
+}
+
+export async function createUser(data: object) {
+  const res = await fetch(`${BASE_URL}/api/users/create`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function deleteUser(id: number) {
+  const res = await fetch(`${BASE_URL}/api/users/${id}`, {
+    method: "DELETE",
     headers: authHeaders(),
   });
   return handleResponse(res);

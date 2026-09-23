@@ -9,7 +9,7 @@ interface Props {
   onAuth: (userData: UserData) => void;
 }
 
-// Formate "août 2024" depuis la date courante
+// Formate depuis la date courante
 export function formatMemberSince(userTsp: number): string {
   return new Date(userTsp * 1000).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }

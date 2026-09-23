@@ -45,6 +45,10 @@ body:has(.admin-scope) {
   scrollbar-color: #cbd5e1 transparent;
 }
 
+.admin-scope aside > * {
+  padding: 16px 20px;
+}
+
 /* ── 4. Reset du bouton hérité de global.css ─────────────────────────────────
  *
  * global.css pose : button { cursor: pointer; border: none; background: none; }

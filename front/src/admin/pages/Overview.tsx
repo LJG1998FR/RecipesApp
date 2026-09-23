@@ -8,7 +8,7 @@
 //   - Table "Utilisateurs récents" : Nom / Email / Rôle / Inscrit le
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { User, Recipe } from "../types";
+import type { User, Recipe, UserRole } from "../types";
 import { RoleBadge } from "../components/ui/Badge";
 
 interface OverviewProps {
@@ -66,6 +66,10 @@ function StatCard({
   );
 }
 
+export function formatDate(userTsp: number): string {
+  return new Date(userTsp * 1000).toLocaleDateString("fr-FR", { day: "2-digit" , month: "long", year: "numeric" });
+}
+
 // ── Overview ──────────────────────────────────────────────────────────────────
 export default function Overview({ users, recipes }: OverviewProps) {
   const publishedCount = recipes.filter((r) => r.status === "published").length;
@@ -98,7 +102,7 @@ export default function Overview({ users, recipes }: OverviewProps) {
         <StatCard
           label="Utilisateurs"
           value={users.length}
-          sub={`${users.filter((u) => u.role === "ADMIN").length} admin(s)`}
+          sub={`${users.filter((u) => u.role === "ROLE_SUPER_ADMIN").length} admin(s)`}
           barColor="#6366f1"
         />
         <StatCard
@@ -152,9 +156,9 @@ export default function Overview({ users, recipes }: OverviewProps) {
               <tr key={r.id} className="table-tr">
                 <td className="table-td" style={{ fontWeight: 500, color: "#0f172a" }}>{r.title}</td>
                 <td className="table-td"><TypeBadge type={r.type} /></td>
-                <td className="table-td" style={{ color: "#64748b" }}>—</td>
+                <td className="table-td" style={{ color: "#64748b" }}>{r.nbPeople}</td>
                 <td className="table-td" style={{ color: "#64748b" }}>{r.prepTime} min</td>
-                <td className="table-td" style={{ color: "#94a3b8" }}>{r.createdAt}</td>
+                <td className="table-td" style={{ color: "#94a3b8" }}>{formatDate(r.createdAt)}</td>
               </tr>
             ))}
           </tbody>
@@ -193,8 +197,8 @@ export default function Overview({ users, recipes }: OverviewProps) {
                   {u.firstName} {u.lastName}
                 </td>
                 <td className="table-td" style={{ color: "#64748b" }}>{u.email}</td>
-                <td className="table-td"><RoleBadge role={u.role} /></td>
-                <td className="table-td" style={{ color: "#94a3b8" }}>{u.createdAt}</td>
+                <td className="table-td"><RoleBadge role={u.role as UserRole} /></td>
+                <td className="table-td" style={{ color: "#94a3b8" }}>{formatDate(u.createdAt)}</td>
               </tr>
             ))}
           </tbody>

@@ -26,18 +26,20 @@ const COLOR_STYLES: Record<BadgeColor, { bg: string; color: string; border: stri
 
 export default function Badge({ color, children }: BadgeProps) {
   const s = COLOR_STYLES[color];
-  return (
-    <span
-      className="badge"
-      style={{
-        backgroundColor: s.bg,
-        color: s.color,
-        border: `1px solid ${s.border}`,
-      }}
-    >
-      {children}
-    </span>
-  );
+  if(s){
+    return (
+      <span
+        className="badge"
+        style={{
+          backgroundColor: s.bg,
+          color: s.color,
+          border: `1px solid ${s.border}`,
+        }}
+      >
+        {children}
+      </span>
+    );
+  }
 }
 
 // ── Helpers sémantiques ───────────────────────────────────────────────────────
@@ -48,14 +50,14 @@ import type { UserRole, RecipeStatus } from "../../types";
 
 export function RoleBadge({ role }: { role: UserRole }) {
   const colorMap: Record<UserRole, BadgeColor> = {
-    ADMIN:  "indigo",
-    EDITOR: "emerald",
-    USER:   "slate",
+    ROLE_SUPER_ADMIN:  "indigo",
+    ROLE_ADMIN: "emerald",
+    ROLE_USER:   "slate",
   };
   const labelMap: Record<UserRole, string> = {
-    ADMIN:  "Admin",
-    EDITOR: "Éditeur",
-    USER:   "Utilisateur",
+    ROLE_SUPER_ADMIN:  "Super Admin",
+    ROLE_ADMIN:  "Admin",
+    ROLE_USER:   "Utilisateur",
   };
   return <Badge color={colorMap[role]}>{labelMap[role]}</Badge>;
 }

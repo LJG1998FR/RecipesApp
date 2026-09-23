@@ -13,7 +13,7 @@ export type AdminPage = "overview" | "users" | "recipes";
 // ── Entités métier ────────────────────────────────────────────────────────────
 
 /** Rôles possibles d'un utilisateur */
-//export type UserRole = "ROLE_ADMIN" | "ROLE_SUPER_ADMIN" | "ROLE_USER";
+export type UserRole = "ROLE_ADMIN" | "ROLE_SUPER_ADMIN" | "ROLE_USER";
 
 /** Représentation d'un utilisateur en mémoire */
 export interface User {
@@ -38,9 +38,16 @@ export interface Recipe {
   title: string;
   type: RecipeType;
   authorId: string;   // référence à User.id
+  nbPeople: number;
   status: RecipeStatus;
-  prepTime: number;   // en minutes
+  prepTime: string;
+  cookTime: string;
   createdAt: number; // unix timestamp
+  image: string;
+  description: string;
+  tips: string[];
+  ingredients: string[];
+  steps: string[];
 }
 
 // ── Props réutilisables ───────────────────────────────────────────────────────

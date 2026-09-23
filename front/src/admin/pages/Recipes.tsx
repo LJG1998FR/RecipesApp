@@ -80,6 +80,10 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
     closeModal();
   }
 
+  function formatLongDate(userTsp: number): string {
+    return new Date(userTsp * 1000).toLocaleDateString("fr-FR", { minute:"2-digit" , hour: "2-digit", day: "2-digit" , month: "long", year: "numeric" });
+  }
+
   // ── Colonnes ───────────────────────────────────────────────────────────────
   const columns: Column<Recipe>[] = [
     {
@@ -106,7 +110,7 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
     {
       header: "Créée le",
       width: "110px",
-      render: (r) => <span style={{ color: "#94a3b8" }}>{r.createdAt}</span>,
+      render: (r) => <span style={{ color: "#94a3b8" }}>{formatLongDate(r.createdAt)}</span>,
     },
     {
       header: "Actions",

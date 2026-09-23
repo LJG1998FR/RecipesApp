@@ -18,19 +18,24 @@ import AdminShell from "./components/layout/AdminShell";
 import Overview  from "./pages/Overview";
 import Users     from "./pages/Users";
 import Recipes   from "./pages/Recipes";
-import { getUserData, login } from "../api";
+import { fetchAdminRecipes, fetchRecipes, fetchUsers, getUserData, isAuthenticated } from "../api";
 import { UserData } from "@/context/UserContext";
 import "../styles/admin.css";
 
 export default function AdminApp() {
   // ── État d'authentification ────────────────────────────────────────────────
-  const [loggedIn,     setLoggedIn]     = useState(false);
+  const [loggedIn,     setLoggedIn]     = useState(isAuthenticated());
   const [currentUser,  setCurrentUser]  = useState<User | null>(null);
   const [currentPage,  setCurrentPage]  = useState<AdminPage>("overview");
 
   // ── Données ───────────────────
   const [users,   setUsers]   = useState<User[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+
+  useEffect(() => {
+    fetchUsers().then((res) => setUsers(res));
+    fetchAdminRecipes().then((res) => setRecipes(res));
+  }, [])
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   async function handleLogin(email: string, password: string): Promise<boolean> {
@@ -90,11 +95,6 @@ export default function AdminApp() {
   function deleteRecipe(id: number) {
     setRecipes((prev) => prev.filter((x) => x.id !== id));
   }
-
-  // ── Rendu ─────────────────────────────────────────────────────────────────
-  /*if (!loggedIn) {
-    return <Login onLogin={handleLogin} />;
-  }*/
 
   const userName = currentUser
     ? `${currentUser.firstName} ${currentUser.lastName}`

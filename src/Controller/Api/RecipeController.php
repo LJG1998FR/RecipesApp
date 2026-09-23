@@ -34,6 +34,7 @@ class RecipeController extends AbstractController
             'nbPeople'    => $r->getNbPeople(),
             'prepTime'    => $r->getPrepTime(),
             'cookingTime' => $r->getCookingTime(),
+            'createdAt'   => $r->getCreatedAt()
         ], $recipes);
 
         return $this->json(
