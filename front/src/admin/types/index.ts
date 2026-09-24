@@ -40,8 +40,8 @@ export interface Recipe {
   authorId: string;   // référence à User.id
   nbPeople: number;
   status: RecipeStatus;
-  prepTime: string;
-  cookTime: string;
+  prepTime: number;
+  cookTime: number;
   createdAt: number; // unix timestamp
   image: string;
   description: string;

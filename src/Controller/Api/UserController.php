@@ -23,7 +23,7 @@ class UserController extends AbstractController
         private readonly UserPasswordHasherInterface $passwordHasher,
     ) {}
 
-    #[Route('', name: 'recipes_list', methods: ['GET'])]
+    #[Route('', name: 'users_list', methods: ['GET'])]
     public function list(): JsonResponse
     {
         $users = $this->userRepository->findAll();
@@ -49,6 +49,59 @@ class UserController extends AbstractController
             $data,
             Response::HTTP_OK,
         );
+    }
+
+    #[Route('/create', name: 'api_users_create', methods: ['POST'])]
+    public function create(
+        Request $request,
+        EntityManagerInterface $em,
+        UserPasswordHasherInterface $hasher
+    ): JsonResponse {
+        $data = json_decode($request->getContent(), true);
+
+        $email     = trim($data['email'] ?? '');
+        $password  = $data['password'] ?? '';
+        $firstName = trim($data['firstName'] ?? '');
+        $lastName  = trim($data['lastName'] ?? '');
+        $role  = [$data['role']] ?? ['ROLE_USER'];
+
+        // Validations basiques
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->json(['error' => 'Adresse e-mail invalide.'], 422);
+        }
+        if (strlen($password) < 8) {
+            return $this->json(['error' => 'Le mot de passe doit faire au moins 8 caractères.'], 422);
+        }
+        if (!$firstName || !$lastName) {
+            return $this->json(['error' => 'Prénom et nom requis.'], 422);
+        }
+
+        // Vérifier unicité email
+        $existing = $em->getRepository(User::class)->findOneBy(['email' => $email]);
+        if ($existing) {
+            return $this->json(['error' => 'Cet e-mail est déjà utilisé.'], 409);
+        }
+
+        $user = new User();
+        $user->setEmail($email);
+        $user->setFirstName($firstName);
+        $user->setLastName($lastName);
+        $user->setCreatedAt(time());
+        $user->setRoles($role);
+        $user->setPassword($hasher->hashPassword($user, $password));
+
+        $em->persist($user);
+        $em->flush();
+
+        return $this->json([
+            'user'      => [
+                'id'        => $user->getId(),
+                'email'     => $user->getEmail(),
+                'firstName' => $user->getFirstName(),
+                'lastName'  => $user->getLastName(),
+                'role'      => $user->getHighestRole()
+            ],
+        ], 201);
     }
 
     // ── GET /api/users/{id} ────────────────────────────────────────────────────
@@ -178,6 +231,81 @@ class UserController extends AbstractController
         return $this->json($this->serialize($user), Response::HTTP_OK);
     }
 
+    // ── PUT /api/users/admin-update ────────────────────────────────────────────────────
+
+    #[Route('/admin-update', name: 'admin-update', methods: ['PUT'])]
+    public function updateAsAdmin(Request $request): JsonResponse
+    {
+        
+        $data = json_decode($request->getContent(), true);
+
+        if (!is_array($data)) {
+            return $this->json(
+                ['error' => 'Invalid JSON body.'],
+                Response::HTTP_BAD_REQUEST,
+            );
+        }
+
+        $user = $this->userRepository->findOneBy(["id" => $data["id"]]);
+
+        if (!$user) {
+            return $this->json(
+                ['error' => "User not found."],
+                Response::HTTP_NOT_FOUND,
+            );
+        }
+
+        if (!$this->canAccessUser($user)) {
+            return $this->json(
+                ['error' => 'You are not allowed to update this user.'],
+                Response::HTTP_FORBIDDEN,
+            );
+        }
+
+        // At least one updatable field must be provided
+        $updatableFields = ['email', 'firstName', 'lastName', 'password', 'role'];
+        if (empty(array_intersect(array_keys($data), $updatableFields))) {
+            return $this->json(
+                ['error' => 'No updatable field provided. Accepted fields: ' . implode(', ', $updatableFields)],
+                Response::HTTP_BAD_REQUEST,
+            );
+        }
+
+        $errors = $this->validateUserData($data);
+        if (!empty($errors)) {
+            return $this->json(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if (isset($data['firstName'])) {
+            $user->setFirstName(trim($data['firstName']));
+        }
+
+        if (isset($data['lastName'])) {
+            $user->setLastName(trim($data['lastName']));
+        }
+
+        if (isset($data['email'])) {
+            // Ensure the new email is not already used by another account
+            $existing = $this->userRepository->findOneBy(['email' => trim($data['email'])]);
+            if ($existing && $existing->getId() !== $user->getId()) {
+                return $this->json(
+                    ['errors' => ['email' => 'This email address is already in use.']],
+                    Response::HTTP_CONFLICT,
+                );
+            }
+            $user->setEmail(trim($data['email']));
+        }
+
+        if (isset($data['password'])) {
+            $hashed = $this->passwordHasher->hashPassword($user, $data['password']);
+            $user->setPassword($hashed);
+        }
+
+        $this->em->flush();
+
+        return $this->json($this->serialize($user), Response::HTTP_OK);
+    }
+
     // ── DELETE /api/users/{id} ─────────────────────────────────────────────────
 
     #[Route('/{id}', name: 'delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
@@ -214,7 +342,7 @@ class UserController extends AbstractController
     {
         $currentUser = $this->security->getUser();
 
-        return $currentUser === $target || $this->isGranted('ROLE_ADMIN');
+        return $currentUser === $target || $this->isGranted('ROLE_ADMIN') || $this->isGranted('ROLE_SUPER_ADMIN');
     }
 
     /**

@@ -76,7 +76,7 @@ export async function register(
   return data;
 }
 
-export async function updateUser(
+/*export async function updateUser(
   email: string,
   password: string
   ) {
@@ -87,7 +87,7 @@ export async function updateUser(
   });
   const data = await handleResponse<{ user: object }>(res);
   return data;
-}
+}*/
 
 export async function logout(): Promise<void> {
   
@@ -176,6 +176,24 @@ export async function fetchUsers() : Promise<User[]>{
 export async function createUser(data: object) {
   const res = await fetch(`${BASE_URL}/api/users/create`, {
     method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function updateUser(data: object) {
+  const res = await fetch(`${BASE_URL}/api/users/update`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+export async function updateUserAsAdmin(data: object) {
+  const res = await fetch(`${BASE_URL}/api/users/admin-update`, {
+    method: "PUT",
     headers: authHeaders(),
     body: JSON.stringify(data),
   });

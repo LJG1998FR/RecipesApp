@@ -2,14 +2,22 @@
 // src/admin/pages/Recipes.tsx
 //
 // Gestion des recettes : liste filtrée + création + édition + suppression.
+//
+// CORRECTIFS vs version précédente :
+//   1. `columns` mémoïsé avec useMemo (même raison que Users.tsx)
+//   2. `openCreate`, `openEdit`, `closeModal` wrappés dans useCallback
+//   3. `formatLongDate` sorti du composant : c'est une fonction pure qui
+//      n'a pas besoin d'accéder au state/props → elle n'a rien à faire
+//      dans le corps du composant où elle serait recrée à chaque render.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import type { Recipe, RecipeType, RecipeStatus } from "../types";
 import Table, { type Column } from "../components/ui/Table";
 import { StatusBadge } from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
+import { createRecipe, updateRecipe } from "../../api";
 
 interface RecipesProps {
   recipes: Recipe[];
@@ -18,42 +26,54 @@ interface RecipesProps {
   onDelete: (id: number) => void;
 }
 
-const RECIPE_TYPES: RecipeType[]   = ["Plats", "Desserts", "Mocktails"];
+const RECIPE_TYPES: RecipeType[]      = ["Plats", "Desserts", "Mocktails"];
 const RECIPE_STATUSES: RecipeStatus[] = ["published", "draft"];
 
 const EMPTY_FORM = {
   title:    "",
-  type:     "Plats"     as RecipeType,
-  status:   "draft"     as RecipeStatus,
+  type:     "Plats"  as RecipeType,
+  status:   "draft"  as RecipeStatus,
   prepTime: 10,
   authorId: "",
 };
+
+function formatLongDate(tsp: number): string {
+  return new Date(tsp * 1000).toLocaleDateString("fr-FR", {
+    minute: "2-digit",
+    hour:   "2-digit",
+    day:    "2-digit",
+    month:  "long",
+    year:   "numeric",
+  });
+}
 
 export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesProps) {
   const [editingRecipe,  setEditingRecipe]  = useState<Recipe | null | false>(null);
   const [form,           setForm]           = useState(EMPTY_FORM);
   const [deleteConfirm,  setDeleteConfirm]  = useState<number | null>(null);
 
-  // Filtre local (ne modifie pas les données, juste la vue)
+  // Filtres locaux (ne modifient pas les données, juste la vue)
   const [filterType,   setFilterType]   = useState<RecipeType | "Tous">("Tous");
   const [filterStatus, setFilterStatus] = useState<RecipeStatus | "Tous">("Tous");
   const [search,       setSearch]       = useState("");
 
-  // ── Filtrage ───────────────────────────────────────────────────────────────
-  const filtered = recipes.filter((r) => {
-    if (filterType !== "Tous"   && r.type   !== filterType)   return false;
+  // ── Filtrage mémoïsé ───────────────────────────────────────────────────────
+  // On mémoïse aussi le tableau filtré : inutile de re-filtrer si ni recipes
+  // ni les critères de filtre n'ont changé.
+  const filtered = useMemo(() => recipes.filter((r) => {
+    if (filterType   !== "Tous" && r.type   !== filterType)   return false;
     if (filterStatus !== "Tous" && r.status !== filterStatus) return false;
     if (search && !r.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
-  });
+  }), [recipes, filterType, filterStatus, search]);
 
-  // ── Ouverture modale ───────────────────────────────────────────────────────
-  function openCreate() {
+  // ── Ouverture / fermeture modale ──────────────────────────────────────────
+  const openCreate = useCallback(() => {
     setForm(EMPTY_FORM);
     setEditingRecipe(false);
-  }
+  }, []);
 
-  function openEdit(recipe: Recipe) {
+  const openEdit = useCallback((recipe: Recipe) => {
     setForm({
       title:    recipe.title,
       type:     recipe.type,
@@ -62,30 +82,32 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
       authorId: recipe.authorId,
     });
     setEditingRecipe(recipe);
-  }
+  }, []);
 
-  function closeModal() { setEditingRecipe(null); }
+  const closeModal = useCallback(() => setEditingRecipe(null), []);
 
   function setField<K extends keyof typeof EMPTY_FORM>(key: K, value: typeof EMPTY_FORM[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  // ── Soumission ─────────────────────────────────────────────────────────────
+  // Dépend de editingRecipe et form (qui changent selon l'interaction),
+  // et de onUpdate/onAdd/closeModal (stables si le parent les mémoïse).
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingRecipe) {
+      await updateRecipe(editingRecipe.id, { ...editingRecipe, ...form });
       onUpdate({ ...editingRecipe, ...form });
     } else {
+      await createRecipe(form);
       onAdd(form);
     }
     closeModal();
-  }
+  }, [editingRecipe, form, onUpdate, onAdd, closeModal]);
 
-  function formatLongDate(userTsp: number): string {
-    return new Date(userTsp * 1000).toLocaleDateString("fr-FR", { minute:"2-digit" , hour: "2-digit", day: "2-digit" , month: "long", year: "numeric" });
-  }
-
-  // ── Colonnes ───────────────────────────────────────────────────────────────
-  const columns: Column<Recipe>[] = [
+  // ── Colonnes mémoïsées ─────────────────────────────────────────────────────
+  // Dépend de openEdit (stable via useCallback []) → en pratique jamais recréé.
+  const columns: Column<Recipe>[] = useMemo(() => [
     {
       header: "Titre",
       render: (r) => (
@@ -117,7 +139,11 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
       width: "150px",
       render: (r) => (
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <Button variant="secondary" onClick={() => openEdit(r)} style={{ padding: "0.25rem 0.625rem", fontSize: "0.8125rem" }}>
+          <Button
+            variant="secondary"
+            onClick={() => openEdit(r)}
+            style={{ padding: "0.25rem 0.625rem", fontSize: "0.8125rem" }}
+          >
             Modifier
           </Button>
           <Button variant="danger" onClick={() => setDeleteConfirm(r.id)}>
@@ -126,7 +152,7 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
         </div>
       ),
     },
-  ];
+  ], [openEdit]);
 
   const isModalOpen = editingRecipe !== null;
 
@@ -197,19 +223,33 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
             <Modal.Body>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Titre</label>
-                <input className="input-field" value={form.title} onChange={(e) => setField("title", e.target.value)} required placeholder="Nom de la recette" />
+                <input
+                  className="input-field"
+                  value={form.title}
+                  onChange={(e) => setField("title", e.target.value)}
+                  required
+                  placeholder="Nom de la recette"
+                />
               </div>
 
               <div style={{ display: "flex", gap: "0.75rem" }}>
                 <div style={{ flex: 1 }}>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Type</label>
-                  <select className="input-field" value={form.type} onChange={(e) => setField("type", e.target.value as RecipeType)}>
+                  <select
+                    className="input-field"
+                    value={form.type}
+                    onChange={(e) => setField("type", e.target.value as RecipeType)}
+                  >
                     {RECIPE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Statut</label>
-                  <select className="input-field" value={form.status} onChange={(e) => setField("status", e.target.value as RecipeStatus)}>
+                  <select
+                    className="input-field"
+                    value={form.status}
+                    onChange={(e) => setField("status", e.target.value as RecipeStatus)}
+                  >
                     <option value="draft">Brouillon</option>
                     <option value="published">Publié</option>
                   </select>
@@ -252,7 +292,10 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
-            <Button variant="danger" onClick={() => { onDelete(deleteConfirm); setDeleteConfirm(null); }}>
+            <Button
+              variant="danger"
+              onClick={() => { onDelete(deleteConfirm); setDeleteConfirm(null); }}
+            >
               Supprimer
             </Button>
           </Modal.Footer>
@@ -262,6 +305,7 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
   );
 }
 
+// ── Icône locale ──────────────────────────────────────────────────────────────
 function PlusIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
