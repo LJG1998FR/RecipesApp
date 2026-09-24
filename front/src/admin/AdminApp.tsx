@@ -2,110 +2,151 @@
 // src/admin/AdminApp.tsx
 //
 // Point d'entrée de l'interface admin.
-// Contient UNIQUEMENT : état global (auth + données) + logique CRUD.
-// Le layout est délégué à AdminShell, les pages à leurs composants respectifs.
+// Contient UNIQUEMENT : état global (auth + données) + routing entre les pages.
 //
-// CORRECTIFS vs version précédente :
-//   1. deleteUser et deleteRecipe wrappés dans useCallback (ils ne l'étaient pas)
-//   2. handleLogout wrappé dans useCallback (passé à AdminShell → Sidebar)
-//   3. handleLogin wrappé dans useCallback (passé à Login)
-//   4. new Date().getMilliseconds() remplacé par Math.floor(Date.now() / 1000)
-//      → getMilliseconds() retourne 0-999 (millisecondes de la seconde courante !)
-//      → Date.now() / 1000 donne un timestamp Unix en secondes, cohérent avec
-//        time() de PHP et avec la fonction formatDate() du projet qui fait * 1000
+// CHANGEMENT vs version précédente :
+// - onAdd et onUpdate reçoivent maintenant un Recipe COMPLET retourné par l'API
+//   (y compris steps et ingredients hydratés).
+// - C'est la page Recipes.tsx qui appelle l'API et remonte le résultat ici.
+//   AdminApp ne fait plus de "construction" d'objet côté client — il stocke
+//   directement ce que le serveur a persisté.
+//
+// Pourquoi ce changement est important (pour le junior) :
+// Avant, on construisait l'objet Recipe dans AdminApp avec des valeurs locales.
+// Problème : l'id généré par la BDD, les index des steps, les ids des RecipeIngredients
+// n'étaient pas connus. En remontant le résultat de l'API, on a un état cohérent
+// avec la base de données dès la création.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useCallback, useEffect, useState } from "react";
-import type { AdminPage, User, Recipe } from "./types";
-import Login      from "./components/auth/Login";
+import { useEffect, useState } from "react";
+import type { AdminPage, User, Recipe, Ingredient } from "./types";
+import Login from "./components/auth/Login";
 import AdminShell from "./components/layout/AdminShell";
-import Overview   from "./pages/Overview";
-import Users      from "./pages/Users";
-import Recipes    from "./pages/Recipes";
-import { fetchAdminRecipes, fetchUsers, getUserData, isAuthenticated } from "../api";
+import Overview from "./pages/Overview";
+import Users from "./pages/Users";
+import Recipes from "./pages/Recipes";
+import { fetchAdminRecipes, fetchUsers, getUserData, isAuthenticated, fetchAdminIngredients, createIngredient, updateAdminIngredient, deleteIngredient } from "../api";
 import { UserData } from "@/context/UserContext";
 import "../styles/admin.css";
+import Ingredients from "./pages/Ingredients";
 
 export default function AdminApp() {
   // ── État d'authentification ────────────────────────────────────────────────
-  const [loggedIn,    setLoggedIn]    = useState(isAuthenticated());
+  const [loggedIn, setLoggedIn] = useState(isAuthenticated());
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState<AdminPage>("overview");
 
   // ── Données ────────────────────────────────────────────────────────────────
-  const [users,   setUsers]   = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
 
   useEffect(() => {
-    fetchUsers().then((res) => setUsers(res));
-    fetchAdminRecipes().then((res) => setRecipes(res));
-  }, []);
+    if (!loggedIn) return;
+    fetchUsers().then(setUsers);
+    fetchAdminRecipes().then(setRecipes);
+    fetchAdminIngredients().then((res) => setIngredients(res)); 
+  }, [loggedIn]);
 
   // ── Auth ───────────────────────────────────────────────────────────────────
-  // useCallback [] : handleLogin ne capture aucune variable du composant
-  // (setCurrentUser et setLoggedIn sont des setters React, toujours stables).
-  const handleLogin = useCallback(async (email: string, password: string): Promise<boolean> => {
+  async function handleLogin(email: string, password: string): Promise<boolean> {
     const user: UserData = await getUserData();
 
-    if (user && (user.role.includes("ROLE_ADMIN") || user.role.includes("ROLE_SUPER_ADMIN"))) {
+    if (
+      user &&
+      (user.role.includes("ROLE_ADMIN") ||
+        user.role.includes("ROLE_SUPER_ADMIN"))
+    ) {
       setCurrentUser({ ...user, password });
       setLoggedIn(true);
       return true;
     }
     return false;
-  }, []);
+  }
 
-  // useCallback [] : même raison — setLoggedIn, setCurrentUser, setCurrentPage
-  // sont tous des setters stables fournis par React.
-  const handleLogout = useCallback(() => {
+  function handleLogout() {
     setLoggedIn(false);
     setCurrentUser(null);
     setCurrentPage("overview");
-  }, []);
+  }
 
-  // ── CRUD Utilisateurs ──────────────────────────────────────────────────────
-  const addUser = useCallback((u: Omit<User, "id" | "createdAt">) => {
+  // ── CRUD Utilisateurs ─────────────────────────────────────────────────────
+  function addUser(u: Omit<User, "id" | "createdAt">) {
     const newUser: User = {
       ...u,
-      id: -1,
+      id: Date.now(), // Temporaire — à remplacer quand l'API /users/create existera
       createdAt: Math.floor(Date.now() / 1000),
     };
     setUsers((prev) => [...prev, newUser]);
-  }, []);
+  }
 
-  const updateUser = useCallback((u: User) => {
+  function updateUser(u: User) {
     setUsers((prev) => prev.map((x) => (x.id === u.id ? u : x)));
-  }, []);
+  }
 
-  // ✅ Manquait dans la version précédente : deleteUser n'était pas dans useCallback
-  // → à chaque render d'AdminApp, une nouvelle fonction deleteUser était créée
-  // → Users.tsx recevait une nouvelle référence onDelete → re-render de la Table
-  const deleteUser = useCallback((id: number) => {
+  function deleteUser(id: number) {
     setUsers((prev) => prev.filter((x) => x.id !== id));
-  }, []);
+  }
 
-  // ── CRUD Recettes ──────────────────────────────────────────────────────────
-  const addRecipe = useCallback((r: Omit<Recipe, "id" | "createdAt">) => {
-    const newRecipe: Recipe = {
-      ...r,
-      id: -1,
-      createdAt: Math.floor(Date.now() / 1000),
-    };
-    setRecipes((prev) => [...prev, newRecipe]);
-  }, []);
+  // ── CRUD Recettes ─────────────────────────────────────────────────────────
+  // addRecipe et updateRecipe reçoivent maintenant un Recipe COMPLET
+  // retourné par l'API (via Recipes.tsx qui appelle createRecipe/updateRecipe).
+  // On ne construit plus d'objet côté client — on stocke ce que le serveur a persisté.
 
-  const updateRecipe = useCallback((r: Recipe) => {
-    setRecipes((prev) => prev.map((x) => (x.id === r.id ? r : x)));
-  }, []);
+  function addRecipe(recipe: Recipe) {
+    setRecipes((prev) => [recipe, ...prev]);
+  }
 
+  function updateRecipe(recipe: Recipe) {
+    setRecipes((prev) =>
+      prev.map((x) => (x.id === recipe.id ? recipe : x))
+    );
+  }
 
-  const deleteRecipe = useCallback((id: number) => {
+  function deleteRecipe(id: number) {
     setRecipes((prev) => prev.filter((x) => x.id !== id));
-  }, []);
+  }
 
-  // ── userName  ───────────────────────────────────────────────────────
-  // Pas critique ici (c'est juste une string), mais bonne habitude de ne pas
-  // recalculer inutilement une valeur dérivée du state.
+    // ── CRUD Ingrédients (NOUVEAU — async car vrais appels API) ───────────────
+ 
+  /**
+   * Crée un ingrédient via l'API et met à jour le state local.
+   *
+   * Note junior : on attend la réponse de l'API (await) pour obtenir l'id
+   * généré par la base de données. On ne peut pas générer cet id côté front.
+   * C'est la différence avec addUser() qui était sur un mock local.
+   */
+  async function addIngredient(
+    data: Omit<Ingredient, "id" | "usedInRecipesCount">
+  ): Promise<void> {
+    const created = await createIngredient(data);
+    setIngredients((prev) => [...prev, created]);
+  }
+ 
+  /**
+   * Met à jour un ingrédient via l'API et synchronise le state.
+   * La réponse de l'API fait autorité sur les données (ex: normalisation du label).
+   */
+  async function handleUpdateIngredient(ingredient: Ingredient): Promise<void> {
+    const updated = await updateAdminIngredient(ingredient.id, {
+      label: ingredient.label,
+      unit:  ingredient.unit,
+    });
+    setIngredients((prev) =>
+      prev.map((i) => (i.id === updated.id ? updated : i))
+    );
+  }
+ 
+  /**
+   * Supprime un ingrédient via l'API.
+   * En cas d'erreur (409 - utilisé dans des recettes), l'exception remonte
+   * jusqu'à Ingredients.tsx qui l'affiche dans la modale.
+   */
+  async function handleDeleteIngredient(id: number): Promise<void> {
+    await deleteIngredient(id);
+    setIngredients((prev) => prev.filter((i) => i.id !== id));
+  }
+
   const userName = currentUser
     ? `${currentUser.firstName} ${currentUser.lastName}`
     : "Admin";
@@ -117,7 +158,7 @@ export default function AdminApp() {
       ) : (
         <AdminShell
           currentPage={currentPage}
-          onNavigate={setCurrentPage}  // setter React : déjà stable, pas besoin de wrapper
+          onNavigate={setCurrentPage}
           onLogout={handleLogout}
           userName={userName}
         >
@@ -138,6 +179,14 @@ export default function AdminApp() {
               onAdd={addRecipe}
               onUpdate={updateRecipe}
               onDelete={deleteRecipe}
+            />
+          )}
+          {currentPage === "ingredients" && (
+            <Ingredients
+              ingredients={ingredients}
+              onAdd={addIngredient}
+              onUpdate={handleUpdateIngredient}
+              onDelete={handleDeleteIngredient}
             />
           )}
         </AdminShell>

@@ -1,10 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // src/admin/components/layout/Sidebar.tsx
 //
-// DIFFÉRENCES vs l'original :
-//   1. Le type `Page` est importé depuis types/ (plus de redéclaration locale)
-//   2. `navItems` est typé correctement (ReactNode pour les icônes)
-//   3. Le bouton de déconnexion utilise le composant Button
+// CHANGEMENTS vs l'original :
+//   - Ajout de l'entrée "ingredients" dans navItems
+//   - L'icône représente une feuille / plante pour évoquer un ingrédient naturel
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { ReactNode } from "react";
@@ -59,10 +58,21 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    // NOUVEAU — Ingrédients : référentiel partagé par toutes les recettes.
+    // On utilise une icône "feuille" pour évoquer le côté naturel/alimentaire.
+    id: "ingredients",
+    label: "Ingrédients",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22V12" />
+        <path d="M12 12C12 12 7 9 7 5a5 5 0 0 1 10 0c0 4-5 7-5 7z" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Sidebar({ currentPage, onNavigate, onLogout, userName }: SidebarProps) {
-  // Initiale de l'utilisateur pour l'avatar (ex: "Loïc" → "L")
   const initial = userName.charAt(0).toUpperCase();
 
   return (
@@ -106,7 +116,6 @@ export default function Sidebar({ currentPage, onNavigate, onLogout, userName }:
 
       {/* ── Pied — utilisateur + déconnexion ── */}
       <div className="px-3 py-4 border-t border-slate-200">
-        {/* Info utilisateur */}
         <div className="flex items-center gap-2.5 px-2 mb-3">
           <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-semibold text-indigo-700 flex-shrink-0">
             {initial}
@@ -114,7 +123,6 @@ export default function Sidebar({ currentPage, onNavigate, onLogout, userName }:
           <p className="text-sm font-medium text-slate-700 truncate">{userName}</p>
         </div>
 
-        {/* Bouton déconnexion */}
         <button
           className="sidebar-link w-full text-left"
           onClick={onLogout}

@@ -15,7 +15,7 @@ class Step
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(type: Types::SMALLINT)]
+    #[ORM\Column(name: 'step_order', type: Types::SMALLINT)]
     private ?int $index = null;
 
     #[ORM\Column(length: 255)]
