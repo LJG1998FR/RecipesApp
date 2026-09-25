@@ -38,6 +38,7 @@ import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
 import {
   fetchIngredients,
+  fetchRecipe,
   createRecipe,
   updateRecipe as apiUpdateRecipe,
   deleteRecipe as apiDeleteRecipe,
@@ -198,6 +199,11 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Chargement de la recette complète avant ouverture de la modale d'édition.
+  // La liste ne contient pas steps/ingredients (trop lourd à charger en masse),
+  // donc on fetche le détail au clic sur "Modifier".
+  const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
+
   // Filtres de la liste
   const [filterType, setFilterType] = useState<RecipeType | "Tous">("Tous");
   const [filterStatus, setFilterStatus] = useState<RecipeStatus | "Tous">("Tous");
@@ -229,23 +235,49 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
   }
 
   // ── Ouverture modale édition ───────────────────────────────────────────────
-  // On pré-remplit le formulaire avec les données existantes de la recette.
-  // Note : steps et ingredients viennent du state parent (AdminApp) qui les
-  // a reçus de l'API — ils peuvent être vides si la recette a été créée sans.
-  function openEdit(recipe: Recipe) {
-    setForm({
-      title: recipe.title,
-      type: recipe.type,
-      status: recipe.status,
-      nbPeople: recipe.nbPeople,
-      prepTime: recipe.prepTime,
-      cookingTime: recipe.cookingTime ?? null,
-      tips: recipe.tips ?? "",
-      steps: recipe.steps ? [...recipe.steps] : [],
-      ingredients: recipe.ingredients ? [...recipe.ingredients] : [],
-    });
+  // On fetche la recette COMPLÈTE (GET /api/recipes/{id}) avant d'ouvrir la modale.
+  //
+  // Pourquoi ne pas utiliser la recette déjà dans le state ?
+  // L'endpoint GET /api/recipes (liste) ne retourne pas steps ni ingredients
+  // pour ne pas surcharger la réponse. On ne charge ces données lourdes
+  // que quand l'admin en a besoin, c'est-à-dire ici, au moment de l'édition.
+  // C'est le pattern "load on demand" — très courant dans les back-offices.
+  async function openEdit(recipe: Recipe) {
+    setIsLoadingRecipe(true);
     setSubmitError(null);
+    // On ouvre immédiatement la modale avec les données partielles de la liste
+    // pour que l'admin voie un feedback visuel (spinner) plutôt qu'un clic sans réponse.
     setEditingRecipe(recipe);
+
+    try {
+      // fetchRecipe appelle GET /api/recipes/{id} qui retourne steps + ingredients
+      const fullRecipe = await fetchRecipe(recipe.id);
+      setForm({
+        title: fullRecipe.title,
+        type: fullRecipe.type as RecipeType,
+        status: recipe.status, // status est local — pas retourné par l'API
+        nbPeople: fullRecipe.nbPeople,
+        prepTime: fullRecipe.prepTime,
+        cookingTime: fullRecipe.cookingTime ?? null,
+        tips: Array.isArray(fullRecipe.tips)
+          ? fullRecipe.tips.join("\n") // L'API retourne tips en tableau sur GET /{id}
+          : fullRecipe.tips ?? "",
+        steps: Array.isArray(fullRecipe.steps) ? [...fullRecipe.steps] : [],
+        ingredients: Array.isArray(fullRecipe.ingredients)
+          ? fullRecipe.ingredients.map((ing: any) => ({
+              id: ing.id,
+              ingredientId: ing.ingredientId ?? ing.id,
+              label: ing.label,
+              unit: ing.unit ?? null,
+              amount: ing.amount,
+            }))
+          : [],
+      });
+    } catch (err) {
+      setSubmitError("Impossible de charger la recette. Veuillez réessayer.");
+    } finally {
+      setIsLoadingRecipe(false);
+    }
   }
 
   function closeModal() {
@@ -561,6 +593,35 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
           <form onSubmit={handleSubmit}>
             <Modal.Body>
 
+              {/* ── Spinner affiché pendant le fetch de la recette complète ── */}
+              {isLoadingRecipe ? (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "2.5rem 0",
+                    gap: 12,
+                    color: "#94a3b8",
+                    fontSize: 14,
+                  }}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#4f46e5"
+                    strokeWidth="2"
+                    style={{ animation: "spin 1s linear infinite" }}
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Chargement de la recette…
+                </div>
+              ) : (
+                <>
               {/* ── Erreur API ── */}
               {submitError && (
                 <div
@@ -927,6 +988,8 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
                   ))}
                 </div>
               )}
+                </>
+              )}
             </Modal.Body>
 
             <Modal.Footer>
@@ -942,6 +1005,7 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
                 variant="primary"
                 type="submit"
                 loading={isSubmitting}
+                disabled={isLoadingRecipe || isSubmitting}
               >
                 {isEditing ? "Enregistrer" : "Créer"}
               </Button>

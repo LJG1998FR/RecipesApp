@@ -49,6 +49,7 @@ class RecipeController extends AbstractController
             ])->toArray(),
             'ingredients' => $r->getIngredients()->map(fn($ri) => [
                 'id'     => $ri->getId(),
+                'ingredientId' => $ri->getIngredient()?->getId(),
                 'label'  => $ri->getIngredient()->getLabel(),
                 'unit'   => $ri->getIngredient()->getUnit(),
                 'amount' => $ri->getAmount(),
@@ -87,6 +88,7 @@ class RecipeController extends AbstractController
             ])->toArray(),
             'ingredients' => $recipe->getIngredients()->map(fn($ri) => [
                 'id'     => $ri->getId(),
+                'ingredientId' => $ri->getIngredient()?->getId(),
                 'label'  => $ri->getIngredient()->getLabel(),
                 'unit'   => $ri->getIngredient()->getUnit(),
                 'amount' => $ri->getAmount(),
@@ -235,7 +237,7 @@ class RecipeController extends AbstractController
 
         if (isset($data['prepTime']))              $recipe->setPrepTime((int) $data['prepTime']);
         if (array_key_exists('cookingTime', $data)) $recipe->setCookingTime($data['cookingTime'] !== null ? (int) $data['cookingTime'] : null);
-        if (array_key_exists('tips', $data))        $recipe->setTips($data['tips']);
+        if (array_key_exists('tips', $data))        $recipe->setTips($data['tips'] ?? null);
 
         // ── Steps en update : l'admin peut modifier l'index manuellement ─────
         // Stratégie : on supprime les anciens steps et on recrée.

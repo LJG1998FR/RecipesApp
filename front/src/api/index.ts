@@ -106,7 +106,7 @@ export async function fetchRecipes(): Promise<Recipe[]> {
   return handleResponse(res);
 }
 
-export async function fetchRecipe(id: number): Promise<Recipe> {
+export async function fetchRecipe(id: number): Promise<AdminRecipe> {
   const res = await fetch(`${BASE_URL}/api/recipes/${id}`, { headers: authHeaders() });
   return handleResponse(res);
 }
