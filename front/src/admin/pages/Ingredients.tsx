@@ -23,6 +23,7 @@ import type { Ingredient } from "../types";
 import Table, { type Column } from "../components/ui/Table";
 import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
+import { normalizeForSearch } from "../../types/utils";
 
 // Unités disponibles — cohérent avec le front public (front/src/types/index.ts)
 const UNITS = [
@@ -57,7 +58,7 @@ export default function Ingredients({ ingredients, onAdd, onUpdate, onDelete }: 
 
   // ── Filtre local ───────────────────────────────────────────────────────────
   const filtered = ingredients.filter((i) =>
-    search === "" || i.label.toLowerCase().includes(search.toLowerCase())
+    search === "" || normalizeForSearch(i.label).includes(search.toLowerCase()) //i.label.toLowerCase().includes(search.toLowerCase())
   );
 
   // ── Ouverture modale ───────────────────────────────────────────────────────

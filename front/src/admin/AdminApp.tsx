@@ -29,6 +29,7 @@ import { fetchAdminRecipes, fetchUsers, getUserData, isAuthenticated, fetchAdmin
 import { UserData } from "@/context/UserContext";
 import "../styles/admin.css";
 import Ingredients from "./pages/Ingredients";
+import AdminSpinner from "./components/ui/Spinner";
 
 export default function AdminApp() {
   // ── État d'authentification ────────────────────────────────────────────────
@@ -41,12 +42,49 @@ export default function AdminApp() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
 
-  useEffect(() => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  /*useEffect(() => {
     if (!loggedIn) return;
     fetchUsers().then(setUsers);
     fetchAdminRecipes().then(setRecipes);
     fetchAdminIngredients().then((res) => setIngredients(res)); 
+  }, [loggedIn]);*/
+
+  useEffect(() => {
+    // Promise.all lance les trois requêtes EN PARALLÈLE
+    // (plus performant que trois await successifs qui seraient séquentiels)
+    Promise.all([
+      fetchUsers(),
+      fetchAdminRecipes(),
+      fetchAdminIngredients()
+    ])
+      .then(([fetchedUsers, fetchedRecipes, fetchedIngredients]) => {
+        setUsers(fetchedUsers);
+        setRecipes(fetchedRecipes);
+        setIngredients(fetchedIngredients);
+      })
+      .catch((err) => {
+        // En prod, on logguerait vers un service d'erreur (Sentry, etc.)
+        console.error("Erreur lors du chargement des données admin :", err);
+      })
+      .finally(() => {
+        // finally s'exécute TOUJOURS, succès ou échec
+        // → on arrête le spinner dans tous les cas
+        setIsLoading(false);
+      });
   }, [loggedIn]);
+
+  // ── Affichage du spinner pendant le chargement ───────────────────────────
+  // IMPORTANT : ce guard est placé AVANT les autres return
+  // pour court-circuiter tout le reste pendant le chargement
+  if (isLoading) {
+    return (
+      <div className="admin-scope">
+        <AdminSpinner label="Chargement du dashboard…" />
+      </div>
+    );
+  }
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   async function handleLogin(email: string, password: string): Promise<boolean> {

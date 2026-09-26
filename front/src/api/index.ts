@@ -39,83 +39,72 @@ async function handleResponse<T>(res: Response): Promise<T> {
 // ── Auth ───────────────────────────────────────────────────────────────────────
 
 export async function login(email: string, password: string) {
-  const res = await fetch(`${BASE_URL}/api/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  const data = await handleResponse<{ token: string }>(res);
+  // Exception : le login ne doit PAS passer par l'intercepteur
+  // (pas de token à injecter, et une 401 ici = mauvais identifiants)
+  const { data } = await apiClient.post("/api/login", { email, password });
   tokenStorage.setTokens(data);
   return data;
 }
 
 export async function getUserData() {
-  const res = await fetch(`${BASE_URL}/api/users/getUser`, {
-    method: "POST",
-    headers: authHeaders(),
-  });
-  return res.json();
+  const { data } = await apiClient.post("/api/users/getUser");
+  return data;
 }
 
-export async function register(
-  email: string,
-  password: string,
-  firstName: string,
-  lastName: string
-) {
-  const res = await fetch(`${BASE_URL}/api/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, firstName, lastName }),
+export async function register(email: string, password: string, firstName: string, lastName: string) {
+  const { data } = await apiClient.post("/api/register", {
+    email, password, firstName, lastName,
   });
-  const data = await handleResponse<{ token: string; user: object }>(res);
   tokenStorage.setTokens(data);
   return data;
 }
 
 export async function updateUser(email: string, password: string) {
-  const res = await fetch(`${BASE_URL}/api/users/update`, {
-    method: "PUT",
-    headers: authHeaders(),
-    body: JSON.stringify({ email, password }),
-  });
-  return handleResponse<{ user: object }>(res);
+  const { data } = await apiClient.put("/api/users/update", { email, password });
+  return data;
 }
 
 export async function logout(): Promise<void> {
-  const res = await fetch(`${BASE_URL}/api/logout`, {
-    method: "POST",
-    headers: authHeaders(),
-    redirect: "manual",
-    body: JSON.stringify({ refresh_token: tokenStorage.getRefresh() }),
+  await apiClient.post("/api/logout", {
+    refresh_token: tokenStorage.getRefresh(),
   });
   tokenStorage.clear();
-  if (!res.ok) {
-    throw new Error(`Erreur serveur lors de la déconnexion : ${res.status}`);
-  }
 }
 
 export function isAuthenticated(): boolean {
-  return getToken() !== null;
+  return tokenStorage.getAccess() !== null;
 }
 
 // ── Recettes (front utilisateur) ───────────────────────────────────────────────
 
 export async function fetchRecipes(): Promise<Recipe[]> {
-  const res = await fetch(`${BASE_URL}/api/recipes`, { headers: authHeaders() });
-  return handleResponse(res);
+  const { data } = await apiClient.get("/api/recipes");
+  return data;
+}
+
+export async function fetchAdminRecipes(): Promise<AdminRecipe[]> {
+  const { data } = await apiClient.get("/api/recipes");
+  return data;
 }
 
 export async function fetchRecipe(id: number): Promise<AdminRecipe> {
-  const res = await fetch(`${BASE_URL}/api/recipes/${id}`, { headers: authHeaders() });
-  return handleResponse(res);
+  const { data } = await apiClient.get(`/api/recipes/${id}`);
+  return data;
 }
 
-// ── Recettes (back-office admin) ───────────────────────────────────────────────
+export async function createRecipe(payload: object) {
+  const { data } = await apiClient.post("/api/recipes", payload);
+  return data;
+}
 
-export async function fetchAdminRecipes(): Promise<AdminRecipe[]> {
-  const res = await fetch(`${BASE_URL}/api/recipes`, { headers: authHeaders() });
-  return handleResponse(res);
+export async function updateRecipe(id: number, payload: object) {
+  const { data } = await apiClient.put(`/api/recipes/${id}`, payload);
+  return data;
+}
+
+export async function deleteRecipe(id: number) {
+  const { data } = await apiClient.delete(`/api/recipes/${id}`);
+  return data;
 }
 
 /**
@@ -138,15 +127,6 @@ export interface CreateRecipePayload {
   ingredients: Array<{ ingredientId: number; amount: number }>;
 }
 
-export async function createRecipe(payload: CreateRecipePayload): Promise<AdminRecipe> {
-  const res = await fetch(`${BASE_URL}/api/recipes`, {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
-  });
-  return handleResponse(res);
-}
-
 /**
  * Payload de mise à jour d'une recette.
  *
@@ -165,23 +145,6 @@ export interface UpdateRecipePayload {
   ingredients?: Array<{ ingredientId: number; amount: number }>;
 }
 
-export async function updateRecipe(id: number, payload: UpdateRecipePayload): Promise<AdminRecipe> {
-  const res = await fetch(`${BASE_URL}/api/recipes/${id}`, {
-    method: "PUT",
-    headers: authHeaders(),
-    body: JSON.stringify(payload),
-  });
-  return handleResponse(res);
-}
-
-export async function deleteRecipe(id: number): Promise<void> {
-  const res = await fetch(`${BASE_URL}/api/recipes/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  return handleResponse(res);
-}
-
 // ── Ingrédients ────────────────────────────────────────────────────────────────
 
 /**
@@ -189,32 +152,31 @@ export async function deleteRecipe(id: number): Promise<void> {
  * Utilisé pour alimenter la barre de recherche dans la modale admin.
  * Le filtrage se fait côté client (pas de pagination pour l'instant).
  */
-export async function fetchIngredients(): Promise<IngredientOption[]> {
-  const res = await fetch(`${BASE_URL}/api/ingredients`, { headers: authHeaders() });
-  return handleResponse(res);
+export async function fetchIngredients() {
+  const { data } = await apiClient.get("/api/ingredients");
+  return data;
 }
 
 export async function fetchRecipesByIngredients(ids: number[]) {
-  const res = await fetch(`${BASE_URL}/api/ingredients/recipes?ids=${ids.join(",")}`, {
-    headers: authHeaders(),
-  });
-  return handleResponse(res);
+  const { data } = await apiClient.get(`/api/ingredients/recipes?ids=${ids.join(",")}`);
+  return data;
 }
 
 // ── Utilisateurs ────────────────────────────────────────────────────────────────
 
 export async function fetchUsers(): Promise<User[]> {
-  const res = await fetch(`${BASE_URL}/api/users`, { headers: authHeaders() });
-  return handleResponse(res);
+  const { data } = await apiClient.get("/api/users");
+  return data;
 }
 
-export async function createUser(data: object) {
-  const res = await fetch(`${BASE_URL}/api/users/create`, {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify(data),
-  });
-  return handleResponse(res);
+export async function createUser(payload: object) {
+  const { data } = await apiClient.post("/api/users/create", payload);
+  return data;
+}
+
+export async function deleteUser(id: number) {
+  const { data } = await apiClient.delete(`/api/users/${id}`);
+  return data;
 }
 
 export async function updateUserAsAdmin(data: object) {
@@ -225,15 +187,6 @@ export async function updateUserAsAdmin(data: object) {
   });
   return handleResponse(res);
 }
-
-export async function deleteUser(id: number) {
-  const res = await fetch(`${BASE_URL}/api/users/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  return handleResponse(res);
-}
-
 
 // ── Ingrédients (admin) ────────────────────────────────────────────────────────
  

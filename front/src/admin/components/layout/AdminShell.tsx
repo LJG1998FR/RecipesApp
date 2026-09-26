@@ -14,6 +14,7 @@
 import type { ReactNode } from "react";
 import type { AdminPage } from "../../types";
 import Sidebar from "./Sidebar";
+import { logout } from "../../../api";
 
 interface AdminShellProps {
   currentPage: AdminPage;
@@ -30,12 +31,21 @@ export default function AdminShell({
   userName,
   children,
 }: AdminShellProps) {
+
+  async function handleLogout() {
+  try {
+    await logout();
+    window.location.href = "/admin";
+  } catch (error) {
+    console.error("Erreur lors de la déconnexion :", error);
+  }
+}
   return (
     <div className="flex h-screen overflow-hidden bg-white">
       <Sidebar
         currentPage={currentPage}
         onNavigate={onNavigate}
-        onLogout={onLogout}
+        onLogout={handleLogout}
         userName={userName}
       />
       <main className="flex-1 overflow-y-auto bg-slate-50">
