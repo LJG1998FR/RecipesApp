@@ -59,10 +59,23 @@ export async function register(email: string, password: string, firstName: strin
   return data;
 }
 
-export async function updateUser(email: string, password: string) {
-  const { data } = await apiClient.put("/api/users/update", { email, password });
-  return data;
+export async function updateUser(data: object) {
+  const res = await fetch(`${BASE_URL}/api/users/update`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
 }
+
+/*export async function updateUserAsAdmin(data: object) {
+  const res = await fetch(`${BASE_URL}/api/users/admin-update`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}*/
 
 export async function logout(): Promise<void> {
   await apiClient.post("/api/logout", {
@@ -179,11 +192,11 @@ export async function deleteUser(id: number) {
   return data;
 }
 
-export async function updateUserAsAdmin(data: object) {
-  const res = await fetch(`${BASE_URL}/api/users/admin-update`, {
-    method: "PUT",
+
+export async function deleteCurrentUser(id: number): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/users/${id}`, {
+    method: "DELETE",
     headers: authHeaders(),
-    body: JSON.stringify(data),
   });
   return handleResponse(res);
 }

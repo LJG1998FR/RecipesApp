@@ -101,13 +101,13 @@ class RecipeController extends AbstractController
     #[Route('', name: 'add', methods: ['POST'])]
     public function add(Request $request): JsonResponse
     {
+        // Tout utilisateur authentifié peut créer une recette
+        // (IS_AUTHENTICATED_FULLY est déjà garanti par le firewall)
+
         $data = json_decode($request->getContent(), true);
 
         if (!is_array($data)) {
-            return $this->json(
-                ['error' => 'Invalid JSON body.'],
-                Response::HTTP_BAD_REQUEST,
-            );
+            return $this->json(['error' => 'Invalid JSON body.'], Response::HTTP_BAD_REQUEST);
         }
 
         $errors = $this->validateRecipeData($data, isCreation: true);
@@ -118,7 +118,7 @@ class RecipeController extends AbstractController
         $type = RecipeType::tryFrom($data['type']);
         if (!$type) {
             return $this->json(
-                ['errors' => ['type' => 'Invalid type. Allowed values: ' . implode(', ', array_column(RecipeType::cases(), 'value'))]],
+                ['errors' => ['type' => 'Invalid type. Allowed: ' . implode(', ', array_column(RecipeType::cases(), 'value'))]],
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
@@ -131,53 +131,7 @@ class RecipeController extends AbstractController
         $recipe->setCookingTime(isset($data['cookingTime']) ? (int) $data['cookingTime'] : null);
         $recipe->setTips($data['tips'] ?? null);
         $recipe->setCreatedAt(time());
-
-        $user = $this->security->getUser();
-        if ($user) {
-            $recipe->setUser($user);
-        }
-
-        // ── Steps : index auto-incrémenté à la création ──────────────────────
-        if (!empty($data['steps']) && is_array($data['steps'])) {
-            $errors = $this->validateSteps($data['steps']);
-            if (!empty($errors)) {
-                return $this->json(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
-
-            foreach ($data['steps'] as $position => $stepData) {
-                $step = new Step();
-                $step->setIndex($position + 1); // Index auto : 1-based
-                $step->setDescription(trim($stepData['description']));
-                $recipe->addStep($step);
-                $this->em->persist($step);
-            }
-        }
-
-        // ── Ingredients : on cherche l'entité existante par son id ───────────
-        // Le client envoie [{ ingredientId: 3, amount: 250 }, ...]
-        // On ne crée jamais un nouvel ingrédient ici — on sélectionne dans le référentiel.
-        if (!empty($data['ingredients']) && is_array($data['ingredients'])) {
-            $ingredientErrors = $this->validateIngredients($data['ingredients']);
-            if (!empty($ingredientErrors)) {
-                return $this->json(['errors' => $ingredientErrors], Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
-
-            foreach ($data['ingredients'] as $ingData) {
-                $ingredient = $this->ingredientRepository->find((int) $ingData['ingredientId']);
-                if (!$ingredient) {
-                    return $this->json(
-                        ['errors' => ['ingredients' => "Ingredient with id {$ingData['ingredientId']} not found."]],
-                        Response::HTTP_UNPROCESSABLE_ENTITY,
-                    );
-                }
-
-                $recipeIngredient = new RecipeIngredient();
-                $recipeIngredient->setIngredient($ingredient);
-                $recipeIngredient->setAmount((int) $ingData['amount']);
-                $recipe->addRecipeIngredient($recipeIngredient);
-                $this->em->persist($recipeIngredient);
-            }
-        }
+        $recipe->setUser($this->security->getUser());   // toujours lier au créateur
 
         $this->em->persist($recipe);
         $this->em->flush();
@@ -186,34 +140,24 @@ class RecipeController extends AbstractController
     }
 
     // ── PUT /api/recipes/{id} ──────────────────────────────────────────────────
-
     #[Route('/{id}', name: 'update', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function update(int $id, Request $request): JsonResponse
     {
         $recipe = $this->recipeRepository->find($id);
 
         if (!$recipe) {
-            return $this->json(
-                ['error' => "Recipe with id $id not found."],
-                Response::HTTP_NOT_FOUND,
-            );
+            return $this->json(['error' => "Recipe $id not found."], Response::HTTP_NOT_FOUND);
         }
 
-        $currentUser = $this->security->getUser();
-        if ($recipe->getUser() && $recipe->getUser() !== $currentUser && !$this->isGranted('ROLE_ADMIN')) {
-            return $this->json(
-                ['error' => 'You are not allowed to update this recipe.'],
-                Response::HTTP_FORBIDDEN,
-            );
+        // Autorisé si : propriétaire de la recette OU admin
+        if (!$this->canMutateRecipe($recipe)) {
+            return $this->json(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
         }
 
         $data = json_decode($request->getContent(), true);
 
         if (!is_array($data)) {
-            return $this->json(
-                ['error' => 'Invalid JSON body.'],
-                Response::HTTP_BAD_REQUEST,
-            );
+            return $this->json(['error' => 'Invalid JSON body.'], Response::HTTP_BAD_REQUEST);
         }
 
         $errors = $this->validateRecipeData($data, isCreation: false);
@@ -221,81 +165,27 @@ class RecipeController extends AbstractController
             return $this->json(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        if (isset($data['title']))    $recipe->setTitle(trim($data['title']));
-        if (isset($data['nbPeople'])) $recipe->setNbPeople((int) $data['nbPeople']);
+        if (isset($data['title']))       $recipe->setTitle(trim($data['title']));
+        if (isset($data['nbPeople']))    $recipe->setNbPeople((int) $data['nbPeople']);
+        if (isset($data['prepTime']))    $recipe->setPrepTime((int) $data['prepTime']);
+
+        if (array_key_exists('cookingTime', $data)) {
+            $recipe->setCookingTime($data['cookingTime'] !== null ? (int) $data['cookingTime'] : null);
+        }
+
+        if (array_key_exists('tips', $data)) {
+            $recipe->setTips($data['tips']);
+        }
 
         if (isset($data['type'])) {
             $type = RecipeType::tryFrom($data['type']);
             if (!$type) {
                 return $this->json(
-                    ['errors' => ['type' => 'Invalid type. Allowed values: ' . implode(', ', array_column(RecipeType::cases(), 'value'))]],
+                    ['errors' => ['type' => 'Invalid type.']],
                     Response::HTTP_UNPROCESSABLE_ENTITY,
                 );
             }
             $recipe->setType($type);
-        }
-
-        if (isset($data['prepTime']))              $recipe->setPrepTime((int) $data['prepTime']);
-        if (array_key_exists('cookingTime', $data)) $recipe->setCookingTime($data['cookingTime'] !== null ? (int) $data['cookingTime'] : null);
-        if (array_key_exists('tips', $data))        $recipe->setTips($data['tips'] ?? null);
-
-        // ── Steps en update : l'admin peut modifier l'index manuellement ─────
-        // Stratégie : on supprime les anciens steps et on recrée.
-        // C'est plus simple et plus fiable qu'un diff — la table steps est légère.
-        // À noter pour le junior : cette stratégie "delete + recreate" est acceptable
-        // ici car les steps n'ont pas de relations externes. Éviter sur des entités
-        // avec des FK ou de l'historique.
-        if (isset($data['steps']) && is_array($data['steps'])) {
-            $errors = $this->validateSteps($data['steps'], allowManualIndex: true);
-            if (!empty($errors)) {
-                return $this->json(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
-
-            // Supprimer les steps existants
-            foreach ($recipe->getSteps() as $existingStep) {
-                $recipe->removeStep($existingStep);
-                $this->em->remove($existingStep);
-            }
-
-            // Recréer avec l'index fourni par l'admin
-            foreach ($data['steps'] as $stepData) {
-                $step = new Step();
-                $step->setIndex((int) $stepData['index']);
-                $step->setDescription(trim($stepData['description']));
-                $step->setRecipe($recipe);
-                $recipe->addStep($step);
-                $this->em->persist($step);
-            }
-        }
-
-        // ── Ingredients en update : même stratégie delete + recreate ─────────
-        if (isset($data['ingredients']) && is_array($data['ingredients'])) {
-            $ingredientErrors = $this->validateIngredients($data['ingredients']);
-            if (!empty($ingredientErrors)) {
-                return $this->json(['errors' => $ingredientErrors], Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
-
-            foreach ($recipe->getIngredients() as $existingRI) {
-                $recipe->removeRecipeIngredient($existingRI);
-                $this->em->remove($existingRI);
-            }
-
-            foreach ($data['ingredients'] as $ingData) {
-                $ingredient = $this->ingredientRepository->find((int) $ingData['ingredientId']);
-                if (!$ingredient) {
-                    return $this->json(
-                        ['errors' => ['ingredients' => "Ingredient with id {$ingData['ingredientId']} not found."]],
-                        Response::HTTP_UNPROCESSABLE_ENTITY,
-                    );
-                }
-
-                $recipeIngredient = new RecipeIngredient();
-                $recipeIngredient->setIngredient($ingredient);
-                $recipeIngredient->setRecipe($recipe);
-                $recipeIngredient->setAmount((int) $ingData['amount']);
-                $recipe->addRecipeIngredient($recipeIngredient);
-                $this->em->persist($recipeIngredient);
-            }
         }
 
         $this->em->flush();
@@ -304,31 +194,42 @@ class RecipeController extends AbstractController
     }
 
     // ── DELETE /api/recipes/{id} ───────────────────────────────────────────────
-
     #[Route('/{id}', name: 'delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function delete(int $id): JsonResponse
     {
         $recipe = $this->recipeRepository->find($id);
 
         if (!$recipe) {
-            return $this->json(
-                ['error' => "Recipe with id $id not found."],
-                Response::HTTP_NOT_FOUND,
-            );
+            return $this->json(['error' => "Recipe $id not found."], Response::HTTP_NOT_FOUND);
         }
 
-        $currentUser = $this->security->getUser();
-        if ($recipe->getUser() && $recipe->getUser() !== $currentUser && !$this->isGranted('ROLE_ADMIN')) {
-            return $this->json(
-                ['error' => 'You are not allowed to delete this recipe.'],
-                Response::HTTP_FORBIDDEN,
-            );
+        if (!$this->canMutateRecipe($recipe)) {
+            return $this->json(['error' => 'Access denied.'], Response::HTTP_FORBIDDEN);
         }
 
         $this->em->remove($recipe);
         $this->em->flush();
 
         return $this->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    // ── Helper : peut-on modifier/supprimer cette recette ? ────────────────────
+    /**
+     * Retourne true si :
+     * - l'utilisateur connecté est le propriétaire de la recette
+     * - OU l'utilisateur est ROLE_ADMIN (ou SUPER_ADMIN par héritage)
+     *
+     * Une recette sans propriétaire (créée en fixture) n'est modifiable
+     * que par un admin.
+     */
+    private function canMutateRecipe(Recipe $recipe): bool
+    {
+        $currentUser = $this->security->getUser();
+
+        $isOwner = $recipe->getUser() !== null && $recipe->getUser() === $currentUser;
+        $isAdmin = $this->isGranted('ROLE_ADMIN');
+
+        return $isOwner || $isAdmin;
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

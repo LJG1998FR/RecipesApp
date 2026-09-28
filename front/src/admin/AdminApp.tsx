@@ -26,7 +26,7 @@ import Overview from "./pages/Overview";
 import Users from "./pages/Users";
 import Recipes from "./pages/Recipes";
 import { fetchAdminRecipes, fetchUsers, getUserData, isAuthenticated, fetchAdminIngredients, createIngredient, updateAdminIngredient, deleteIngredient } from "../api";
-import { UserData } from "@/context/UserContext";
+import { isSuperAdmin, UserData } from "../context/UserContext";
 import "../styles/admin.css";
 import Ingredients from "./pages/Ingredients";
 import AdminSpinner from "./components/ui/Spinner";
@@ -44,25 +44,31 @@ export default function AdminApp() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  /*useEffect(() => {
-    if (!loggedIn) return;
-    fetchUsers().then(setUsers);
-    fetchAdminRecipes().then(setRecipes);
-    fetchAdminIngredients().then((res) => setIngredients(res)); 
-  }, [loggedIn]);*/
-
   useEffect(() => {
-    // Promise.all lance les trois requêtes EN PARALLÈLE
-    // (plus performant que trois await successifs qui seraient séquentiels)
+
+    // 🔒 Garde-fou : on ne fait aucun appel API tant qu'on n'est pas authentifié.
+    if(!loggedIn){
+      setIsLoading(false);
+      return;
+    }
+
+    // Promise.all lance les requêtes EN PARALLÈLE
+    // (plus performant que plusieurs await successifs qui seraient séquentiels)
     Promise.all([
+      getUserData(),
       fetchUsers(),
       fetchAdminRecipes(),
       fetchAdminIngredients()
     ])
-      .then(([fetchedUsers, fetchedRecipes, fetchedIngredients]) => {
+      .then(([userData, fetchedUsers, fetchedRecipes, fetchedIngredients]) => {
+        setCurrentUser(userData);
         setUsers(fetchedUsers);
         setRecipes(fetchedRecipes);
         setIngredients(fetchedIngredients);
+
+        if (currentUser && isSuperAdmin(currentUser as unknown as UserData)) {
+          fetchUsers().then(setUsers);
+        }
       })
       .catch((err) => {
         // En prod, on logguerait vers un service d'erreur (Sentry, etc.)
@@ -88,14 +94,13 @@ export default function AdminApp() {
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   async function handleLogin(email: string, password: string): Promise<boolean> {
-    const user: UserData = await getUserData();
+    const userData: UserData = await getUserData();
 
-    if (
-      user &&
-      (user.role.includes("ROLE_ADMIN") ||
-        user.role.includes("ROLE_SUPER_ADMIN"))
-    ) {
-      setCurrentUser({ ...user, password });
+    const hasAdminAccess =
+      userData?.role === 'ROLE_ADMIN' || userData?.role === 'ROLE_SUPER_ADMIN';
+
+    if (hasAdminAccess) {
+      setCurrentUser({ ...userData, password } as unknown as User);
       setLoggedIn(true);
       return true;
     }
@@ -189,6 +194,9 @@ export default function AdminApp() {
     ? `${currentUser.firstName} ${currentUser.lastName}`
     : "Admin";
 
+  const currentRole   = (currentUser as unknown as UserData)?.role ?? 'ROLE_ADMIN';
+  const canManageUsers = isSuperAdmin(currentUser as unknown as UserData);
+
   return (
     <div className="admin-scope">
       {!loggedIn ? (
@@ -199,13 +207,15 @@ export default function AdminApp() {
           onNavigate={setCurrentPage}
           onLogout={handleLogout}
           userName={userName}
+          currentRole={currentRole}
         >
           {currentPage === "overview" && (
-            <Overview users={users} recipes={recipes} />
+            <Overview users={users} recipes={recipes} currentRole={currentRole} />
           )}
-          {currentPage === "users" && (
+          {currentPage === "users" && canManageUsers && (
             <Users
               users={users}
+              currentUserId={(currentUser as any)?.id}
               onAdd={addUser}
               onUpdate={updateUser}
               onDelete={deleteUser}

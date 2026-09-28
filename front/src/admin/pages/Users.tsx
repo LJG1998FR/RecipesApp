@@ -1,136 +1,93 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// src/admin/pages/Users.tsx
-//
-// Gestion des utilisateurs : liste + création + édition + suppression.
-//
-// PATTERN : "controlled form" — chaque champ du formulaire est un état React.
-// La modale est partagée pour création ET édition (editingUser null = création).
-//
-// CORRECTIFS vs version précédente :
-//   1. `columns` mémoïsé avec useMemo → ne se recrée QUE si openEdit/setDeleteConfirm changent
-//   2. `openEdit`, `openCreate`, `closeModal`, `handleSubmit` wrappés dans useCallback
-//      → leurs références restent stables entre les renders
-//   3. Ces deux points combinés empêchent la Table de se re-render inutilement
-//      quand le composant parent déclenche un render (ex: setState dans AdminApp)
-//
-// POURQUOI ce n'était pas correct avant ?
-//   - `columns` était un tableau littéral défini DANS le corps du composant.
-//   - À chaque render de Users, React crée un NOUVEAU tableau en mémoire.
-//   - La Table reçoit donc toujours des nouvelles "columns" → elle re-render entièrement.
-//   - useMemo(() => [...], [deps]) dit à React : "ne recrée ce tableau que si les
-//     dépendances [deps] ont changé". Entre deux renders sans changement de deps,
-//     c'est la même référence mémoire → la Table ne re-render pas.
-// ─────────────────────────────────────────────────────────────────────────────
-
-import { useState, useMemo, useCallback } from "react";
+import { useState } from "react";
 import type { User, UserRole } from "../types";
 import Table, { type Column } from "../components/ui/Table";
 import { RoleBadge } from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
 import { formatDate } from "./Overview";
-import { createUser, updateUser, updateUserAsAdmin } from "../../api";
+import { createUser, updateUser } from "../../api";
 
 interface UsersProps {
-  users: User[];
-  onAdd:    (u: Omit<User, "id" | "createdAt">) => void;
-  onUpdate: (u: User) => void;
-  onDelete: (id: number) => void;
+  users:        User[];
+  currentUserId: number;    // ← nouveau : ID de l'utilisateur connecté
+  onAdd:        (u: Omit<User, "id" | "createdAt">) => void;
+  onUpdate:     (u: User) => void;
+  onDelete:     (id: number) => void;
 }
 
-// ── Valeurs par défaut du formulaire ──────────────────────────────────────────
-// Défini EN DEHORS du composant : c'est un objet constant, pas besoin de le
-// recréer à chaque render. Ça évite aussi de le mettre dans les dépendances de useMemo.
 const EMPTY_FORM = {
   firstName: "",
   lastName:  "",
   email:     "",
   password:  "",
-  role:      "ROLE_USER",
+  role:      "ROLE_USER" as string,
 };
 
-export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) {
-  // null  = modale fermée
-  // User  = on édite cet utilisateur
-  // false = on crée un nouvel utilisateur
+export default function Users({ users, currentUserId, onAdd, onUpdate, onDelete }: UsersProps) {
   const [editingUser,   setEditingUser]   = useState<User | null | false>(null);
   const [form,          setForm]          = useState(EMPTY_FORM);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
-  // ── Ouverture modale ───────────────────────────────────────────────────────
-  // useCallback : la référence de openCreate ne change jamais (deps = [])
-  // → le bouton "Ajouter" ne force pas un re-render de la Table
-  const openCreate = useCallback(() => {
+  // Détermine si l'utilisateur en cours d'édition est soi-même
+  const isEditingSelf = editingUser && (editingUser as User).id === currentUserId;
+
+  function openCreate() {
     setForm(EMPTY_FORM);
     setEditingUser(false);
-  }, []);
+  }
 
-  // useCallback avec []: openEdit capture setForm et setEditingUser qui sont
-  // des setters stables fournis par React (leur référence ne change jamais).
-  const openEdit = useCallback((user: User) => {
+  function openEdit(user: User) {
     setForm({
       firstName: user.firstName,
       lastName:  user.lastName,
       email:     user.email,
-      password:  user.password,
+      password:  "",
       role:      user.role,
     });
     setEditingUser(user);
-  }, []);
+  }
 
-  const closeModal = useCallback(() => {
-    setEditingUser(null);
-  }, []);
+  function closeModal() { setEditingUser(null); }
 
-  // ── Soumission formulaire ──────────────────────────────────────────────────
-  // Note : handleSubmit dépend de editingUser, onUpdate, onAdd et closeModal.
-  // React compare ces valeurs entre chaque render pour décider si la fonction
-  // doit être recrée.
-
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (editingUser) {
-      await updateUserAsAdmin({ ...editingUser, ...form });
+      await updateUser({ ...editingUser, ...form });
       onUpdate({ ...editingUser, ...form });
     } else {
       await createUser(form);
       onAdd(form);
     }
     closeModal();
-  }, [editingUser, form, onUpdate, onAdd, closeModal]);
+  }
 
-  // ── Mise à jour d'un champ du formulaire ───────────────────────────────────
-  // Typage générique : keyof typeof EMPTY_FORM assure qu'on ne peut passer
-  // qu'une clé valide du formulaire (firstName, lastName, etc.)
-  const setField = useCallback(<K extends keyof typeof EMPTY_FORM>(key: K, value: typeof EMPTY_FORM[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }, [])
+  function setField<K extends keyof typeof EMPTY_FORM>(key: K, value: typeof EMPTY_FORM[K]) {
+    setForm(prev => ({ ...prev, [key]: value }));
+  }
 
-  // ── Définition des colonnes ────────────────────────────────────────────────
-  // useMemo : React ne recrée ce tableau QUE si openEdit ou setDeleteConfirm changent.
-  // Or openEdit est stable (useCallback []), et setDeleteConfirm est un setter React
-  // (toujours stable) → en pratique, columns n'est JAMAIS recréé inutilement.
-  //
-  // Sans useMemo, columns était un nouveau tableau à chaque render → la Table
-  // recevait toujours de nouvelles props → re-render complet à chaque interaction.
-  const columns: Column<User>[] = useMemo(() => [
+  const columns: Column<User>[] = [
     {
       header: "Nom",
       render: (u) => (
         <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-          <div
-            style={{
-              width: 28, height: 28, borderRadius: "50%",
-              backgroundColor: "#eef2ff", color: "#4f46e5",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "0.75rem", fontWeight: 700, flexShrink: 0,
-            }}
-          >
+          <div style={{
+            width: 28, height: 28, borderRadius: "50%",
+            backgroundColor: u.id === currentUserId ? "#dbeafe" : "#eef2ff",
+            color: u.id === currentUserId ? "#2563eb" : "#4f46e5",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "0.75rem", fontWeight: 700, flexShrink: 0,
+          }}>
             {u.firstName.charAt(0)}
           </div>
           <div>
             <p style={{ fontWeight: 500, color: "#0f172a", fontSize: "0.875rem" }}>
               {u.firstName} {u.lastName}
+              {/* Indicateur visuel "c'est vous" */}
+              {u.id === currentUserId && (
+                <span style={{ marginLeft: 6, fontSize: 11, color: "#64748b", fontWeight: 400 }}>
+                  (vous)
+                </span>
+              )}
             </p>
             <p style={{ fontSize: "0.75rem", color: "#94a3b8" }}>{u.email}</p>
           </div>
@@ -139,7 +96,7 @@ export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) 
     },
     {
       header: "Rôle",
-      width: "120px",
+      width: "140px",
       render: (u) => <RoleBadge role={u.role as UserRole} />,
     },
     {
@@ -149,7 +106,7 @@ export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) 
     },
     {
       header: "Actions",
-      width: "140px",
+      width: "160px",
       render: (u) => (
         <div style={{ display: "flex", gap: "0.5rem" }}>
           <Button
@@ -159,20 +116,21 @@ export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) 
           >
             Modifier
           </Button>
-          <Button variant="danger" onClick={() => setDeleteConfirm(u.id)}>
-            Supprimer
-          </Button>
+          {/* On ne peut pas se supprimer soi-même */}
+          {u.id !== currentUserId && (
+            <Button variant="danger" onClick={() => setDeleteConfirm(u.id)}>
+              Supprimer
+            </Button>
+          )}
         </div>
       ),
     },
-  ], [openEdit]); // setDeleteConfirm est stable (setter React) → pas besoin de le lister
+  ];
 
   const isModalOpen = editingUser !== null;
 
   return (
     <div style={{ padding: "2rem" }}>
-
-      {/* ── En-tête de page ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
         <div>
           <h1 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0f172a" }}>Utilisateurs</h1>
@@ -185,7 +143,6 @@ export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) 
         </Button>
       </div>
 
-      {/* ── Table ── */}
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "0.75rem", overflow: "hidden" }}>
         <Table
           columns={columns}
@@ -207,63 +164,59 @@ export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) 
               <div style={{ display: "flex", gap: "0.75rem" }}>
                 <div style={{ flex: 1 }}>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Prénom</label>
-                  <input
-                    className="input-field"
-                    value={form.firstName}
-                    onChange={(e) => setField("firstName", e.target.value)}
-                    required
-                    placeholder="Marie"
-                  />
+                  <input className="input-field" value={form.firstName} onChange={e => setField("firstName", e.target.value)} required />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Nom</label>
-                  <input
-                    className="input-field"
-                    value={form.lastName}
-                    onChange={(e) => setField("lastName", e.target.value)}
-                    required
-                    placeholder="Dupont"
-                  />
+                  <input className="input-field" value={form.lastName} onChange={e => setField("lastName", e.target.value)} required />
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-                <input
-                  type="email"
-                  className="input-field"
-                  value={form.email}
-                  onChange={(e) => setField("email", e.target.value)}
-                  required
-                  placeholder="marie@saveurs.fr"
-                />
+                <input type="email" className="input-field" value={form.email} onChange={e => setField("email", e.target.value)} required />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Mot de passe{" "}
-                  {editingUser && (
-                    <span style={{ color: "#94a3b8", fontWeight: 400 }}>
-                      (laisser vide pour ne pas changer)
-                    </span>
-                  )}
+                  {editingUser && <span style={{ color: "#94a3b8", fontWeight: 400 }}>(laisser vide pour conserver)</span>}
                 </label>
                 <input
                   type="password"
                   className="input-field"
                   value={form.password}
-                  onChange={(e) => setField("password", e.target.value)}
+                  onChange={e => setField("password", e.target.value)}
                   required={!editingUser}
-                  placeholder="••••••••"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Rôle</label>
+                <label
+                  className="block text-sm font-medium text-slate-700 mb-1.5"
+                  style={{ display: "flex", alignItems: "center", gap: 8 }}
+                >
+                  Rôle
+                  {/* Avertissement visible si l'admin édite son propre profil */}
+                  {isEditingSelf && (
+                    <span style={{
+                      fontSize: 11, padding: "2px 8px", borderRadius: 99,
+                      backgroundColor: "#fef9c3", color: "#854d0e",
+                      border: "1px solid #fde047",
+                    }}>
+                      🔒 Non modifiable (votre propre compte)
+                    </span>
+                  )}
+                </label>
                 <select
                   className="input-field"
                   value={form.role}
-                  onChange={(e) => setField("role", e.target.value)}
+                  onChange={e => setField("role", e.target.value)}
+                  disabled={!!isEditingSelf}   // ← désactivé si on édite son propre compte
+                  style={{
+                    opacity: isEditingSelf ? 0.5 : 1,
+                    cursor:  isEditingSelf ? "not-allowed" : "pointer",
+                  }}
                 >
                   <option value="ROLE_SUPER_ADMIN">Super Admin</option>
                   <option value="ROLE_ADMIN">Admin</option>
@@ -293,10 +246,7 @@ export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) 
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
-            <Button
-              variant="danger"
-              onClick={() => { onDelete(deleteConfirm); setDeleteConfirm(null); }}
-            >
+            <Button variant="danger" onClick={() => { onDelete(deleteConfirm); setDeleteConfirm(null); }}>
               Supprimer
             </Button>
           </Modal.Footer>
@@ -306,8 +256,6 @@ export default function Users({ users, onAdd, onUpdate, onDelete }: UsersProps) 
   );
 }
 
-// ── Icône locale ──────────────────────────────────────────────────────────────
-// Définie hors du composant : ne se recrée pas à chaque render de Users.
 function PlusIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

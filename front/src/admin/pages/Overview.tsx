@@ -14,6 +14,7 @@ import { RoleBadge } from "../components/ui/Badge";
 interface OverviewProps {
   users: User[];
   recipes: Recipe[];
+  currentRole: string;
 }
 
 // ── TypeBadge inline — plus léger qu'importer Badge pour 3 valeurs ────────────
@@ -71,7 +72,7 @@ export function formatDate(userTsp: number): string {
 }
 
 // ── Overview ──────────────────────────────────────────────────────────────────
-export default function Overview({ users, recipes }: OverviewProps) {
+export default function Overview({ users, recipes, currentRole }: OverviewProps) {
   const publishedCount = recipes.filter((r) => r.status === "published").length;
   const platsCount     = recipes.filter((r) => r.type === "Plats").length;
   const autresCount    = recipes.filter((r) => r.type !== "Plats").length;
@@ -97,14 +98,14 @@ export default function Overview({ users, recipes }: OverviewProps) {
         </p>
       </div>
 
-      {/* ── 4 StatCards ── */}
+      {/* ── StatCards ── */}
       <div style={{ display: "flex", gap: "1rem", marginBottom: "1.75rem", flexWrap: "wrap" }}>
-        <StatCard
+        {currentRole === "ROLE_SUPER_ADMIN" && <StatCard
           label="Utilisateurs"
           value={users.length}
           sub={`${users.filter((u) => u.role === "ROLE_SUPER_ADMIN").length} admin(s)`}
           barColor="#6366f1"
-        />
+        />}
         <StatCard
           label="Recettes totales"
           value={recipes.length}
@@ -166,7 +167,7 @@ export default function Overview({ users, recipes }: OverviewProps) {
       </div>
 
       {/* ── Table utilisateurs récents ── */}
-      <div style={{
+      {currentRole === "ROLE_SUPER_ADMIN" && <div style={{
         background: "#fff", border: "1px solid #e2e8f0",
         borderRadius: 12, overflow: "hidden",
       }}>
@@ -203,7 +204,7 @@ export default function Overview({ users, recipes }: OverviewProps) {
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
 
     </div>
   );

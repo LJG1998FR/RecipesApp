@@ -1,25 +1,19 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// src/admin/components/layout/Sidebar.tsx
-//
-// CHANGEMENTS vs l'original :
-//   - Ajout de l'entrée "ingredients" dans navItems
-//   - L'icône représente une feuille / plante pour évoquer un ingrédient naturel
-// ─────────────────────────────────────────────────────────────────────────────
-
 import type { ReactNode } from "react";
 import type { AdminPage } from "../../types";
 
 interface SidebarProps {
   currentPage: AdminPage;
-  onNavigate: (page: AdminPage) => void;
-  onLogout: () => void;
-  userName: string;
+  onNavigate:  (page: AdminPage) => void;
+  onLogout:    () => void;
+  userName:    string;
+  currentRole: string;   // ← nouveau
 }
 
 interface NavItem {
-  id: AdminPage;
-  label: string;
-  icon: ReactNode;
+  id:           AdminPage;
+  label:        string;
+  icon:         ReactNode;
+  requiresRole?: string;  // ← nouveau : rôle minimum requis pour voir l'entrée
 }
 
 const navItems: NavItem[] = [
@@ -27,7 +21,7 @@ const navItems: NavItem[] = [
     id: "overview",
     label: "Vue d'ensemble",
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="3" y="3" width="7" height="7" rx="1" />
         <rect x="14" y="3" width="7" height="7" rx="1" />
         <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -38,8 +32,9 @@ const navItems: NavItem[] = [
   {
     id: "users",
     label: "Utilisateurs",
+    requiresRole: "ROLE_SUPER_ADMIN",   // ← SUPER_ADMIN uniquement
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -51,7 +46,7 @@ const navItems: NavItem[] = [
     id: "recipes",
     label: "Recettes",
     icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
         <path d="M8 12c0-2.21 1.79-4 4-4s4 1.79 4 4" />
         <path d="M9 17c0-1.66 1.34-3 3-3s3 1.34 3 3" />
@@ -72,19 +67,22 @@ const navItems: NavItem[] = [
   },
 ];
 
-export default function Sidebar({ currentPage, onNavigate, onLogout, userName }: SidebarProps) {
+export default function Sidebar({ currentPage, onNavigate, onLogout, userName, currentRole }: SidebarProps) {
   const initial = userName.charAt(0).toUpperCase();
 
+  // Filtre les items selon le rôle de l'utilisateur connecté
+  const visibleItems = navItems.filter(
+    item => !item.requiresRole || currentRole === item.requiresRole
+  );
+
   return (
-    <aside
-      style={{ width: "220px", minWidth: "220px" }}
-      className="h-screen bg-slate-50 border-r border-slate-200 flex flex-col"
-    >
+    <aside style={{ width: "220px", minWidth: "220px" }} className="h-screen bg-slate-50 border-r border-slate-200 flex flex-col">
+
       {/* ── Marque ── */}
       <div className="px-4 py-5 border-b border-slate-200">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
               <path d="M8 12c0-2.21 1.79-4 4-4s4 1.79 4 4" />
               <path d="M9 17c0-1.66 1.34-3 3-3s3 1.34 3 3" />
@@ -97,12 +95,10 @@ export default function Sidebar({ currentPage, onNavigate, onLogout, userName }:
         </div>
       </div>
 
-      {/* ── Navigation ── */}
+      {/* ── Navigation filtrée par rôle ── */}
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
-        <p className="px-2 text-xs font-medium text-slate-400 mb-2 tracking-wider">
-          Menu
-        </p>
-        {navItems.map((item) => (
+        <p className="px-2 text-xs font-medium text-slate-400 mb-2 tracking-wider">Menu</p>
+        {visibleItems.map((item) => (
           <button
             key={item.id}
             className={`sidebar-link w-full text-left${currentPage === item.id ? " active" : ""}`}
@@ -114,21 +110,23 @@ export default function Sidebar({ currentPage, onNavigate, onLogout, userName }:
         ))}
       </nav>
 
-      {/* ── Pied — utilisateur + déconnexion ── */}
+      {/* ── Badge de rôle + utilisateur ── */}
       <div className="px-3 py-4 border-t border-slate-200">
         <div className="flex items-center gap-2.5 px-2 mb-3">
           <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-semibold text-indigo-700 flex-shrink-0">
             {initial}
           </div>
-          <p className="text-sm font-medium text-slate-700 truncate">{userName}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-700 truncate">{userName}</p>
+            {/* Badge visuel du rôle — utile pour que l'admin sache qui il est */}
+            <p className="text-xs text-slate-400">
+              {currentRole === 'ROLE_SUPER_ADMIN' ? '⭐ Super Admin' : '🔧 Admin'}
+            </p>
+          </div>
         </div>
 
-        <button
-          className="sidebar-link w-full text-left"
-          onClick={onLogout}
-          style={{ color: "#ef4444" }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <button className="sidebar-link w-full text-left" onClick={onLogout} style={{ color: "#ef4444" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />

@@ -1,11 +1,12 @@
 security:
-    # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
+    role_hierarchy:
+        ROLE_ADMIN:       ROLE_USER
+        ROLE_SUPER_ADMIN: ROLE_ADMIN
+
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
-    # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
     providers:
-        # used to reload user from session & other features (e.g. switch_user)
         app_user_provider:
             entity:
                 class: App\Entity\User
@@ -13,17 +14,16 @@ security:
 
     firewalls:
         dev:
-            # Ensure dev tools and static assets are always allowed
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
         cors_preflight:
             pattern: ^/api/
             methods: [OPTIONS]
-            security: false 
-        refresh:    
+            security: false
+        refresh:
             pattern: ^/api/token/refresh
             refresh_jwt: ~
-        register:    
+        register:
             pattern: ^/api/register
             security: false
         login:
@@ -35,36 +35,33 @@ security:
                 password_path: password
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
-
         api:
             pattern: ^/api
-            stateless: true  # APIs must never generate PHP sessions
-            jwt: ~  # Activates JWT authentication on all requests
+            stateless: true
+            jwt: ~
         main:
             lazy: true
             provider: app_user_provider
 
-            # Activate different ways to authenticate:
-            # https://symfony.com/doc/current/security.html#the-firewall
-
-            # https://symfony.com/doc/current/security/impersonating_user.html
-            # switch_user: true
-
-    # Note: Only the *first* matching rule is applied
     access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
-        - { path: ^/api/login,    roles: PUBLIC_ACCESS }
-        - { path: ^/api/register, roles: PUBLIC_ACCESS }
-        - { path: ^/api/token/refresh, roles: PUBLIC_ACCESS }
-        - { path: ^/api/,         roles: IS_AUTHENTICATED_FULLY }
+        # ── Routes publiques ────────────────────────────────────────────────────
+        - { path: ^/api/login,              roles: PUBLIC_ACCESS }
+        - { path: ^/api/register,           roles: PUBLIC_ACCESS }
+        - { path: ^/api/token/refresh,      roles: PUBLIC_ACCESS }
+
+        # ── Liste de tous les users : SUPER_ADMIN uniquement ────────────────────
+        # On restreint ici car il n'y a pas de notion de "sa propre ressource"
+        # pour une liste — soit on voit tout le monde, soit on n'y a pas accès
+        - { path: ^/api/users$,             roles: ROLE_SUPER_ADMIN, methods: [GET] }
+
+        # ── Tout le reste de l'API : authentifié, la granularité est dans les controllers
+        - { path: ^/api/,                   roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
     security:
         password_hashers:
-            # Password hashers are resource-intensive by design to ensure security.
-            # In tests, it's safe to reduce their cost to improve performance.
             Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
                 algorithm: auto
-                cost: 4 # Lowest possible value for bcrypt
-                time_cost: 3 # Lowest possible value for argon
-                memory_cost: 10 # Lowest possible value for argon
+                cost: 4
+                time_cost: 3
+                memory_cost: 10
