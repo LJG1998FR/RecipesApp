@@ -1,6 +1,7 @@
 import { CATEGORIES, INGREDIENT_SUGGESTIONS, UNITS, RECIPE_CATEGORIES } from "../../types";
 import { useEffect, useRef, useState } from "react";
 import { CheckIcon, ChevronLeft, ClockIcon, FlameIcon, BulbIcon, PlusIcon, ImageIcon, GripIcon, TrashIcon, SaveIcon } from "../icons";
+import { createRecipe, uploadRecipePhotos } from "../../api";
 
 // ── Styles partagés ────────────────────────────────────────────────────────────
 
@@ -210,6 +211,84 @@ function IngredientInput({ onAdd }: { onAdd: (ing: Ingredient) => void }) {
   );
 }
 
+// ── PhotoGrid ──────────────────────────────────────────────────────────────────
+
+interface LocalPhoto {
+  file: File;
+  preview: string; // URL.createObjectURL, pour la preview avant upload
+}
+
+function PhotoGrid({
+  photos,
+  onAdd,
+  onRemove,
+}: {
+  photos: LocalPhoto[];
+  onAdd: (files: FileList) => void;
+  onRemove: (index: number) => void;
+}) {
+  const remaining = 5 - photos.length;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+        {photos.map((p, i) => (
+          <div
+            key={p.preview}
+            style={{ position: "relative", aspectRatio: "1", borderRadius: 12, overflow: "hidden" }}
+          >
+            <img
+              src={p.preview}
+              alt={`Photo ${i + 1}`}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+            <button
+              onClick={() => onRemove(i)}
+              style={{
+                position: "absolute", top: 4, right: 4,
+                width: 22, height: 22, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                backgroundColor: "rgba(23,18,16,0.75)", color: "#fff", cursor: "pointer",
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ))}
+
+        {remaining > 0 && (
+          <label
+            style={{
+              aspectRatio: "1", borderRadius: 12, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              border: "2px dashed var(--color-border)", backgroundColor: "var(--color-card)",
+              color: "var(--color-text-dim)",
+            }}
+          >
+            <PlusIcon size={20} />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) onAdd(e.target.files);
+                e.target.value = ""; // permet de resélectionner le même fichier plus tard
+              }}
+            />
+          </label>
+        )}
+      </div>
+
+      <p style={{ fontSize: 12, color: "var(--color-text-dim)", marginTop: 8 }}>
+        {photos.length} / 5 photo{photos.length > 1 ? "s" : ""}
+      </p>
+    </div>
+  );
+}
+
 // ── AddRecipePage ──────────────────────────────────────────────────────────────
 
 type DraftStatus = "none" | "saved" | "submitted";
@@ -220,13 +299,14 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
   const [category,    setCategory]    = useState<typeof CATEGORIES[number]>("Plats");
   const [prepTime,    setPrepTime]    = useState("");
   const [cookTime,    setCookTime]    = useState("");
-  const [imageUrl,    setImageUrl]    = useState("");
+  const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [steps,       setSteps]       = useState<string[]>([""]);
   const [tips,        setTips]        = useState<string[]>([]);
   const [tipInput,    setTipInput]    = useState("");
   const [errors,      setErrors]      = useState<string[]>([]);
   const [status,      setStatus]      = useState<DraftStatus>("none");
+  const [submitting, setSubmitting] = useState(false);
 
   const removeIngredient = (i: number) => setIngredients((p) => p.filter((_, idx) => idx !== i));
   const updateStep = (i: number, v: string) => setSteps((p) => p.map((s, idx) => idx === i ? v : s));
@@ -234,6 +314,27 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
   const removeStep = (i: number) => setSteps((p) => p.filter((_, idx) => idx !== i));
   const addTip     = () => { if (tipInput.trim()) { setTips((p) => [...p, tipInput.trim()]); setTipInput(""); } };
   const removeTip  = (i: number) => setTips((p) => p.filter((_, idx) => idx !== i));
+
+  // Évite les fuites mémoire : chaque createObjectURL doit être révoqué
+  // au démontage du composant (sinon le navigateur garde les blobs en vie).
+  useEffect(() => {
+    return () => {
+      photos.forEach((p) => URL.revokeObjectURL(p.preview));
+    };
+  }, []); // volontairement vide : on nettoie uniquement au unmount final
+
+  const addPhotos = (files: FileList) => {
+    const incoming = Array.from(files).slice(0, 5 - photos.length);
+    const mapped = incoming.map((file) => ({ file, preview: URL.createObjectURL(file) }));
+    setPhotos((p) => [...p, ...mapped]);
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((p) => {
+      URL.revokeObjectURL(p[index].preview);
+      return p.filter((_, i) => i !== index);
+    });
+  };
 
   const validate = () => {
     const errs: string[] = [];
@@ -244,10 +345,37 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
     return errs;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const errs = validate();
     if (errs.length) { setErrors(errs); return; }
-    setErrors([]); setStatus("submitted");
+    setErrors([]);
+    setSubmitting(true);
+
+    try {
+      // 1. On crée d'abord la recette : sans ID, impossible d'uploader
+      //    des photos (le dossier public/recipes/{uuid} dépend de la collection
+      //    créée côté back au moment de cette requête).
+      const created = await createRecipe({
+        title,
+        nbPeople: people,
+        type: category,
+        prepTime,
+        cookingTime: cookTime || null,
+        // tips/ingredients/steps : à adapter au payload exact attendu par
+        // validateRecipeData() côté Symfony — hors du périmètre "photos" ici.
+      });
+
+      // 2. Une fois l'ID connu, on envoie les photos dans un 2e appel.
+      if (photos.length > 0) {
+        await uploadRecipePhotos(created.id, photos.map((p) => p.file));
+      }
+
+      setStatus("submitted");
+    } catch {
+      setErrors(["La création de la recette a échoué. Réessayez."]);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDraft = () => { setErrors([]); setStatus("saved"); };
@@ -419,47 +547,8 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
         </div>
 
         {/* ── Image ── */}
-        <FormSection title="Image" badge="optionnel">
-          {imageUrl ? (
-            <div style={{ position: "relative", height: 160, borderRadius: 16, overflow: "hidden" }}>
-              <img src={imageUrl} alt="aperçu" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={() => setImageUrl("")} />
-              <button
-                onClick={() => setImageUrl("")}
-                style={{
-                  position: "absolute", top: 10, right: 10,
-                  width: 28, height: 28, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  backgroundColor: "rgba(23,18,16,0.75)", color: "var(--color-text)", cursor: "pointer",
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
-          ) : (
-            <>
-              <label style={{
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                gap: 8, padding: "32px 0", borderRadius: 16, cursor: "pointer",
-                border: "2px dashed var(--color-border)", backgroundColor: "var(--color-card)",
-              }}>
-                <span style={{ color: "var(--color-text-dim)" }}><ImageIcon /></span>
-                <span style={{ fontSize: 13, color: "var(--color-text-dim)" }}>Appuyer pour choisir une photo</span>
-                <input type="file" accept="image/*" style={{ display: "none" }} onChange={() => {}} />
-              </label>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0" }}>
-                <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border)" }} />
-                <span style={{ fontSize: 12, color: "var(--color-text-dim)" }}>ou URL</span>
-                <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border)" }} />
-              </div>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://…"
-                style={inputStyle}
-              />
-            </>
-          )}
+        <FormSection title="Photos" badge="optionnel">
+          <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removePhoto} />
         </FormSection>
 
         {/* ── Ingrédients ── */}

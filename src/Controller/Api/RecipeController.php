@@ -3,8 +3,6 @@
 namespace App\Controller\Api;
 
 use App\Entity\Recipe;
-use App\Entity\Step;
-use App\Entity\RecipeIngredient;
 use App\Enums\RecipeType;
 use App\Repository\RecipeRepository;
 use App\Repository\IngredientRepository;
@@ -15,6 +13,9 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Entity\PhotoCollection;
+use App\Service\PhotoUploader;
+use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/recipes', name: 'api_recipes_')]
 class RecipeController extends AbstractController
@@ -24,6 +25,7 @@ class RecipeController extends AbstractController
         private readonly IngredientRepository $ingredientRepository,
         private readonly EntityManagerInterface $em,
         private readonly Security $security,
+        private readonly PhotoUploader $photoUploader
     ) {}
 
     // ── GET /api/recipes ───────────────────────────────────────────────────────
@@ -93,6 +95,12 @@ class RecipeController extends AbstractController
                 'unit'   => $ri->getIngredient()->getUnit(),
                 'amount' => $ri->getAmount(),
             ])->toArray(),
+            'photos' => $recipe->getPhotoCollection()
+                ? array_map(
+                    fn($p) => ['id' => $p->getId(), 'position' => $p->getPosition(), 'url' => $this->photoUploader->publicPath($p)],
+                    $recipe->getPhotoCollection()->getPhotos()->toArray(),
+                )
+            : [],
         ]);
     }
 
@@ -132,6 +140,15 @@ class RecipeController extends AbstractController
         $recipe->setTips($data['tips'] ?? null);
         $recipe->setCreatedAt(time());
         $recipe->setUser($this->security->getUser());   // toujours lier au créateur
+
+        $photoCollection = new PhotoCollection();
+        $photoCollection->setTitle($recipe->getTitle());
+        $photoCollection->setSlugger(Uuid::v4()->toRfc4122());
+        $recipe->setPhotoCollection($photoCollection);
+
+        $this->em->persist($photoCollection);
+        $this->em->persist($recipe);
+        $this->em->flush();
 
         $this->em->persist($recipe);
         $this->em->flush();

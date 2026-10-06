@@ -15,6 +15,12 @@ export interface Recipe {
   steps: string[];
 }
 
+export interface RecipePhoto {
+  id: number;
+  position: number | null;
+  url: string; // chemin relatif renvoyé par l'API, ex: "/recipes/<uuid>/<uuid>.jpg"
+}
+
 // Données user
 
 export interface User {
