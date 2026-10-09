@@ -55,6 +55,7 @@ export interface IngredientOption {
   id: number;
   label: string;
   unit: string | null;
+  usedInRecipesCount: number;
 }
 
 export interface Recipe {

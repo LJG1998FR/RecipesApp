@@ -1,5 +1,4 @@
-//import { recipes } from "../data/recipes";
-import { Recipe } from "@/types";
+import { Recipe } from "../admin/types";
 import { fetchRecipe } from "../api";
 import RecipeDetail from "../components/recipe/RecipeDetail";
 import Loading from "../components/layout/Loading";

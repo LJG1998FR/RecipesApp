@@ -28,10 +28,32 @@ function authHeaders(): HeadersInit {
   };
 }
 
+export class ApiError extends Error {
+  status: number;
+  messages: string[];
+ 
+  constructor(status: number, messages: string[]) {
+    super(messages[0] ?? `Erreur HTTP ${status}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.messages = messages;
+  }
+}
+ 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error ?? `Erreur HTTP ${res.status}`);
+ 
+    const messages: string[] = [];
+    if (typeof body?.error === "string") messages.push(body.error);
+    if (body?.errors && typeof body.errors === "object") {
+      for (const [field, msg] of Object.entries(body.errors)) {
+        messages.push(`${field} : ${String(msg)}`);
+      }
+    }
+    if (messages.length === 0) messages.push(`Erreur HTTP ${res.status}`);
+ 
+    throw new ApiError(res.status, messages);
   }
   return res.json() as Promise<T>;
 }
@@ -107,9 +129,13 @@ export async function fetchRecipe(id: number): Promise<AdminRecipe> {
   return data;
 }
 
-export async function createRecipe(payload: object) {
-  const { data } = await apiClient.post("/api/recipes", payload);
-  return data;
+export async function createRecipe(data: CreateRecipePayload): Promise<{ id: number }> {
+  const res = await fetch(`${BASE_URL}/api/recipes`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<{ id: number }>(res);
 }
 
 export async function updateRecipe(id: number, payload: object) {
@@ -167,9 +193,9 @@ export interface UpdateRecipePayload {
  * Utilisé pour alimenter la barre de recherche dans la modale admin.
  * Le filtrage se fait côté client (pas de pagination pour l'instant).
  */
-export async function fetchIngredients() {
-  const { data } = await apiClient.get("/api/ingredients");
-  return data;
+export async function fetchIngredients(): Promise<IngredientOption[]> {
+  const res = await fetch(`${BASE_URL}/api/ingredients`, { headers: authHeaders() });
+  return handleResponse<IngredientOption[]>(res);
 }
 
 export async function fetchRecipesByIngredients(ids: number[]) {
@@ -282,16 +308,17 @@ export async function fetchRecipePhotos(recipeId: number): Promise<RecipePhoto[]
   return handleResponse(res);
 }
 
-export async function uploadRecipePhotos(recipeId: number, files: File[]): Promise<RecipePhoto[]> {
+export async function uploadRecipePhotos(recipeId: number, files: File[]) {
   const formData = new FormData();
   files.forEach((file) => formData.append("photos[]", file));
-
+ 
+  const token = getToken();
   const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/photos`, {
     method: "POST",
-    headers: authHeadersMultipart(),
+    headers: token ? { Authorization: `Bearer ${token}` } : {}, // pas de Content-Type !
     body: formData,
   });
-  return handleResponse(res);
+  return handleResponse<{ id: number; position: number; url: string }[]>(res);
 }
 
 export async function deleteRecipePhoto(recipeId: number, photoId: number): Promise<void> {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Recipe } from "../../types";
+import type { Recipe } from "../../admin/types";
 import {
   StarIcon, ClockIcon, FlameIcon,
   ChevronLeft, ChevronDown, HeartIcon,
@@ -43,8 +43,8 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
     { icon: <ClockIcon size={16} />, value: recipe.prepTime,          label: "Préparation" }
   ];
 
-  if(recipe.cookTime !== null){
-    statsIcons.push({ icon: <FlameIcon />,           value: recipe.cookTime,           label: "Cuisson"     });
+  if(recipe.cookingTime !== null){
+    statsIcons.push({ icon: <FlameIcon />,           value: recipe.cookingTime,           label: "Cuisson"     });
   }
 
   return (
@@ -168,7 +168,7 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
         </div>
 
         {/* ── Astuces du chef (accordion) ── */}
-        {recipe.tips.length > 0 && (
+        {recipe.tips && recipe.tips.length > 0 && (
           <div style={{ ...S.card, marginBottom: 20, overflow: "hidden" }}>
             {/* Header accordion */}
             <button
@@ -197,7 +197,7 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
               <div style={{ padding: "0 16px 16px", backgroundColor: "var(--color-card)" }}>
                 <div style={{ height: 1, backgroundColor: "var(--color-border)", marginBottom: 14 }} />
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-                  {recipe.tips.map((tip, i) => (
+                  {recipe.tips && recipe.tips.split("\n").map((tip, i) => (
                     <li key={i} style={{ display: "flex", gap: 10 }}>
                       <span style={{ flexShrink: 0, marginTop: 2, color: "var(--color-primary)" }}>
                         <CheckIcon />
@@ -262,7 +262,7 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
                 >
                   {i + 1}
                 </span>
-                <span style={{ fontSize: 14, color: "var(--color-text)" }}>{ing}</span>
+                <span style={{ fontSize: 14, color: "var(--color-text)" }}>{ing.label}</span>
               </li>
             ))}
           </ul>
@@ -284,7 +284,7 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
                   {i + 1}
                 </span>
                 <p style={{ fontSize: 14, lineHeight: 1.65, color: "var(--color-text-muted)", margin: 0, paddingTop: 5 }}>
-                  {step}
+                  {step.description}
                 </p>
               </li>
             ))}

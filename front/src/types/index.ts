@@ -29,10 +29,29 @@ export interface User {
   email: string;
 }
 
+export interface IngredientOption {
+  id: number;
+  label: string;
+  unit: string | null;
+  usedInRecipesCount: number;
+}
+ 
+/** Payload attendu par POST /api/recipes (cf. RecipeController::add) */
+export interface CreateRecipePayload {
+  title: string;
+  nbPeople: number;
+  type: "Plats" | "Desserts" | "Mocktails";
+  prepTime: number;          // minutes, entier ≥ 1
+  cookingTime?: number;      // minutes, entier ≥ 0, optionnel
+  tips?: string;             // texte libre, une astuce par ligne
+  steps: { index: number; description: string }[];
+  ingredients: { ingredientId: number; amount: number }[];
+}
+
 // ── Catégories disponibles ─────────────────────────────────────────────────────
 export const CATEGORIES = ["Tout", "Plats", "Desserts", "Mocktails"] as const;
 export const RECIPE_CATEGORIES = ["Plats", "Desserts", "Mocktails"] as const;
-export const UNITS = ["g", "kg", "ml", "L", "cl", "c.s.", "c.c.", "unité(s)", "pincée(s)", "tranche(s)", "botte(s)"];
+/*export const UNITS = ["g", "kg", "ml", "L", "cl", "c.s.", "c.c.", "unité(s)", "pincée(s)", "tranche(s)", "botte(s)"];
 export const INGREDIENT_SUGGESTIONS = [
   "Ail", "Aubergine", "Avocat", "Basilic", "Beurre", "Bicarbonate",
   "Cannelle", "Cardamome", "Carotte", "Champignons", "Chocolat noir",
@@ -47,7 +66,7 @@ export const INGREDIENT_SUGGESTIONS = [
   "Porc", "Poulet", "Riz", "Romarin", "Salade romaine", "Saumon",
   "Sauce soja", "Sel", "Sésame", "Sucre", "Sucre roux", "Thym",
   "Tomate", "Vanille", "Vinaigre balsamique",
-];
+];*/
 export type Category = (typeof CATEGORIES)[number];
 
 // ── Onglets de navigation ──────────────────────────────────────────────────────
