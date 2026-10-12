@@ -13,12 +13,12 @@ export interface Recipe {
   tips: string[];
   ingredients: string[];
   steps: string[];
-}
-
-export interface RecipePhoto {
-  id: number;
-  position: number | null;
-  url: string; // chemin relatif renvoyé par l'API, ex: "/recipes/<uuid>/<uuid>.jpg"
+  // AJOUT : nécessaire pour savoir si la personne connectée peut modifier
+  // cette recette (comparaison avec user.id). Optionnel car le reste de ce
+  // type est déjà, de toute façon, décorrélé de ce que l'API renvoie
+  // vraiment (voir la note dans api/index.ts à propos de fetchRecipe —
+  // ce fichier mériterait une refonte complète, hors périmètre ici).
+  userId?: number | null;
 }
 
 // Données user
@@ -51,8 +51,8 @@ export interface CreateRecipePayload {
 // ── Catégories disponibles ─────────────────────────────────────────────────────
 export const CATEGORIES = ["Tout", "Plats", "Desserts", "Mocktails"] as const;
 export const RECIPE_CATEGORIES = ["Plats", "Desserts", "Mocktails"] as const;
-/*export const UNITS = ["g", "kg", "ml", "L", "cl", "c.s.", "c.c.", "unité(s)", "pincée(s)", "tranche(s)", "botte(s)"];
-export const INGREDIENT_SUGGESTIONS = [
+export const UNITS = ["g", "kg", "ml", "L", "cl", "c.s.", "c.c.", "unité(s)", "pincée(s)", "tranche(s)", "botte(s)"];
+/*export const INGREDIENT_SUGGESTIONS = [
   "Ail", "Aubergine", "Avocat", "Basilic", "Beurre", "Bicarbonate",
   "Cannelle", "Cardamome", "Carotte", "Champignons", "Chocolat noir",
   "Citron", "Concombre", "Coriandre", "Courgette", "Crème de coco",
@@ -70,7 +70,10 @@ export const INGREDIENT_SUGGESTIONS = [
 export type Category = (typeof CATEGORIES)[number];
 
 // ── Onglets de navigation ──────────────────────────────────────────────────────
-export type NavTab = "home" | "saved" | "profile" | "addrecipe";
+// "editrecipe" : pas un VRAI onglet visible dans la BottomNav (pas d'icône
+// dédiée ajoutée), mais réutilise le même mécanisme que "addrecipe" pour
+// swapper l'écran principal — cohérent avec le choix déjà fait pour l'ajout.
+export type NavTab = "home" | "saved" | "profile" | "addrecipe" | "editrecipe";
 
 // ── Vues principales ───────────────────────────────────────────────────────────
 export type AppView = "home" | "detail" | "addrecipe";

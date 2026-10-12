@@ -3,14 +3,22 @@ import { fetchRecipe } from "../api";
 import RecipeDetail from "../components/recipe/RecipeDetail";
 import Loading from "../components/layout/Loading";
 import { useEffect, useState } from "react";
+import { useUser } from "../context/UserContext";
 
 interface Props {
   recipeId: number;
   onBack: () => void;
+  /**
+   * Appelé quand la personne clique sur le crayon. On lui laisse le choix de
+   * CE QU'IL SE PASSE ensuite (AppRouter décide : ouvrir UpdateRecipePage) —
+   * cette page ne connaît que la recette, pas la navigation globale.
+   */
+  onEdit?: (recipeId: number) => void;
 }
 
-export default function RecipeDetailPage({ recipeId, onBack }: Props) {
+export default function RecipeDetailPage({ recipeId, onBack, onEdit }: Props) {
 
+  const { user } = useUser();
   const [recipe,    setRecipe]    = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error,     setError]     = useState(false);
@@ -51,5 +59,16 @@ export default function RecipeDetailPage({ recipeId, onBack }: Props) {
     );
   }
 
-  return <RecipeDetail recipe={recipe} onBack={onBack} />;
+  const isOwner = recipe.userId != null && user?.id === recipe.userId;
+  const isAdmin = user?.role === "ROLE_SUPER_ADMIN" || user?.role === "ROLE_ADMIN";
+  const canEdit = isOwner || isAdmin;
+
+  return (
+    <RecipeDetail
+      recipe={recipe}
+      onBack={onBack}
+      canEdit={canEdit}
+      onEdit={onEdit ? () => onEdit(recipe.id) : undefined}
+    />
+  );
 }

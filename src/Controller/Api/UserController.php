@@ -384,6 +384,7 @@ class UserController extends AbstractController
     private function serialize(User $user): array
     {
         return [
+            'id' => $user->getId(),
             'email'       => $user->getEmail(),
             'firstName'   => $user->getFirstName(),
             'lastName'    => $user->getLastName(),

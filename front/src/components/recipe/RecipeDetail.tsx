@@ -3,12 +3,16 @@ import type { Recipe } from "../../admin/types";
 import {
   StarIcon, ClockIcon, FlameIcon,
   ChevronLeft, ChevronDown, HeartIcon,
-  BulbIcon, CheckIcon,
+  BulbIcon, CheckIcon, PencilIcon,
 } from "../icons";
 
 interface Props {
   recipe: Recipe;
   onBack: () => void;
+  /** true si la personne connectée est admin OU a créé cette recette. */
+  canEdit?: boolean;
+  /** Absent = pas de bouton "Modifier" affiché, même si canEdit est true. */
+  onEdit?: () => void;
 }
 
 // Styles réutilisables
@@ -34,7 +38,7 @@ const S = {
   },
 };
 
-export default function RecipeDetail({ recipe, onBack }: Props) {
+export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }: Props) {
   const [liked,     setLiked]     = useState(false);
   const [activeTab, setActiveTab] = useState<"ingredients" | "steps">("ingredients");
   const [tipsOpen,  setTipsOpen]  = useState(false);
@@ -46,6 +50,12 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
   if(recipe.cookingTime !== null){
     statsIcons.push({ icon: <FlameIcon />,           value: recipe.cookingTime,           label: "Cuisson"     });
   }
+
+  // Le crayon n'apparaît que si LES DEUX conditions sont réunies :
+  // le parent nous dit qu'on peut éditer (canEdit) ET nous donne quoi faire
+  // au clic (onEdit). Séparer les deux évite d'afficher un bouton qui ne
+  // ferait rien si jamais un appelant oublie de brancher onEdit.
+  const showEditButton = canEdit && !!onEdit;
 
   return (
     <div
@@ -73,7 +83,7 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
           }}
         />
 
-        {/* Boutons retour + like */}
+        {/* Boutons retour + [modifier] + like */}
         <div
           style={{
             position: "absolute", top: 0, left: 0, right: 0,
@@ -93,17 +103,37 @@ export default function RecipeDetail({ recipe, onBack }: Props) {
           >
             <ChevronLeft />
           </button>
-          <button
-            onClick={() => setLiked((l) => !l)}
-            style={{
-              width: 38, height: 38, borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              backgroundColor: "rgba(23,18,16,0.6)",
-              backdropFilter: "blur(4px)",
-            }}
-          >
-            <HeartIcon filled={liked} />
-          </button>
+
+          {/* Groupe de droite : modifier (conditionnel) + like, côte à côte */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {showEditButton && (
+              <button
+                onClick={onEdit}
+                aria-label="Modifier la recette"
+                style={{
+                  width: 38, height: 38, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  backgroundColor: "rgba(23,18,16,0.6)",
+                  color: "var(--color-text)",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                <PencilIcon size={16} />
+              </button>
+            )}
+            <button
+              onClick={() => setLiked((l) => !l)}
+              aria-label="Ajouter aux favoris"
+              style={{
+                width: 38, height: 38, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                backgroundColor: "rgba(23,18,16,0.6)",
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              <HeartIcon filled={liked} />
+            </button>
+          </div>
         </div>
 
         {/* Badge catégorie — bas du hero */}

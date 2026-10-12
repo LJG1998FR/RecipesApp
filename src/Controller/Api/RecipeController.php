@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\Ingredient;
 use App\Entity\PhotoCollection;
 use App\Entity\Recipe;
 use App\Entity\RecipeIngredient;
@@ -72,17 +73,17 @@ class RecipeController extends AbstractController
     // ── GET /api/recipes/{id} ──────────────────────────────────────────────────
 
     #[Route('/{id}', name: 'show', methods: ['GET'], requirements: ['id' => '\d+'])]
-    public function show(int $id): JsonResponse
+public function show(int $id): JsonResponse
     {
         $recipe = $this->recipeRepository->find($id);
-
+ 
         if (!$recipe) {
             return $this->json(
                 ['error' => "Recipe with id $id not found."],
                 Response::HTTP_NOT_FOUND,
             );
         }
-
+ 
         return $this->json([
             'id'          => $recipe->getId(),
             'title'       => $recipe->getTitle(),
@@ -90,6 +91,15 @@ class RecipeController extends AbstractController
             'nbPeople'    => $recipe->getNbPeople(),
             'prepTime'    => $recipe->getPrepTime(),
             'cookingTime' => $recipe->getCookingTime(),
+            // AJOUT nécessaire pour que le front sache afficher ou non le
+            // bouton "Modifier" (comparaison avec l'utilisateur connecté).
+            // Volontairement un simple id, pas un objet "canEdit" calculé ici :
+            // la décision d'autorisation réelle reste de toute façon
+            // uniquement tranchée côté back par canMutateRecipe() au moment
+            // du PUT/DELETE — ceci ne sert qu'à l'AFFICHAGE, jamais à la
+            // sécurité (le front ne doit jamais être la source de vérité
+            // pour un contrôle d'accès).
+            'userId'      => $recipe->getUser()?->getId(),
             'tips'        => $this->splitTips($recipe->getTips()),
             'steps'       => $this->serializeSteps($recipe),
             'ingredients' => $recipe->getIngredients()->map(fn($ri) => [
@@ -231,7 +241,6 @@ class RecipeController extends AbstractController
     }
 
     // ── PUT /api/recipes/{id} ──────────────────────────────────────────────────
-    // ⚠️ Ne met PAS à jour steps / ingredients / photos : à faire dans un 2e temps.
 
     #[Route('/{id}', name: 'update', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function update(int $id, Request $request): JsonResponse
@@ -279,6 +288,50 @@ class RecipeController extends AbstractController
                 );
             }
             $recipe->setType($type);
+        }
+
+        // ── Steps : stratégie "remplace tout" ──────────────────────────────
+        // orphanRemoval: true sur cette relation → Doctrine supprime les
+        // anciennes lignes tout seul au flush(), pas de em->remove() à faire.
+        if (array_key_exists('steps', $data) && is_array($data['steps'])) {
+
+            foreach ($recipe->getSteps() as $existingStep) {
+                $recipe->removeStep($existingStep);
+            }
+
+            foreach (array_values($data['steps']) as $i => $stepData) {
+                $step = new Step();
+                $step->setIndex((int) ($stepData['index'] ?? $i + 1));
+                $step->setDescription(trim($stepData['description']));
+                $recipe->addStep($step);
+            }
+        }
+
+        // ── Ingrédients : remplace tout, association à des ingrédients existants ──
+        // Le front envoie des ingredientId (choisis dans le catalogue), jamais de
+        // nouveaux ingrédients à créer : l'API ne fait donc jamais de find-or-create.
+        if (array_key_exists('ingredients', $data) && is_array($data['ingredients'])) {
+            // ⚠️ Pas d'orphanRemoval sur recipeIngredients (cascade: ['remove']
+            // uniquement) : suppression manuelle obligatoire, sinon les anciennes
+            // lignes RecipeIngredient restent orphelines en base.
+            foreach ($recipe->getIngredients() as $existingRi) {
+                $recipe->removeRecipeIngredient($existingRi);
+                $this->em->remove($existingRi);
+            }
+
+            foreach ($data['ingredients'] as $ingredientData) {
+                $ingredient = $this->ingredientRepository->find((int) $ingredientData['ingredientId']);
+                // On sait déjà (validation plus bas) que l'ingrédient existe,
+                // mais on vérifie à nouveau par prudence (sécurité en profondeur).
+                if (!$ingredient) {
+                    continue;
+                }
+
+                $recipeIngredient = new RecipeIngredient();
+                $recipeIngredient->setIngredient($ingredient);
+                $recipeIngredient->setAmount((int) $ingredientData['amount']);
+                $recipe->addRecipeIngredient($recipeIngredient);
+            }
         }
 
         $this->em->flush();

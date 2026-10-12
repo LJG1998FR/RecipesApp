@@ -7,7 +7,7 @@
  * Pourquoi ? Testabilité, cohérence des headers, gestion centralisée des erreurs.
  */
 
-import { Recipe, RecipePhoto } from "../types";
+import { Recipe } from "../types";
 import apiClient, { tokenStorage } from "./client";
 import { User, Recipe as AdminRecipe, RecipeStep, RecipeIngredientItem, IngredientOption } from "../admin/types";
 import { Ingredient } from "../admin/types";
@@ -129,6 +129,12 @@ export async function fetchRecipe(id: number): Promise<AdminRecipe> {
   return data;
 }
 
+
+export async function fetchRecipeDetail(id: number): Promise<AdminRecipe> {
+  const { data } = await apiClient.get(`/api/recipes/${id}`);
+  return data;
+}
+
 export async function createRecipe(data: CreateRecipePayload): Promise<{ id: number }> {
   const res = await fetch(`${BASE_URL}/api/recipes`, {
     method: "POST",
@@ -136,11 +142,6 @@ export async function createRecipe(data: CreateRecipePayload): Promise<{ id: num
     body: JSON.stringify(data),
   });
   return handleResponse<{ id: number }>(res);
-}
-
-export async function updateRecipe(id: number, payload: object) {
-  const { data } = await apiClient.put(`/api/recipes/${id}`, payload);
-  return data;
 }
 
 export async function deleteRecipe(id: number) {
@@ -184,6 +185,48 @@ export interface UpdateRecipePayload {
   tips?: string | null;
   steps?: Array<{ index: number; description: string }>;
   ingredients?: Array<{ ingredientId: number; amount: number }>;
+}
+ 
+export async function updateRecipe(id: number, data: UpdateRecipePayload): Promise<{ id: number }> {
+  const res = await fetch(`${BASE_URL}/api/recipes/${id}`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<{ id: number }>(res);
+}
+
+export interface RecipeDetailStep {
+  id: number;
+  index: number;
+  description: string;
+}
+ 
+export interface RecipeDetailIngredient {
+  id: number;           // id de la ligne RecipeIngredient (pas de l'Ingredient)
+  ingredientId: number;
+  label: string;
+  unit: string | null;
+  amount: number;
+}
+ 
+export interface RecipeDetailPhoto {
+  id: number;
+  position: number | null;
+  url: string;
+}
+ 
+export interface RecipeDetail {
+  id: number;
+  title: string;
+  type: "Plats" | "Desserts" | "Mocktails";
+  nbPeople: number;
+  prepTime: number;
+  cookingTime: number | null;
+  tips: string[];                      // déjà découpé ligne par ligne par splitTips() côté back
+  steps: RecipeDetailStep[];
+  ingredients: RecipeDetailIngredient[];
+  photos: RecipeDetailPhoto[];
 }
 
 // ── Ingrédients ────────────────────────────────────────────────────────────────
@@ -301,7 +344,7 @@ export async function deleteIngredient(id: number): Promise<void> {
 
 // ── Photos ───────────────────────────────────────────────────────────────────
 
-export async function fetchRecipePhotos(recipeId: number): Promise<RecipePhoto[]> {
+export async function fetchRecipePhotos(recipeId: number): Promise<RecipeDetailPhoto[]> {
   const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/photos`, {
     headers: authHeaders(),
   });
@@ -335,7 +378,7 @@ export async function reorderRecipePhoto(
   recipeId: number,
   photoId: number,
   position: number,
-): Promise<RecipePhoto> {
+): Promise<RecipeDetailPhoto> {
   const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/photos/${photoId}/position`, {
     method: "PATCH",
     headers: authHeaders(),
