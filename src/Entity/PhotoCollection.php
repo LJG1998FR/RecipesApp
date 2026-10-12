@@ -25,7 +25,7 @@ class PhotoCollection
     /**
      * @var Collection<int, Photo>
      */
-    #[ORM\OneToMany(targetEntity: Photo::class, mappedBy: 'photoCollection', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Photo::class, mappedBy: 'photoCollection', orphanRemoval: true, cascade: ['persist', 'remove'])]
     private Collection $photos;
 
     public function __construct()

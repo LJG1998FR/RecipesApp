@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Entity\PhotoCollection;
 use App\Enums\RecipeType;
 use App\Repository\RecipeRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -42,17 +43,21 @@ class Recipe
     /**
      * @var Collection<int, Step>
      */
-    #[ORM\OneToMany(targetEntity: Step::class, mappedBy: 'recipe', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Step::class, mappedBy: 'recipe', orphanRemoval: true, cascade: ['persist'])]
     private Collection $steps;
 
     /**
      * @var Collection<int, RecipeIngredient>
      */
-    #[ORM\OneToMany(targetEntity: RecipeIngredient::class, mappedBy: 'recipe', cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(targetEntity: RecipeIngredient::class, mappedBy: 'recipe', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $recipeIngredients;
 
     #[ORM\ManyToOne(inversedBy: 'recipes')]
     private ?User $user = null;
+
+    #[ORM\OneToOne(targetEntity: PhotoCollection::class, cascade: ['persist', 'remove'])]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?PhotoCollection $photoCollection = null;
 
     public function __construct()
     {
@@ -216,6 +221,18 @@ class Recipe
     public function setUser(?User $user): static
     {
         $this->user = $user;
+
+        return $this;
+    }
+
+    public function getPhotoCollection(): ?PhotoCollection
+    {
+        return $this->photoCollection;
+    }
+
+    public function setPhotoCollection(?PhotoCollection $photoCollection): static
+    {
+        $this->photoCollection = $photoCollection;
 
         return $this;
     }

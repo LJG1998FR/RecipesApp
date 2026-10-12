@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\RecipeIngredientRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Table(name: 'recipe_ingredients')]
@@ -22,8 +23,10 @@ class RecipeIngredient
     #[ORM\JoinColumn(nullable: false)]
     private ?Ingredient $ingredient = null;
 
-    #[ORM\Column]
-    private ?int $amount = null;
+    // int → float : permet 1.5, 250.5, etc.
+    // (Types::FLOAT = DOUBLE PRECISION en PostgreSQL ; voir la note "DECIMAL" dans le récap.)
+    #[ORM\Column(type: Types::FLOAT)]
+    private ?float $amount = null;
 
     public function getId(): ?int
     {
@@ -54,12 +57,12 @@ class RecipeIngredient
         return $this;
     }
 
-    public function getAmount(): ?int
+    public function getAmount(): ?float
     {
         return $this->amount;
     }
 
-    public function setAmount(int $amount): static
+    public function setAmount(float $amount): static
     {
         $this->amount = $amount;
 

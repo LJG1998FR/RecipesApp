@@ -7,12 +7,12 @@
  * Pourquoi ? Testabilité, cohérence des headers, gestion centralisée des erreurs.
  */
 
-import { Recipe } from "@/types";
+import { Recipe } from "../types";
 import apiClient, { tokenStorage } from "./client";
-import { User, Recipe as AdminRecipe, RecipeStep, RecipeIngredientItem, IngredientOption } from "@/admin/types";
-import { Ingredient } from "@/admin/types";
+import { User, Recipe as AdminRecipe, RecipeStep, RecipeIngredientItem, IngredientOption } from "../admin/types";
+import { Ingredient } from "../admin/types";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -28,12 +28,45 @@ function authHeaders(): HeadersInit {
   };
 }
 
+export class ApiError extends Error {
+  status: number;
+  messages: string[];
+ 
+  constructor(status: number, messages: string[]) {
+    super(messages[0] ?? `Erreur HTTP ${status}`);
+    this.name = "ApiError";
+    this.status = status;
+    this.messages = messages;
+  }
+}
+ 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error ?? `Erreur HTTP ${res.status}`);
+ 
+    const messages: string[] = [];
+    if (typeof body?.error === "string") messages.push(body.error);
+    if (body?.errors && typeof body.errors === "object") {
+      for (const [field, msg] of Object.entries(body.errors)) {
+        messages.push(`${field} : ${String(msg)}`);
+      }
+    }
+    if (messages.length === 0) messages.push(`Erreur HTTP ${res.status}`);
+ 
+    throw new ApiError(res.status, messages);
   }
   return res.json() as Promise<T>;
+}
+
+// Transforme un chemin relatif ("/recipes/xxx/yyy.jpg") en URL absolue affichable
+export function toPhotoUrl(relativeUrl: string): string {
+  return `${BASE_URL}${relativeUrl}`;
+}
+
+// En-têtes SANS Content-Type : voir l'explication plus bas
+function authHeadersMultipart(): HeadersInit {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 // ── Auth ───────────────────────────────────────────────────────────────────────
@@ -68,15 +101,6 @@ export async function updateUser(data: object) {
   return handleResponse(res);
 }
 
-/*export async function updateUserAsAdmin(data: object) {
-  const res = await fetch(`${BASE_URL}/api/users/admin-update`, {
-    method: "PUT",
-    headers: authHeaders(),
-    body: JSON.stringify(data),
-  });
-  return handleResponse(res);
-}*/
-
 export async function logout(): Promise<void> {
   await apiClient.post("/api/logout", {
     refresh_token: tokenStorage.getRefresh(),
@@ -105,14 +129,19 @@ export async function fetchRecipe(id: number): Promise<AdminRecipe> {
   return data;
 }
 
-export async function createRecipe(payload: object) {
-  const { data } = await apiClient.post("/api/recipes", payload);
+
+export async function fetchRecipeDetail(id: number): Promise<AdminRecipe> {
+  const { data } = await apiClient.get(`/api/recipes/${id}`);
   return data;
 }
 
-export async function updateRecipe(id: number, payload: object) {
-  const { data } = await apiClient.put(`/api/recipes/${id}`, payload);
-  return data;
+export async function createRecipe(data: CreateRecipePayload): Promise<{ id: number }> {
+  const res = await fetch(`${BASE_URL}/api/recipes`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<{ id: number }>(res);
 }
 
 export async function deleteRecipe(id: number) {
@@ -157,6 +186,48 @@ export interface UpdateRecipePayload {
   steps?: Array<{ index: number; description: string }>;
   ingredients?: Array<{ ingredientId: number; amount: number }>;
 }
+ 
+export async function updateRecipe(id: number, data: UpdateRecipePayload): Promise<{ id: number }> {
+  const res = await fetch(`${BASE_URL}/api/recipes/${id}`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse<{ id: number }>(res);
+}
+
+export interface RecipeDetailStep {
+  id: number;
+  index: number;
+  description: string;
+}
+ 
+export interface RecipeDetailIngredient {
+  id: number;           // id de la ligne RecipeIngredient (pas de l'Ingredient)
+  ingredientId: number;
+  label: string;
+  unit: string | null;
+  amount: number;
+}
+ 
+export interface RecipeDetailPhoto {
+  id: number;
+  position: number | null;
+  url: string;
+}
+ 
+export interface RecipeDetail {
+  id: number;
+  title: string;
+  type: "Plats" | "Desserts" | "Mocktails";
+  nbPeople: number;
+  prepTime: number;
+  cookingTime: number | null;
+  tips: string[];                      // déjà découpé ligne par ligne par splitTips() côté back
+  steps: RecipeDetailStep[];
+  ingredients: RecipeDetailIngredient[];
+  photos: RecipeDetailPhoto[];
+}
 
 // ── Ingrédients ────────────────────────────────────────────────────────────────
 
@@ -165,9 +236,9 @@ export interface UpdateRecipePayload {
  * Utilisé pour alimenter la barre de recherche dans la modale admin.
  * Le filtrage se fait côté client (pas de pagination pour l'instant).
  */
-export async function fetchIngredients() {
-  const { data } = await apiClient.get("/api/ingredients");
-  return data;
+export async function fetchIngredients(): Promise<IngredientOption[]> {
+  const res = await fetch(`${BASE_URL}/api/ingredients`, { headers: authHeaders() });
+  return handleResponse<IngredientOption[]>(res);
 }
 
 export async function fetchRecipesByIngredients(ids: number[]) {
@@ -269,4 +340,49 @@ export async function deleteIngredient(id: number): Promise<void> {
  
   // Toute autre réponse (404, 409, 403…) → on délègue à handleResponse
   return handleResponse<void>(res);
+}
+
+// ── Photos ───────────────────────────────────────────────────────────────────
+
+export async function fetchRecipePhotos(recipeId: number): Promise<RecipeDetailPhoto[]> {
+  const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/photos`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function uploadRecipePhotos(recipeId: number, files: File[]) {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("photos[]", file));
+ 
+  const token = getToken();
+  const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/photos`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {}, // pas de Content-Type !
+    body: formData,
+  });
+  return handleResponse<{ id: number; position: number; url: string }[]>(res);
+}
+
+export async function deleteRecipePhoto(recipeId: number, photoId: number): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/photos/${photoId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error(`Erreur HTTP ${res.status}`);
+  }
+}
+
+export async function reorderRecipePhoto(
+  recipeId: number,
+  photoId: number,
+  position: number,
+): Promise<RecipeDetailPhoto> {
+  const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/photos/${photoId}/position`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ position }),
+  });
+  return handleResponse(res);
 }
