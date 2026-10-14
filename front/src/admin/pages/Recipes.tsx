@@ -250,25 +250,29 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
     setEditingRecipe(recipe);
 
     try {
-      // fetchRecipe appelle GET /api/recipes/{id} qui retourne steps + ingredients
+      // fetchRecipe appelle GET /api/recipes/{id}, qui retourne désormais
+      // TOUJOURS la même forme que la liste (RecipeController::serialize()
+      // est unifié) : tips est un tableau, ingredients a bien ingredientId.
+      // On n'a donc plus besoin de se défendre contre une forme ambiguë —
+      // seul `Array.isArray` reste, par prudence runtime : un type TypeScript
+      // n'est qu'une promesse de compilation, pas une garantie sur le JSON
+      // qui arrive réellement du réseau.
       const fullRecipe = await fetchRecipe(recipe.id);
       setForm({
         title: fullRecipe.title,
-        type: fullRecipe.type as RecipeType,
+        type: fullRecipe.type,
         status: recipe.status, // status est local — pas retourné par l'API
         nbPeople: fullRecipe.nbPeople,
         prepTime: fullRecipe.prepTime,
         cookingTime: fullRecipe.cookingTime ?? null,
-        tips: Array.isArray(fullRecipe.tips)
-          ? fullRecipe.tips.join("\n") // L'API retourne tips en tableau sur GET /{id}
-          : fullRecipe.tips ?? "",
+        tips: Array.isArray(fullRecipe.tips) ? fullRecipe.tips.join("\n") : "",
         steps: Array.isArray(fullRecipe.steps) ? [...fullRecipe.steps] : [],
         ingredients: Array.isArray(fullRecipe.ingredients)
-          ? fullRecipe.ingredients.map((ing: any) => ({
+          ? fullRecipe.ingredients.map((ing) => ({
               id: ing.id,
-              ingredientId: ing.ingredientId ?? ing.id,
+              ingredientId: ing.ingredientId,
               label: ing.label,
-              unit: ing.unit ?? null,
+              unit: ing.unit,
               amount: ing.amount,
             }))
           : [],

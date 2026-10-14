@@ -58,6 +58,17 @@ export interface IngredientOption {
   usedInRecipesCount: number;
 }
 
+// ── Photo d'une recette ────────────────────────────────────────────────────────
+// Reflète exactement RecipeController::serializePhotos() côté back.
+// `position` est nullable en base (Photo.position), donc ici aussi.
+// Anciennement dupliqué sous le nom `RecipeDetailPhoto` dans api/index.ts ;
+// rapatrié ici (règle du fichier : un type partagé vit dans admin/types).
+export interface RecipePhoto {
+  id: number;
+  position: number | null;
+  url: string;
+}
+
 export interface Recipe {
   id: number;
   title: string;
@@ -69,7 +80,11 @@ export interface Recipe {
   prepTime: number;
   cookingTime: number | null;
   createdAt: number;
-  tips: string | null;
+  tips: string[];
+  // Photos de la recette (gérées via les endpoints /api/recipes/{id}/photos).
+  // Présent sur CHAQUE réponse recette (list/show/add/update), via
+  // RecipeController::serializePhotos() → tableau vide si aucune photo.
+  photos: RecipePhoto[];
   steps: RecipeStep[];
   ingredients: RecipeIngredientItem[];
   // image, description — champs présents dans le type front utilisateur mais pas

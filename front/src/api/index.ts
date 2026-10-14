@@ -9,7 +9,7 @@
 
 import { Recipe } from "../types";
 import apiClient, { tokenStorage } from "./client";
-import { User, Recipe as AdminRecipe, RecipeStep, RecipeIngredientItem, IngredientOption } from "../admin/types";
+import { User, Recipe as AdminRecipe, RecipePhoto, IngredientOption } from "../admin/types";
 import { Ingredient } from "../admin/types";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -124,24 +124,29 @@ export async function fetchAdminRecipes(): Promise<AdminRecipe[]> {
   return data;
 }
 
+// GET /api/recipes/{id} — un SEUL point d'entrée pour la recette détaillée.
+// Avant : fetchRecipe() et fetchRecipeDetail() tapaient le même endpoint et
+// étaient typées pour renvoyer deux interfaces différentes (AdminRecipe vs
+// RecipeDetail), alors que RecipeController::serialize() est désormais unifié
+// (list/show/add/update renvoient tous la même forme). fetchRecipeDetail()
+// n'était d'ailleurs appelée nulle part dans l'admin — code mort, supprimé.
 export async function fetchRecipe(id: number): Promise<AdminRecipe> {
   const { data } = await apiClient.get(`/api/recipes/${id}`);
   return data;
 }
 
-
-export async function fetchRecipeDetail(id: number): Promise<AdminRecipe> {
-  const { data } = await apiClient.get(`/api/recipes/${id}`);
-  return data;
-}
-
-export async function createRecipe(data: CreateRecipePayload): Promise<{ id: number }> {
+// RecipeController::add() renvoie $this->serialize($recipe) → la recette
+// COMPLÈTE, pas juste { id }. Le typage précédent (Promise<{ id: number }>)
+// ne correspondait pas à la réponse réelle : Recipes.tsx traitait déjà `created`
+// comme une Recipe complète (`onAdd({ ...created, status: form.status })`),
+// ce qui n'aurait normalement pas dû passer la vérification de types.
+export async function createRecipe(data: CreateRecipePayload): Promise<AdminRecipe> {
   const res = await fetch(`${BASE_URL}/api/recipes`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(data),
   });
-  return handleResponse<{ id: number }>(res);
+  return handleResponse<AdminRecipe>(res);
 }
 
 export async function deleteRecipe(id: number) {
@@ -186,47 +191,16 @@ export interface UpdateRecipePayload {
   steps?: Array<{ index: number; description: string }>;
   ingredients?: Array<{ ingredientId: number; amount: number }>;
 }
- 
-export async function updateRecipe(id: number, data: UpdateRecipePayload): Promise<{ id: number }> {
+
+// Même remarque que createRecipe() : RecipeController::update() renvoie lui
+// aussi $this->serialize($recipe) en entier.
+export async function updateRecipe(id: number, data: UpdateRecipePayload): Promise<AdminRecipe> {
   const res = await fetch(`${BASE_URL}/api/recipes/${id}`, {
     method: "PUT",
     headers: authHeaders(),
     body: JSON.stringify(data),
   });
-  return handleResponse<{ id: number }>(res);
-}
-
-export interface RecipeDetailStep {
-  id: number;
-  index: number;
-  description: string;
-}
- 
-export interface RecipeDetailIngredient {
-  id: number;           // id de la ligne RecipeIngredient (pas de l'Ingredient)
-  ingredientId: number;
-  label: string;
-  unit: string | null;
-  amount: number;
-}
- 
-export interface RecipeDetailPhoto {
-  id: number;
-  position: number | null;
-  url: string;
-}
- 
-export interface RecipeDetail {
-  id: number;
-  title: string;
-  type: "Plats" | "Desserts" | "Mocktails";
-  nbPeople: number;
-  prepTime: number;
-  cookingTime: number | null;
-  tips: string[];                      // déjà découpé ligne par ligne par splitTips() côté back
-  steps: RecipeDetailStep[];
-  ingredients: RecipeDetailIngredient[];
-  photos: RecipeDetailPhoto[];
+  return handleResponse<AdminRecipe>(res);
 }
 
 // ── Ingrédients ────────────────────────────────────────────────────────────────
@@ -344,7 +318,7 @@ export async function deleteIngredient(id: number): Promise<void> {
 
 // ── Photos ───────────────────────────────────────────────────────────────────
 
-export async function fetchRecipePhotos(recipeId: number): Promise<RecipeDetailPhoto[]> {
+export async function fetchRecipePhotos(recipeId: number): Promise<RecipePhoto[]> {
   const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/photos`, {
     headers: authHeaders(),
   });
@@ -361,7 +335,8 @@ export async function uploadRecipePhotos(recipeId: number, files: File[]) {
     headers: token ? { Authorization: `Bearer ${token}` } : {}, // pas de Content-Type !
     body: formData,
   });
-  return handleResponse<{ id: number; position: number; url: string }[]>(res);
+  // Aligné sur RecipePhoto (position est nullable côté back, comme partout ailleurs).
+  return handleResponse<RecipePhoto[]>(res);
 }
 
 export async function deleteRecipePhoto(recipeId: number, photoId: number): Promise<void> {
@@ -378,7 +353,7 @@ export async function reorderRecipePhoto(
   recipeId: number,
   photoId: number,
   position: number,
-): Promise<RecipeDetailPhoto> {
+): Promise<RecipePhoto> {
   const res = await fetch(`${BASE_URL}/api/recipes/${recipeId}/photos/${photoId}/position`, {
     method: "PATCH",
     headers: authHeaders(),

@@ -1,23 +1,26 @@
+// Forme exacte d'une photo telle que renvoyée par RecipeController::serialize()
+// (back) — voir aussi RecipeDetailPhoto dans api/index.ts, qui est la même
+// chose sous un autre nom. Deux noms pour une même forme de données dans la
+// même app = risque de divergence ; à terme, un seul des deux devrait rester
+// et l'autre le réutiliser (hors périmètre du correctif actuel).
+export interface RecipePhoto {
+  id: number;
+  position: number | null;
+  url: string;
+}
+
 // ── Type central : une recette ─────────────────────────────────────────────────
 export interface Recipe {
   id: number;
   title: string;
-  subtitle: string;
   type: string;
   prepTime: string;
   cookTime: string;
-  rating: number;
-  reviews: number;
-  image: string;
   description: string;
   tips: string[];
   ingredients: string[];
   steps: string[];
-  // AJOUT : nécessaire pour savoir si la personne connectée peut modifier
-  // cette recette (comparaison avec user.id). Optionnel car le reste de ce
-  // type est déjà, de toute façon, décorrélé de ce que l'API renvoie
-  // vraiment (voir la note dans api/index.ts à propos de fetchRecipe —
-  // ce fichier mériterait une refonte complète, hors périmètre ici).
+  photos: RecipePhoto[];
   userId?: number | null;
 }
 
@@ -52,21 +55,6 @@ export interface CreateRecipePayload {
 export const CATEGORIES = ["Tout", "Plats", "Desserts", "Mocktails"] as const;
 export const RECIPE_CATEGORIES = ["Plats", "Desserts", "Mocktails"] as const;
 export const UNITS = ["g", "kg", "ml", "L", "cl", "c.s.", "c.c.", "unité(s)", "pincée(s)", "tranche(s)", "botte(s)"];
-/*export const INGREDIENT_SUGGESTIONS = [
-  "Ail", "Aubergine", "Avocat", "Basilic", "Beurre", "Bicarbonate",
-  "Cannelle", "Cardamome", "Carotte", "Champignons", "Chocolat noir",
-  "Citron", "Concombre", "Coriandre", "Courgette", "Crème de coco",
-  "Crème entière", "Cumin", "Curcuma", "Eau de coco", "Épinards",
-  "Farine", "Farine de seigle", "Framboises", "Garam masala", "Gélatine",
-  "Gingembre", "Huile de sésame", "Huile d'olive", "Jus de citron",
-  "Lait", "Lentilles", "Levure", "Levure chimique", "Maïs",
-  "Menthe", "Miel", "Mirin", "Miso blanc", "Moutarde", "Myrtilles",
-  "Nouilles ramen", "Œufs", "Oignon", "Paprika", "Parmesan",
-  "Pâtes", "Patate douce", "Poivron", "Pois chiches", "Pomme de terre",
-  "Porc", "Poulet", "Riz", "Romarin", "Salade romaine", "Saumon",
-  "Sauce soja", "Sel", "Sésame", "Sucre", "Sucre roux", "Thym",
-  "Tomate", "Vanille", "Vinaigre balsamique",
-];*/
 export type Category = (typeof CATEGORIES)[number];
 
 // ── Onglets de navigation ──────────────────────────────────────────────────────

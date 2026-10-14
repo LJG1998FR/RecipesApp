@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { RECIPE_CATEGORIES } from "../../types";
-import type { Category, IngredientOption } from "../../types";
+import type { Category, IngredientOption, RecipePhoto } from "../../types";
 import { CheckIcon, ChevronLeft, ClockIcon, FlameIcon, PlusIcon, GripIcon, TrashIcon } from "../icons";
 import {
-  fetchRecipeDetail, updateRecipe, deleteRecipe, fetchIngredients,
+  updateRecipe, deleteRecipe, fetchIngredients,
   uploadRecipePhotos, deleteRecipePhoto, ApiError,
+  toPhotoUrl,
+  fetchRecipe,
 } from "../../api";
-import type { RecipeDetail, RecipeDetailPhoto, UpdateRecipePayload } from "../../api";
+import type { UpdateRecipePayload } from "../../api";
 import {
   MAX_PHOTOS, MAX_PHOTO_SIZE, ALLOWED_PHOTO_TYPES, MAX_STEP_LENGTH,
   inputStyle, FormSection, StepBadge, IngredientInput, PhotoGrid, extractMessages,
@@ -31,7 +33,7 @@ interface Props {
   /** Retour à l'écran précédent sans rien changer. */
   onCancel: () => void;
   /** Appelé après une sauvegarde réussie (ex. pour rafraîchir une liste côté parent). */
-  onSaved?: (recipe: RecipeDetail) => void;
+  onSaved?: (recipe: RecipePhoto) => void;
   /** Appelé après une suppression réussie — à vous de décider où naviguer ensuite. */
   onDeleted?: () => void;
 }
@@ -45,9 +47,9 @@ function ExistingPhotoGrid({
   deletingId,
   onRemove,
 }: {
-  photos: RecipeDetailPhoto[];
+  photos: RecipePhoto[];
   deletingId: number | null;
-  onRemove: (photo: RecipeDetailPhoto) => void;
+  onRemove: (photo: RecipePhoto) => void;
 }) {
   if (photos.length === 0) return null;
 
@@ -61,7 +63,7 @@ function ExistingPhotoGrid({
             style={{ position: "relative", aspectRatio: "1", borderRadius: 12, overflow: "hidden", opacity: isDeleting ? 0.5 : 1 }}
           >
             <img
-              src={photo.url}
+              src={toPhotoUrl(photo.url)}
               alt="Photo de la recette"
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
@@ -103,7 +105,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
   const [tips,        setTips]        = useState("");
 
   // ── Photos : deux listes bien distinctes (voir commentaire plus haut) ─────
-  const [existingPhotos, setExistingPhotos] = useState<RecipeDetailPhoto[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<RecipePhoto[]>([]);
   const [deletingPhotoId, setDeletingPhotoId] = useState<number | null>(null);
   const [newPhotos, setNewPhotos] = useState<LocalPhoto[]>([]);
 
@@ -124,7 +126,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
   useEffect(() => {
     let cancelled = false;
 
-    fetchRecipeDetail(recipeId)
+    fetchRecipe(recipeId)
       .then((recipe) => {
         if (cancelled) return;
 
@@ -207,7 +209,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
   // au "Enregistrer"). C'est un choix délibéré : il existe déjà un endpoint
   // DELETE dédié côté back, autant l'utiliser directement plutôt que de
   // réinventer un état "à supprimer au prochain save" côté front.
-  const removeExistingPhoto = async (photo: RecipeDetailPhoto) => {
+  const removeExistingPhoto = async (photo: RecipePhoto) => {
     setDeletingPhotoId(photo.id);
     try {
       await deleteRecipePhoto(recipeId, photo.id);
@@ -235,19 +237,18 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
     // vidé le champ "astuces", on doit explicitement dire au back "il n'y en a
     // plus", pas rester silencieux (silence = "ne touche à rien" côté back,
     // ce qui laisserait les anciennes astuces en place par erreur).
-    
+
     const payload: UpdateRecipePayload = {
       title: title.trim(),
       nbPeople: people,
       type: category,
       prepTime: Number(prepTime),
       cookingTime: cookTime.trim() ? Number(cookTime) : null,
-      tips: tips != "" ? tips.trim().replace(/\r\n/g, "\n") : "",
+      tips: tips != "" ? tips.toString().trim().replace(/\r\n/g, "\n") : "",
       steps: buildStepsPayload(steps),
       ingredients: buildIngredientsPayload(ingredients),
     };
 
-    console.log(payload.ingredients)
     try {
       await updateRecipe(recipeId, payload);
 
@@ -271,7 +272,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
       // contourner ça avec un cast TypeScript hasardeux, on re-fetch la
       // ressource canonique — plus robuste, et ça donne à `onSaved` des
       // données garanties cohérentes avec le reste de l'app.
-      const refreshed = await fetchRecipeDetail(recipeId);
+      const refreshed = await fetchRecipe(recipeId);
       setExistingPhotos(refreshed.photos);
 
       setSavedMessage("Modifications enregistrées.");

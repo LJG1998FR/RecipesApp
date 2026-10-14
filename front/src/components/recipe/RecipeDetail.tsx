@@ -5,6 +5,7 @@ import {
   ChevronLeft, ChevronDown, HeartIcon,
   BulbIcon, CheckIcon, PencilIcon,
 } from "../icons";
+import { toPhotoUrl } from "../../api";
 
 interface Props {
   recipe: Recipe;
@@ -67,10 +68,19 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
         flexDirection: "column",
       }}
     >
-      {/* ── Hero image ── */}
-      <div style={{ position: "relative", height: "clamp(260px, 42vh, 340px)", flexShrink: 0 }}>
+      {/* ── Hero image ──
+          AVANT : recipe.image, absent de toute réponse API réelle (même
+          cause que RecipeCard.tsx — voir ce fichier pour le détail).
+          MAINTENANT : 1ère photo du tableau recipe.photos renvoyé par
+          RecipeController::serialize(). Optional chaining (?. et ??) car
+          je n'ai pas la version à jour de admin/types/index.ts pour ce
+          correctif : AJOUTEZ le champ `photos: { id:number; position:number|null; url:string }[]`
+          au type Recipe de admin/types pour que ceci soit bien typé (sinon
+          TypeScript considère `recipe.photos` comme `any`, ce qui masque
+          de futures erreurs au lieu de les révéler à la compilation). */}
+      <div style={{ position: "relative", height: "clamp(260px, 42vh, 340px)", flexShrink: 0, backgroundColor: "var(--color-card)" }}>
         <img
-          src={recipe.image}
+          src={recipe.photos?.[0] ? toPhotoUrl(recipe.photos[0].url) : ""}
           alt={recipe.title}
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
         />
@@ -227,7 +237,7 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
               <div style={{ padding: "0 16px 16px", backgroundColor: "var(--color-card)" }}>
                 <div style={{ height: 1, backgroundColor: "var(--color-border)", marginBottom: 14 }} />
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-                  {recipe.tips && recipe.tips.split("\n").map((tip, i) => (
+                  {recipe.tips.map((tip, i) => (
                     <li key={i} style={{ display: "flex", gap: 10 }}>
                       <span style={{ flexShrink: 0, marginTop: 2, color: "var(--color-primary)" }}>
                         <CheckIcon />

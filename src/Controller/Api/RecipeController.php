@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\Ingredient;
+use App\Entity\Photo;
 use App\Entity\PhotoCollection;
 use App\Entity\Recipe;
 use App\Entity\RecipeIngredient;
@@ -48,24 +49,7 @@ class RecipeController extends AbstractController
     {
         $recipes = $this->recipeRepository->findAll();
 
-        $data = array_map(fn(Recipe $r) => [
-            'id'          => $r->getId(),
-            'title'       => $r->getTitle(),
-            'type'        => $r->getType()?->value,
-            'nbPeople'    => $r->getNbPeople(),
-            'prepTime'    => $r->getPrepTime(),
-            'cookingTime' => $r->getCookingTime(),
-            'createdAt'   => $r->getCreatedAt(),
-            'tips'        => $this->splitTips($r->getTips()),
-            'steps'       => $this->serializeSteps($r),
-            'ingredients' => $r->getIngredients()->map(fn($ri) => [
-                'id'           => $ri->getId(),
-                'ingredientId' => $ri->getIngredient()?->getId(),
-                'label'        => $ri->getIngredient()?->getLabel(),
-                'unit'         => $ri->getIngredient()?->getUnit(),
-                'amount'       => $ri->getAmount(),
-            ])->toArray(),
-        ], $recipes);
+        $data = array_map(fn(Recipe $r) => $this->serialize($r), $recipes);
 
         return $this->json($data, Response::HTTP_OK);
     }
@@ -73,7 +57,7 @@ class RecipeController extends AbstractController
     // ── GET /api/recipes/{id} ──────────────────────────────────────────────────
 
     #[Route('/{id}', name: 'show', methods: ['GET'], requirements: ['id' => '\d+'])]
-public function show(int $id): JsonResponse
+    public function show(int $id): JsonResponse
     {
         $recipe = $this->recipeRepository->find($id);
  
@@ -84,38 +68,7 @@ public function show(int $id): JsonResponse
             );
         }
  
-        return $this->json([
-            'id'          => $recipe->getId(),
-            'title'       => $recipe->getTitle(),
-            'type'        => $recipe->getType()?->value,
-            'nbPeople'    => $recipe->getNbPeople(),
-            'prepTime'    => $recipe->getPrepTime(),
-            'cookingTime' => $recipe->getCookingTime(),
-            // AJOUT nécessaire pour que le front sache afficher ou non le
-            // bouton "Modifier" (comparaison avec l'utilisateur connecté).
-            // Volontairement un simple id, pas un objet "canEdit" calculé ici :
-            // la décision d'autorisation réelle reste de toute façon
-            // uniquement tranchée côté back par canMutateRecipe() au moment
-            // du PUT/DELETE — ceci ne sert qu'à l'AFFICHAGE, jamais à la
-            // sécurité (le front ne doit jamais être la source de vérité
-            // pour un contrôle d'accès).
-            'userId'      => $recipe->getUser()?->getId(),
-            'tips'        => $this->splitTips($recipe->getTips()),
-            'steps'       => $this->serializeSteps($recipe),
-            'ingredients' => $recipe->getIngredients()->map(fn($ri) => [
-                'id'           => $ri->getId(),
-                'ingredientId' => $ri->getIngredient()?->getId(),
-                'label'        => $ri->getIngredient()?->getLabel(),
-                'unit'         => $ri->getIngredient()?->getUnit(),
-                'amount'       => $ri->getAmount(),
-            ])->toArray(),
-            'photos' => $recipe->getPhotoCollection()
-                ? array_map(
-                    fn($p) => ['id' => $p->getId(), 'position' => $p->getPosition(), 'url' => $this->photoUploader->publicPath($p)],
-                    $recipe->getPhotoCollection()->getPhotos()->toArray(),
-                )
-                : [],
-        ]);
+        return $this->json($this->serialize($recipe));
     }
 
     // ── POST /api/recipes ──────────────────────────────────────────────────────
@@ -383,11 +336,6 @@ public function show(int $id): JsonResponse
     /**
      * Découpe le champ `tips` (TEXT en base) en tableau, une astuce par ligne.
      *
-     * CORRECTION : l'ancien code faisait explode('\n', …). En PHP, les guillemets
-     * SIMPLES n'interprètent pas les séquences d'échappement : '\n' = les deux
-     * caractères "\" et "n", pas un saut de ligne → rien n'était jamais découpé.
-     * preg_split('/\R/') gère en plus \r\n (Windows) et \n (Unix).
-     *
      * @return list<string>
      */
     private function splitTips(?string $tips): array
@@ -546,7 +494,8 @@ public function show(int $id): JsonResponse
             'type'        => $recipe->getType()?->value,
             'prepTime'    => $recipe->getPrepTime(),
             'cookingTime' => $recipe->getCookingTime(),
-            'tips'        => $recipe->getTips(),
+            'tips'        => $this->splitTips($recipe->getTips()),
+            'photos'      => $this->serializePhotos($recipe),
             'createdAt'   => $recipe->getCreatedAt(),
             'userId'      => $recipe->getUser()?->getId(),
             'steps'       => $this->serializeSteps($recipe),
@@ -558,5 +507,45 @@ public function show(int $id): JsonResponse
                 'amount'       => $ri->getAmount(),
             ])->toArray(),
         ];
+    }
+
+    /**
+     * @return list<array{id:int|null, ingredientId:int|null, label:string|null, unit:string|null, amount:float|null}>
+     */
+    private function serializeIngredients(Recipe $recipe): array
+    {
+        return $recipe->getIngredients()->map(fn(RecipeIngredient $ri) => [
+            'id'           => $ri->getId(),
+            'ingredientId' => $ri->getIngredient()?->getId(),
+            'label'        => $ri->getIngredient()?->getLabel(),
+            'unit'         => $ri->getIngredient()?->getUnit(),
+            'amount'       => $ri->getAmount(),
+        ])->toArray();
+    }
+
+    /**
+     * Photos de la recette, triées par position (même logique que
+     * PhotoController::list(), dupliquée ici volontairement : les deux
+     * contrôleurs n'ont pas la même "forme" de réponse autour — mutualiser
+     * irait au-delà de la demande actuelle, mais à garder en tête si la
+     * logique de tri évolue un jour).
+     *
+     * @return list<array{id:int, position:int|null, url:string}>
+     */
+    private function serializePhotos(Recipe $recipe): array
+    {
+        $collection = $recipe->getPhotoCollection();
+        if (!$collection) {
+            return [];
+        }
+
+        $photos = $collection->getPhotos()->toArray();
+        usort($photos, fn(Photo $a, Photo $b) => ($a->getPosition() ?? 0) <=> ($b->getPosition() ?? 0));
+
+        return array_map(fn(Photo $p) => [
+            'id'       => $p->getId(),
+            'position' => $p->getPosition(),
+            'url'      => $this->photoUploader->publicPath($p),
+        ], $photos);
     }
 }

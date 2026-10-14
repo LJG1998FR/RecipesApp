@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PlusIcon } from "../icons";
-import type { IngredientOption } from "../../api";
+import type { IngredientOption } from "../../admin/types";
+import { normalizeForSearch } from "../../types/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Morceaux PARTAGÉS entre AddRecipePage.tsx et UpdateRecipePage.tsx.
@@ -77,8 +78,8 @@ export function StepBadge({ n }: { n: number }) {
 // ── Utilitaire : recherche insensible à la casse ET aux accents ───────────────
 // "epinards" doit retrouver "Épinards". NFD sépare la lettre de son accent,
 // la regex supprime ensuite les accents (plage Unicode U+0300–U+036F).
-export const normalize = (s: string) =>
-  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+/*export const normalize = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");*/
 
 // ── IngredientInput ────────────────────────────────────────────────────────────
 // Ce que la page stocke pour chaque ingrédient choisi.
@@ -109,7 +110,7 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
   const suggestions =
     query.trim().length >= 1 && !selected
       ? available
-          .filter((i) => !alreadyUsedIds.includes(i.id) && normalize(i.label).includes(normalize(query)))
+          .filter((i) => !alreadyUsedIds.includes(i.id) && normalizeForSearch(i.label).includes(normalizeForSearch(query.toLowerCase())))
           .slice(0, 6)
       : [];
 

@@ -1,5 +1,5 @@
+import { toPhotoUrl } from "../../api";
 import type { Recipe } from "../../types";
-import { StarIcon } from "../icons";
 
 interface Props {
   recipe: Recipe;
@@ -24,13 +24,30 @@ export default function RecipeCard({ recipe, onSelect }: Props) {
       onMouseOver={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
       onMouseOut={(e)  => (e.currentTarget.style.transform = "scale(1)")}
     >
-      {/* ── Image avec badge temps et dégradé ── */}
-      <div style={{ position: "relative", height: 200 }}>
-        <img
-          src={recipe.image}
-          alt={recipe.title}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        />
+      {/* ── Image avec badge temps et dégradé ──
+          On prend la 1ère photo renvoyée par le back
+          (déjà triée par position côté serveur, cf. serializePhotos()),
+          avec un fallback visuel si la recette n'a encore aucune photo
+          (optionnel côté formulaire). */}
+      <div style={{ position: "relative", height: 200, backgroundColor: "var(--color-card)" }}>
+        {recipe.photos?.[0] ? (
+          <img
+            src={toPhotoUrl(recipe.photos[0].url)}
+            alt={recipe.title}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "100%", height: "100%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 32,
+            }}
+            aria-hidden
+          >
+            🍽️
+          </div>
+        )}
         {/* Dégradé du bas pour lisibilité */}
         <div
           style={{
@@ -68,28 +85,15 @@ export default function RecipeCard({ recipe, onSelect }: Props) {
         >
           {recipe.title}
         </p>
-        <p
-          style={{
-            fontSize: 13,
-            color: "var(--color-text-muted)",
-            marginBottom: 10,
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 1,
-            WebkitBoxOrient: "vertical",
-          }}
-        >
-          {/* {recipe.subtitle} */}
-        </p>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <StarIcon />
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
-            {recipe.rating}
-          </span>
-          <span style={{ fontSize: 13, color: "var(--color-text-dim)" }}>
-            ({recipe.reviews})
-          </span>
-        </div>
+        {/*
+          Bloc "subtitle" + notation (StarIcon/rating/reviews) retiré ici :
+          ces champs n'ont jamais existé côté back (ni dans l'entité Recipe,
+          ni dans RecipeController::serialize()). Ce n'était pas un bug
+          d'affichage comme pour l'image, juste du texte "undefined" silencieux
+          car React n'affiche rien pour undefined — plus sournois, donc plus
+          dangereux de le laisser traîner. À réintroduire seulement si vous
+          ajoutez un vrai système de notation côté back (nouvelle colonne/table).
+        */}
       </div>
     </div>
   );
