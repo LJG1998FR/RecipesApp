@@ -22,7 +22,9 @@ security:
             security: false
         refresh:
             pattern: ^/api/token/refresh
-            refresh_jwt: ~
+            refresh_jwt:
+                check_path: /api/token/refresh
+                provider: app_user_provider
         register:
             pattern: ^/api/register
             security: false

@@ -1,0 +1,11 @@
+FRONT-OFFICE:
+- 
+
+
+
+
+BACK-OFFICE:
+- fix API Token refresh
+- photos on dashboard
+- statut
+- translations

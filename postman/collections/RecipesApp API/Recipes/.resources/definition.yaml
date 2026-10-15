@@ -1,0 +1,3 @@
+$kind: collection
+name: Recipes
+description: Recipe management endpoints (Bearer auth required)

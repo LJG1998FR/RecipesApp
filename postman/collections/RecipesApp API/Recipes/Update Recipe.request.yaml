@@ -1,0 +1,15 @@
+$kind: http-request
+name: Update Recipe
+order: 4000
+method: PUT
+url: '{{baseUrl}}/api/recipes/{{recipeId}}'
+body:
+  type: json
+  content: |-
+    {
+      "title": "Updated Tarte Tatin",
+      "nbPeople": 6,
+      "type": "Desserts",
+      "prepTime": 25,
+      "cookingTime": 40
+    }

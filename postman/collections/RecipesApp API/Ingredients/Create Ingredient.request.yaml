@@ -1,0 +1,12 @@
+$kind: http-request
+name: Create Ingredient
+order: 3000
+method: POST
+url: '{{baseUrl}}/api/ingredients'
+body:
+  type: json
+  content: |-
+    {
+      "label": "Farine",
+      "unit": "g"
+    }

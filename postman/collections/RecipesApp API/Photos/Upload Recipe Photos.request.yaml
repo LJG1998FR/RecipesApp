@@ -1,0 +1,11 @@
+$kind: http-request
+name: Upload Recipe Photos
+order: 2000
+method: POST
+url: '{{baseUrl}}/api/recipes/{{recipeId}}/photos'
+body:
+  type: formdata
+  content:
+    - key: photos
+      type: file
+      src: ''

@@ -1,0 +1,5 @@
+$kind: http-request
+name: Get Current User
+order: 3000
+method: POST
+url: '{{baseUrl}}/api/users/getUser'

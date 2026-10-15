@@ -1,0 +1,14 @@
+$kind: collection
+description: API collection for the RecipesApp Symfony backend
+auth:
+  type: bearer
+  credentials:
+    token: "{{token}}"
+variables:
+  baseUrl: http://localhost:8000
+  token: ""
+  refreshToken: ""
+  recipeId: "1"
+  ingredientId: "1"
+  photoId: "1"
+  userId: "1"

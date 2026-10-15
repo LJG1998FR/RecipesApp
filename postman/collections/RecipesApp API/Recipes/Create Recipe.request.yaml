@@ -1,0 +1,23 @@
+$kind: http-request
+name: Create Recipe
+order: 3000
+method: POST
+url: '{{baseUrl}}/api/recipes'
+body:
+  type: json
+  content: |-
+    {
+      "title": "Tarte Tatin",
+      "nbPeople": 4,
+      "type": "Desserts",
+      "prepTime": 20,
+      "cookingTime": 35,
+      "tips": "Use cold butter for best results.",
+      "steps": [
+        {"index": 1, "description": "Peel and slice the apples."},
+        {"index": 2, "description": "Caramelize the sugar in a pan."}
+      ],
+      "ingredients": [
+        {"ingredientId": 1, "amount": 3}
+      ]
+    }

@@ -1,0 +1,5 @@
+$kind: http-request
+name: Delete Recipe Photo
+order: 3000
+method: DELETE
+url: '{{baseUrl}}/api/recipes/{{recipeId}}/photos/{{photoId}}'

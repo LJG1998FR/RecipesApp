@@ -1,0 +1,5 @@
+$kind: http-request
+name: List Recipe Photos
+order: 1000
+method: GET
+url: '{{baseUrl}}/api/recipes/{{recipeId}}/photos'

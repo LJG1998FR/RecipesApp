@@ -1,0 +1,14 @@
+$kind: http-request
+order: 4000
+method: POST
+url: "{{baseUrl}}/api/logout"
+auth:
+  type: inherit
+  credentials:
+    id: collection-910092EEF6cDfFcfD25845da-bearer
+body:
+  type: json
+  content: |-
+    {
+      "refresh_token": "{{refreshToken}}"
+    }

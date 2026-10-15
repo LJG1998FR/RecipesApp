@@ -1,0 +1,29 @@
+$kind: http-request
+order: 1000
+method: POST
+url: "{{baseUrl}}/api/login"
+auth:
+  type: noauth
+body:
+  type: json
+  content: |-
+    {
+      "email": "ljgalt1@gmail.com",
+      "password": "test1234"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      const res = pm.response.json();
+
+      if (pm.response.code === 200 && res.token) {
+          pm.collectionVariables.set('token', res.token);
+          pm.test('Token saved to collection variables', () => pm.expect(res.token).to.be.a('string'));
+      } else {
+          pm.test('Login failed — token not saved', () => pm.expect.fail(`Status ${pm.response.code}`));
+      }
+
+      if (res.refresh_token) {
+          pm.collectionVariables.set('refreshToken', res.refresh_token);
+      }
+    language: text/javascript

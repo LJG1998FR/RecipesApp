@@ -11,11 +11,9 @@ api_login:
     path: /api/login
     methods: ['POST']
 
-api_auth_logout:
-    path: /api/logout
-
 refresh:
     path: /api/token/refresh
+    controller: gesdinet.jwtrefreshtoken::refresh
 
 api_token_invalidate:
     path: /api/token/invalidate

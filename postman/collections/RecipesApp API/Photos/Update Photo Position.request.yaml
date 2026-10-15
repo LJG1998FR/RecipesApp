@@ -1,0 +1,11 @@
+$kind: http-request
+name: Update Photo Position
+order: 4000
+method: PATCH
+url: '{{baseUrl}}/api/recipes/{{recipeId}}/photos/{{photoId}}/position'
+body:
+  type: json
+  content: |-
+    {
+      "position": 0
+    }

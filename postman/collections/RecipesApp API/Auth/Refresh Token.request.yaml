@@ -1,0 +1,40 @@
+$kind: http-request
+scripts:
+  - type: afterResponse
+    code: "const res = pm.response.json();\r
+
+      \r
+
+      if (pm.response.code === 200 && res.token) {\r
+
+      \    pm.collectionVariables.set('token', res.token);\r
+
+      \    pm.test('Token updated to collection variables', () => pm.expect(res.token).to.be.a('string'));\r
+
+      } else {\r
+
+      \    pm.test('Refesh failed — token not saved', () => pm.expect.fail(`Status ${pm.response.code}`));\r
+
+      }\r
+
+      \r
+
+      if (res.refresh_token) {\r
+
+      \    pm.collectionVariables.set('refreshToken', res.refresh_token);\r
+
+      }"
+    language: text/javascript
+order: 3000
+method: POST
+url: "{{baseUrl}}/api/token/refresh"
+auth:
+  type: inherit
+  credentials:
+    id: collection-910092EEF6cDfFcfD25845da-bearer
+body:
+  type: json
+  content: |-
+    {
+      "refresh_token": "{{refreshToken}}"
+    }

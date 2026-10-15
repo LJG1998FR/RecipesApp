@@ -1,0 +1,3 @@
+$kind: collection
+name: Ingredients
+description: Ingredient management endpoints (GET public, POST/PUT/DELETE require ROLE_ADMIN)

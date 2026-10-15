@@ -1,0 +1,5 @@
+$kind: http-request
+name: Delete Ingredient
+order: 5000
+method: DELETE
+url: '{{baseUrl}}/api/ingredients/{{ingredientId}}'

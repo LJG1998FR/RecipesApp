@@ -1,0 +1,12 @@
+$kind: http-request
+name: Update Ingredient
+order: 4000
+method: PUT
+url: '{{baseUrl}}/api/ingredients/{{ingredientId}}'
+body:
+  type: json
+  content: |-
+    {
+      "label": "Farine de blé",
+      "unit": "g"
+    }
