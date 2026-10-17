@@ -203,6 +203,26 @@ export async function updateRecipe(id: number, data: UpdateRecipePayload): Promi
   return handleResponse<AdminRecipe>(res);
 }
 
+export async function updateRecipeStatus(
+  id: number,
+  status: "PENDING" | "DECLINED" | "PUBLISHED"
+): Promise<AdminRecipe> {
+  const res = await fetch(`${BASE_URL}/api/recipes/${id}/status`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ status }),
+  });
+  return handleResponse<AdminRecipe>(res);
+}
+
+export async function fetchUserRecipes(): Promise<{
+  published: Recipe[];
+  pending: { id: number; title: string; status: string }[];
+}> {
+  const { data } = await apiClient.get("/api/recipes/my-recipes");
+  return data;
+}
+
 // ── Ingrédients ────────────────────────────────────────────────────────────────
 
 /**

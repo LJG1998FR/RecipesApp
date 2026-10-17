@@ -4,5 +4,3 @@ FRONT-OFFICE:
 
 BACK-OFFICE:
 - photos on dashboard
-- statut
-- translations => OK

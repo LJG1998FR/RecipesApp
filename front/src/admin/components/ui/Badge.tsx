@@ -64,8 +64,8 @@ export function RoleBadge({ role }: { role: UserRole }) {
 
 export function StatusBadge({ status }: { status: RecipeStatus }) {
   return (
-    <Badge color={status === "published" ? "emerald" : "amber"}>
-      {status === "published" ? "Publié" : "Brouillon"}
+    <Badge color={status === "PUBLISHED" ? "emerald" : "amber"}>
+      {status === "PUBLISHED" ? "Publié" : "Brouillon"}
     </Badge>
   );
 }

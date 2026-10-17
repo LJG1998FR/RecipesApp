@@ -8,6 +8,7 @@ use App\Entity\PhotoCollection;
 use App\Entity\Recipe;
 use App\Entity\RecipeIngredient;
 use App\Entity\Step;
+use App\Enums\RecipeStatus;
 use App\Enums\RecipeType;
 use App\Repository\IngredientRepository;
 use App\Repository\RecipeRepository;
@@ -47,11 +48,38 @@ class RecipeController extends AbstractController
     #[Route('', name: 'recipes_list', methods: ['GET'])]
     public function list(): JsonResponse
     {
-        $recipes = $this->recipeRepository->findAll();
+        $isAdmin = $this->isGranted('ROLE_ADMIN');
+        $recipes = $isAdmin
+        ? $this->recipeRepository->findAll()
+        : $this->recipeRepository->findBy(['status' => RecipeStatus::PUBLISHED]);
 
         $data = array_map(fn(Recipe $r) => $this->serialize($r), $recipes);
 
         return $this->json($data, Response::HTTP_OK);
+    }
+
+    #[Route('/my-recipes', name: 'my-recipes', methods: ['GET'])]
+    public function myRecipes(): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Unauthorized'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $myRecipes = $this->recipeRepository->findBy(['user' => $user]);
+
+        $published = array_values(array_filter($myRecipes, fn($r) => $r->getStatus() === RecipeStatus::PUBLISHED));
+        $others    = array_values(array_filter($myRecipes, fn($r) => $r->getStatus() !== RecipeStatus::PUBLISHED));
+
+        return $this->json([
+            'published' => array_map(fn($r) => $this->serialize($r), $published),
+            // Volontairement allégé : juste de quoi afficher une ligne, pas le détail complet
+            'pending' => array_map(fn($r) => [
+                'id' => $r->getId(),
+                'title' => $r->getTitle(),
+                'status' => $r->getStatus()->value,
+            ], $others),
+        ]);
     }
 
     // ── GET /api/recipes/{id} ──────────────────────────────────────────────────
@@ -60,12 +88,17 @@ class RecipeController extends AbstractController
     public function show(int $id): JsonResponse
     {
         $recipe = $this->recipeRepository->find($id);
- 
         if (!$recipe) {
-            return $this->json(
-                ['error' => "Recipe with id $id not found."],
-                Response::HTTP_NOT_FOUND,
-            );
+            return $this->json(['error' => "Recipe with id $id not found."], Response::HTTP_NOT_FOUND);
+        }
+
+        $currentUser = $this->security->getUser();
+        $isOwner = $currentUser && $recipe->getUser() === $currentUser;
+        $canView = $recipe->getStatus() === RecipeStatus::PUBLISHED || $isOwner || $this->isGranted('ROLE_ADMIN');
+
+        if (!$canView) {
+            // 404 et pas 403 : on ne révèle même pas que la recette existe
+            return $this->json(['error' => "Recipe with id $id not found."], Response::HTTP_NOT_FOUND);
         }
  
         return $this->json($this->serialize($recipe));
@@ -164,6 +197,7 @@ class RecipeController extends AbstractController
             $recipe->setTips(isset($data['tips']) && trim($data['tips']) !== '' ? trim($data['tips']) : null);
             $recipe->setCreatedAt(time());
             $recipe->setUser($this->security->getUser());   // toujours lier au créateur
+            $recipe->setStatus(RecipeStatus::PENDING);
 
             // Collection de photos (vide) créée dès maintenant : persistée par cascade (Recipe.photoCollection)
             $photoCollection = new PhotoCollection();
@@ -287,6 +321,34 @@ class RecipeController extends AbstractController
             }
         }
 
+        $this->em->flush();
+
+        return $this->json($this->serialize($recipe), Response::HTTP_OK);
+    }
+
+    #[Route('/{id}/status', name: 'update_status', methods: ['PATCH'], requirements: ['id' => '\d+'])]
+    public function updateStatus(int $id, Request $request): JsonResponse
+    {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return $this->json(['error' => 'Accès réservé aux administrateurs.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $recipe = $this->recipeRepository->find($id);
+        if (!$recipe) {
+            return $this->json(['error' => "Recipe with id $id not found."], Response::HTTP_NOT_FOUND);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $status = RecipeStatus::tryFrom($data['status'] ?? '');
+
+        if (!$status) {
+            return $this->json(
+                ['errors' => ['status' => 'Invalid status. Allowed values: ' . implode(', ', array_column(RecipeStatus::cases(), 'value'))]],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
+        $recipe->setStatus($status);
         $this->em->flush();
 
         return $this->json($this->serialize($recipe), Response::HTTP_OK);
@@ -497,6 +559,7 @@ class RecipeController extends AbstractController
             'tips'        => $this->splitTips($recipe->getTips()),
             'photos'      => $this->serializePhotos($recipe),
             'createdAt'   => $recipe->getCreatedAt(),
+            'status' => $recipe->getStatus()->value,
             'userId'      => $recipe->getUser()?->getId(),
             'steps'       => $this->serializeSteps($recipe),
             'ingredients' => $recipe->getIngredients()->map(fn($ri) => [

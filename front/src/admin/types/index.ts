@@ -25,9 +25,7 @@ export interface User {
 
 export type RecipeType = "Plats" | "Desserts" | "Mocktails";
 
-// Conservé côté front uniquement — pas encore de colonne en base.
-// Ne jamais envoyer ce champ dans le payload API.
-export type RecipeStatus = "published" | "draft";
+export type RecipeStatus = "PENDING" | "DECLINED" | "PUBLISHED";
 
 // ── Step : une étape de préparation d'une recette ─────────────────────────────
 // index = ordre d'affichage (1-based). Auto-généré à la création, modifiable en update.

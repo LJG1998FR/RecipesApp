@@ -42,10 +42,12 @@ import {
   createRecipe,
   updateRecipe as apiUpdateRecipe,
   deleteRecipe as apiDeleteRecipe,
+  updateRecipeStatus,
 } from "../../api";
 
 interface RecipesProps {
   recipes: Recipe[];
+  currentRole: string;
   onAdd: (r: Recipe) => void;
   onUpdate: (r: Recipe) => void;
   onDelete: (id: number) => void;
@@ -71,7 +73,7 @@ interface RecipeForm {
 const EMPTY_FORM: RecipeForm = {
   title: "",
   type: "Plats",
-  status: "draft",
+  status: "PENDING",
   nbPeople: 2,
   prepTime: 10,
   cookingTime: null,
@@ -185,7 +187,7 @@ function IngredientSearch({
 }
 
 // ── Composant principal ────────────────────────────────────────────────────────
-export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesProps) {
+export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelete }: RecipesProps) {
   // null = modale fermée | false = création | Recipe = édition
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null | false>(null);
   const [form, setForm] = useState<RecipeForm>(EMPTY_FORM);
@@ -459,8 +461,25 @@ export default function Recipes({ recipes, onAdd, onUpdate, onDelete }: RecipesP
     },
     {
       header: "Statut",
-      width: "110px",
-      render: (r) => <StatusBadge status={r.status} />,
+      width: "160px",
+      render: (r) => {
+        const canModerate = currentRole === "ROLE_ADMIN" || currentRole === "ROLE_SUPER_ADMIN";
+        if (!canModerate) return <StatusBadge status={r.status} />;
+        return (
+          <select
+            className="input-field"
+            value={r.status}
+            onChange={async (e) => {
+              const updated = await updateRecipeStatus(r.id, e.target.value as any);
+              onUpdate(updated);
+            }}
+          >
+            <option value="PENDING">En attente</option>
+            <option value="PUBLISHED">Publiée</option>
+            <option value="DECLINED">Refusée</option>
+          </select>
+        );
+      },
     },
     {
       header: "Prépa.",

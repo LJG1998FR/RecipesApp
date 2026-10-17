@@ -136,8 +136,8 @@
             "title": "Nouvelle recette",
             "submit_button": "Confirmer l'ajout",
             "submitting": "Envoi en cours…",
-            "success_title": "Recette ajoutée !",
-            "success_message": "\"{title}\" a été publiée avec succès.",
+            "success_title": "En attente de validation",
+            "success_message": "\"{title}\" est maintenant en attente de validation par la modération.",
             "back_home_button": "Retour à l'accueil",
             "photo_warning": "La recette a bien été créée, mais l'envoi des photos a échoué ({error}). Vous pourrez les ajouter depuis la modification de la recette."
         },

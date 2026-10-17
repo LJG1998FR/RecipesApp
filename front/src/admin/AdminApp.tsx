@@ -224,6 +224,7 @@ export default function AdminApp() {
           {currentPage === "recipes" && (
             <Recipes
               recipes={recipes}
+              currentRole={currentRole} 
               onAdd={addRecipe}
               onUpdate={updateRecipe}
               onDelete={deleteRecipe}

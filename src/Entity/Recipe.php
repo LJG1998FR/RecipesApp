@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Entity\PhotoCollection;
+use App\Enums\RecipeStatus;
 use App\Enums\RecipeType;
 use App\Repository\RecipeRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -40,6 +41,9 @@ class Recipe
     #[ORM\Column]
     private ?int $created_at = null;
 
+    #[ORM\Column(enumType: RecipeStatus::class)]
+    private RecipeStatus $status;
+
     /**
      * @var Collection<int, Step>
      */
@@ -63,6 +67,7 @@ class Recipe
     {
         $this->steps = new ArrayCollection();
         $this->recipeIngredients = new ArrayCollection();
+        $this->status = RecipeStatus::PENDING;
     }
 
     public function getId(): ?int
@@ -150,6 +155,18 @@ class Recipe
     public function setCreatedAt(int $created_at): static
     {
         $this->created_at = $created_at;
+
+        return $this;
+    }
+
+    public function getStatus(): RecipeStatus
+    {
+        return $this->status;
+    }
+
+    public function setStatus(RecipeStatus $status): static
+    {
+        $this->status = $status;
 
         return $this;
     }
