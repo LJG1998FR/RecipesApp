@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { RECIPE_CATEGORIES } from "../../types";
+import { RECIPE_CATEGORIES, CATEGORY_LABEL_KEYS } from "../../types";
 import type { Category, IngredientOption, RecipePhoto } from "../../types";
 import { CheckIcon, ChevronLeft, ClockIcon, FlameIcon, PlusIcon, GripIcon, TrashIcon } from "../icons";
 import {
@@ -16,6 +16,7 @@ import {
 } from "./RecipeFormShared";
 import type { SelectedIngredient, LocalPhoto } from "./RecipeFormShared";
 import Loading from "../layout/Loading";
+import { useTranslation } from "../../context/LocaleContext";
 
 // NOTE : la grande majorité de l'UI (champs, autocomplétion d'ingrédients,
 // grille de nouvelles photos…) vient de RecipeFormShared.tsx — exactement ce
@@ -42,6 +43,8 @@ interface Props {
 // Distincte de PhotoGrid (RecipeFormShared) : celle-ci affiche des photos qui
 // ont un `id` serveur et une `url` déjà hébergée, et leur suppression déclenche
 // un VRAI appel API (DELETE), pas juste un retrait de l'état local.
+// Reste dans UpdateRecipePage.tsx (pas dans RecipeFormShared) : AddRecipePage
+// n'a par définition aucune photo "déjà en base" lors de la création.
 function ExistingPhotoGrid({
   photos,
   deletingId,
@@ -51,6 +54,7 @@ function ExistingPhotoGrid({
   deletingId: number | null;
   onRemove: (photo: RecipePhoto) => void;
 }) {
+  const { t } = useTranslation();
   if (photos.length === 0) return null;
 
   return (
@@ -64,7 +68,7 @@ function ExistingPhotoGrid({
           >
             <img
               src={toPhotoUrl(photo.url)}
-              alt="Photo de la recette"
+              alt={t("recipe.form.existing_photo_alt")}
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
             <button
@@ -92,6 +96,8 @@ function ExistingPhotoGrid({
 type LoadStatus = "loading" | "ready" | "not-found" | "forbidden" | "error";
 
 export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDeleted }: Props) {
+  const { t } = useTranslation();
+
   const [loadStatus, setLoadStatus] = useState<LoadStatus>("loading");
 
   // ── Champs du formulaire, identiques à AddRecipePage ──────────────────────
@@ -185,13 +191,13 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
     const totalPhotos = existingPhotos.length + newPhotos.length;
 
     for (const file of Array.from(files)) {
-      if (!ALLOWED_PHOTO_TYPES.includes(file.type)) rejected.push(`${file.name} : format non supporté`);
-      else if (file.size > MAX_PHOTO_SIZE)          rejected.push(`${file.name} : plus de 5 Mo`);
+      if (!ALLOWED_PHOTO_TYPES.includes(file.type)) rejected.push(t("recipe.form.photo_error_unsupported_format", { filename: file.name }));
+      else if (file.size > MAX_PHOTO_SIZE)          rejected.push(t("recipe.form.photo_error_too_large", { filename: file.name }));
       else                                          accepted.push(file);
     }
 
     const room = MAX_PHOTOS - totalPhotos;
-    if (accepted.length > room) rejected.push(`Maximum ${MAX_PHOTOS} photos au total : certaines ont été ignorées`);
+    if (accepted.length > room) rejected.push(t("recipe.form.photo_error_max_reached", { max: MAX_PHOTOS }));
 
     const mapped = accepted.slice(0, Math.max(room, 0)).map((file) => ({ file, preview: URL.createObjectURL(file) }));
     setNewPhotos((p) => [...p, ...mapped]);
@@ -215,7 +221,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
       await deleteRecipePhoto(recipeId, photo.id);
       setExistingPhotos((p) => p.filter((x) => x.id !== photo.id));
     } catch (err) {
-      setErrors(extractMessages(err, "La suppression de la photo a échoué."));
+      setErrors(extractMessages(err, t("recipe.form.error_photo_delete_failed")));
     } finally {
       setDeletingPhotoId(null);
     }
@@ -224,7 +230,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
   const totalPhotoCount = existingPhotos.length + newPhotos.length;
 
   const handleSubmit = async () => {
-    const errs = validateRecipeForm({ title, prepTime, cookTime, ingredientsCount: ingredients.length, steps });
+    const errs = validateRecipeForm({ title, prepTime, cookTime, ingredientsCount: ingredients.length, steps }, t);
     if (errs.length) { setErrors(errs); return; }
     setErrors([]);
     setSavedMessage("");
@@ -259,7 +265,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           setNewPhotos([]);
         } catch (photoErr) {
           setErrors([
-            `Les modifications ont été enregistrées, mais l'envoi des nouvelles photos a échoué (${extractMessages(photoErr)[0]}).`,
+            t("recipe.update.photo_upload_partial_error", { error: extractMessages(photoErr, t("recipe.form.error_generic_fallback"))[0] }),
           ]);
         }
       }
@@ -275,12 +281,12 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
       const refreshed = await fetchRecipe(recipeId);
       setExistingPhotos(refreshed.photos);
 
-      setSavedMessage("Modifications enregistrées.");
+      setSavedMessage(t("recipe.update.success_message"));
       // Le bandeau disparaît tout seul après 3s — même pattern que ProfilePage.
       setTimeout(() => setSavedMessage(""), 3000);
       onSaved?.(refreshed);
     } catch (err) {
-      setErrors(extractMessages(err, "La mise à jour de la recette a échoué."));
+      setErrors(extractMessages(err, t("recipe.update.error_update_failed")));
     } finally {
       setSubmitting(false);
     }
@@ -293,7 +299,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
       await deleteRecipe(recipeId);
       onDeleted?.();
     } catch (err) {
-      setDeleteError(extractMessages(err, "La suppression de la recette a échoué.")[0]);
+      setDeleteError(extractMessages(err, t("recipe.update.error_delete_failed"))[0]);
       setDeletingRecipe(false);
     }
   };
@@ -306,9 +312,9 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
 
   if (loadStatus !== "ready") {
     const messages: Record<Exclude<LoadStatus, "loading" | "ready">, string> = {
-      "not-found": "Cette recette est introuvable. Elle a peut-être déjà été supprimée.",
-      "forbidden": "Vous n'êtes pas autorisé à modifier cette recette.",
-      "error": "Impossible de charger cette recette. Réessayez dans un instant.",
+      "not-found": t("recipe.update.error_not_found"),
+      "forbidden": t("recipe.update.error_forbidden"),
+      "error": t("recipe.update.error_generic_load"),
     };
 
     return (
@@ -324,7 +330,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           onClick={onCancel}
           style={{ fontSize: 14, fontWeight: 600, color: "var(--color-primary)", marginTop: 8 }}
         >
-          ← Retour
+          {t("recipe.not_found.back_button")}
         </button>
       </div>
     );
@@ -349,7 +355,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           <ChevronLeft />
         </button>
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: "var(--color-text)" }}>
-          Modifier la recette
+          {t("recipe.update.title")}
         </h1>
       </div>
 
@@ -368,13 +374,13 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
         )}
 
         {/* ── Titre ── */}
-        <FormSection title="Titre">
+        <FormSection title={t("recipe.form.title_label")}>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={255}
-            placeholder="ex. Tarte Tatin aux pommes"
+            placeholder={t("recipe.form.title_placeholder")}
             style={{ ...inputStyle, fontSize: 15, fontFamily: "var(--font-display)", fontWeight: 500, padding: "14px 16px", borderRadius: 14 }}
           />
         </FormSection>
@@ -384,7 +390,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           {/* Personnes */}
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
-              Personnes
+              {t("recipe.form.people_label")}
             </p>
             <div style={{
               display: "flex", alignItems: "center",
@@ -405,7 +411,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           {/* Catégorie */}
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
-              Catégorie
+              {t("recipe.form.category_label")}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {RECIPE_CATEGORIES.map((c) => {
@@ -422,7 +428,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                       border: isActive ? "1px solid transparent" : "1px solid var(--color-border)",
                     }}
                   >
-                    {c}
+                    {t(CATEGORY_LABEL_KEYS[c])}
                   </button>
                 );
               })}
@@ -433,8 +439,8 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
         {/* ── Préparation + Cuisson (2 colonnes, en minutes) ── */}
         <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
           {[
-            { label: "Préparation", badge: undefined,    icon: <ClockIcon size={15} />, value: prepTime, set: setPrepTime, placeholder: "15", min: 1 },
-            { label: "Cuisson",     badge: "optionnel",   icon: <FlameIcon />,           value: cookTime, set: setCookTime, placeholder: "30", min: 0 },
+            { label: t("recipe.form.prep_label"), badge: undefined,                  icon: <ClockIcon size={15} />, value: prepTime, set: setPrepTime, placeholder: "15", min: 1 },
+            { label: t("recipe.form.cook_label"), badge: t("common.badges.optional"), icon: <FlameIcon />,           value: cookTime, set: setCookTime, placeholder: "30", min: 0 },
           ].map(({ label, badge, icon, value, set, placeholder, min }) => (
             <div key={label} style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
@@ -470,20 +476,20 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
         </div>
 
         {/* ── Photos : existantes (suppression immédiate) + nouvelles (upload au save) ── */}
-        <FormSection title="Photos" badge="optionnel">
+        <FormSection title={t("recipe.form.photos_label")} badge={t("common.badges.optional")}>
           <ExistingPhotoGrid photos={existingPhotos} deletingId={deletingPhotoId} onRemove={removeExistingPhoto} />
           {totalPhotoCount < MAX_PHOTOS && (
             <PhotoGrid photos={newPhotos} onAdd={addNewPhotos} onRemove={removeNewPhoto} />
           )}
           {totalPhotoCount >= MAX_PHOTOS && newPhotos.length === 0 && (
             <p style={{ fontSize: 12, color: "var(--color-text-dim)" }}>
-              Maximum de {MAX_PHOTOS} photos atteint — supprimez-en une pour en ajouter une nouvelle.
+              {t("recipe.update.photos_max_reached", { max: MAX_PHOTOS })}
             </p>
           )}
         </FormSection>
 
         {/* ── Ingrédients ── */}
-        <FormSection title="Ingrédients">
+        <FormSection title={t("recipe.form.ingredients_label")}>
           {ingredients.length > 0 && (
             <ul style={{ listStyle: "none", padding: 0, marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
               {ingredients.map((ing, i) => (
@@ -514,7 +520,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
         </FormSection>
 
         {/* ── Étapes ── */}
-        <FormSection title="Étapes">
+        <FormSection title={t("recipe.form.steps_label")}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {steps.map((step, i) => (
               <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
@@ -530,7 +536,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                   <textarea
                     value={step}
                     onChange={(e) => updateStep(i, e.target.value)}
-                    placeholder={`Étape ${i + 1}…`}
+                    placeholder={t("recipe.form.step_placeholder", { n: i + 1 })}
                     rows={2}
                     maxLength={MAX_STEP_LENGTH}
                     style={{ ...inputStyle, resize: "none", lineHeight: 1.55, padding: "10px 14px" }}
@@ -560,16 +566,16 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
               color: "var(--color-text-muted)", cursor: "pointer",
             }}
           >
-            <PlusIcon size={15} /> Ajouter une étape
+            <PlusIcon size={15} /> {t("recipe.form.add_step_button")}
           </button>
         </FormSection>
 
         {/* ── Astuces ── */}
-        <FormSection title="Astuces du chef" badge="optionnel">
+        <FormSection title={t("recipe.form.tips_label")} badge={t("common.badges.optional")}>
           <textarea
             value={tips}
             onChange={(e) => setTips(e.target.value)}
-            placeholder={"Partagez vos astuces…\n(une astuce par ligne)"}
+            placeholder={t("recipe.form.tips_placeholder")}
             rows={4}
             style={{ ...inputStyle, resize: "vertical", lineHeight: 1.55 }}
           />
@@ -600,7 +606,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
               cursor: submitting ? "wait" : "pointer", opacity: submitting ? 0.6 : 1,
             }}
           >
-            <CheckIcon /> {submitting ? "Enregistrement…" : "Enregistrer les modifications"}
+            <CheckIcon /> {submitting ? t("recipe.update.submitting") : t("recipe.update.submit_button")}
           </button>
           <button
             onClick={onCancel}
@@ -612,7 +618,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
               border: "1px solid var(--color-border)", cursor: "pointer",
             }}
           >
-            Annuler
+            {t("common.buttons.cancel")}
           </button>
         </div>
 
@@ -632,7 +638,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                 border: "1px solid rgba(180,50,50,0.2)", cursor: "pointer",
               }}
             >
-              <TrashIcon /> Supprimer cette recette
+              <TrashIcon /> {t("recipe.update.delete_button")}
             </button>
           ) : (
             <div style={{
@@ -640,10 +646,10 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
               backgroundColor: "rgba(180,50,50,0.08)", border: "1px solid rgba(180,50,50,0.2)",
             }}>
               <p style={{ fontSize: 13, color: "var(--color-text)", marginBottom: 4, fontWeight: 600 }}>
-                Supprimer définitivement « {title} » ?
+                {t("recipe.update.delete_confirm_title", { title })}
               </p>
               <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 14 }}>
-                Cette action est irréversible : la recette, ses étapes, ses ingrédients et ses photos seront supprimés.
+                {t("recipe.update.delete_confirm_warning")}
               </p>
               {deleteError && (
                 <p style={{ fontSize: 12, color: "#e07070", marginBottom: 10 }}>{deleteError}</p>
@@ -659,7 +665,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                     border: "1px solid var(--color-border)", cursor: "pointer",
                   }}
                 >
-                  Annuler
+                  {t("common.buttons.cancel")}
                 </button>
                 <button
                   onClick={handleDelete}
@@ -672,7 +678,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                     opacity: deletingRecipe ? 0.7 : 1,
                   }}
                 >
-                  {deletingRecipe ? "Suppression…" : "Confirmer la suppression"}
+                  {deletingRecipe ? t("recipe.update.deleting") : t("recipe.update.delete_confirm_button")}
                 </button>
               </div>
             </div>

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { PlusIcon } from "../icons";
 import type { IngredientOption } from "../../admin/types";
 import { normalizeForSearch } from "../../types/utils";
+import { useTranslation } from "../../context/LocaleContext";
+import type { TFunction } from "../../context/LocaleContext";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Morceaux PARTAGÉS entre AddRecipePage.tsx et UpdateRecipePage.tsx.
@@ -37,6 +39,9 @@ export const inputStyle: React.CSSProperties = {
 };
 
 // ── FormSection ────────────────────────────────────────────────────────────────
+// Ne traduit rien elle-même : title/badge arrivent déjà traduits depuis les
+// pages appelantes (via t()). FormSection reste un composant "bête", agnostique
+// de la langue — c'est aux pages de décider QUOI afficher.
 
 export function FormSection({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
   return (
@@ -95,7 +100,10 @@ interface IngredientInputProps {
   onAdd: (ing: SelectedIngredient) => void;
 }
 
+// Composant React à part entière (pas une fonction utilitaire) : il peut donc
+// appeler useTranslation() directement, pas besoin de lui passer `t` en prop.
 export function IngredientInput({ available, alreadyUsedIds, loading, loadError, onAdd }: IngredientInputProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   // `selected` = l'ingrédient réellement choisi dans la liste (avec son id).
   // Taper du texte libre ne suffit PAS : le back exige un ingredientId existant.
@@ -130,10 +138,10 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
   };
 
   const handleAdd = () => {
-    if (!selected) return setLocalError("Choisissez un ingrédient dans la liste.");
+    if (!selected) return setLocalError(t("recipe.form.error_choose_ingredient"));
     const amount = parseFloat(qty.replace(",", "."));
     if (!Number.isFinite(amount) || amount < MIN_AMOUNT)
-      return setLocalError(`La quantité doit être un nombre ≥ ${MIN_AMOUNT}.`);
+      return setLocalError(t("recipe.form.error_quantity_min", { min: MIN_AMOUNT }));
 
     onAdd({ ingredientId: selected.id, label: selected.label, unit: selected.unit, amount });
     setQuery(""); setSelected(null); setQty(""); setLocalError("");
@@ -147,20 +155,20 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
       {/* ── Étape 1 : Nom (autocomplétion depuis l'API) ── */}
       <div style={{ padding: "16px 16px 14px", position: "relative" }}>
         <p style={{ fontSize: 12, color: "var(--color-text-dim)", marginBottom: 8 }}>
-          <StepBadge n={1} />Ingrédient
+          <StepBadge n={1} />{t("recipe.form.ingredient_singular_label")}
         </p>
         <input
           type="text"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setSelected(null); setShowSugg(true); }}
           onFocus={() => setShowSugg(true)}
-          placeholder={loading ? "Chargement des ingrédients…" : "Tapez pour rechercher…"}
+          placeholder={loading ? t("recipe.form.ingredient_loading") : t("recipe.form.ingredient_search_placeholder")}
           disabled={loading || loadError}
           style={inputStyle}
         />
         {loadError && (
           <p style={{ fontSize: 12, color: "#e07070", marginTop: 8 }}>
-            Impossible de charger la liste des ingrédients. Rechargez la page.
+            {t("recipe.form.ingredient_load_error")}
           </p>
         )}
         {showSugg && suggestions.length > 0 && (
@@ -191,7 +199,7 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
         )}
         {showSugg && query.trim() !== "" && !selected && suggestions.length === 0 && !loading && !loadError && (
           <p style={{ fontSize: 12, color: "var(--color-text-dim)", marginTop: 8 }}>
-            Aucun ingrédient correspondant. Seul un administrateur peut en créer de nouveaux.
+            {t("recipe.form.ingredient_no_match")}
           </p>
         )}
       </div>
@@ -201,7 +209,7 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
       {/* ── Étape 2 : Quantité (+ unité en LECTURE SEULE) ── */}
       <div style={{ padding: "14px 16px" }}>
         <p style={{ fontSize: 12, color: "var(--color-text-dim)", marginBottom: 8 }}>
-          <StepBadge n={2} />Quantité
+          <StepBadge n={2} />{t("recipe.form.quantity_label")}
         </p>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <input
@@ -209,7 +217,7 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
             inputMode="decimal"
             value={qty}
             onChange={(e) => setQty(e.target.value)}
-            placeholder="ex. 250 ou 1.5"
+            placeholder={t("recipe.form.quantity_placeholder")}
             min={MIN_AMOUNT}
             step="any"
             style={{ ...inputStyle, flex: 1, width: undefined }}
@@ -221,7 +229,7 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
             color: "var(--color-text-muted)", border: "1px solid var(--color-border)",
             backgroundColor: "var(--color-surface)",
           }}>
-            {selected ? (selected.unit ?? "—") : "unité"}
+            {selected ? (selected.unit ?? "—") : t("recipe.form.unit_placeholder")}
           </span>
         </div>
       </div>
@@ -247,7 +255,7 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
             transition: "all 0.15s",
           }}
         >
-          <PlusIcon size={15} /> Ajouter l'ingrédient
+          <PlusIcon size={15} /> {t("recipe.form.add_ingredient_button")}
         </button>
       </div>
     </div>
@@ -257,10 +265,10 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
 // ── PhotoGrid ──────────────────────────────────────────────────────────────────
 // Affiche uniquement les photos LOCALES, pas encore envoyées au serveur
 // (fichiers choisis dans ce passage sur le formulaire). UpdateRecipePage gère
-// séparément les photos déjà existantes en base (voir ExistingPhotoGrid
-// ci-dessous), car elles ne se suppriment/affichent pas de la même façon
-// (un File local n'a pas d'id serveur ; une photo déjà en base n'a pas de
-// File JS à montrer).
+// séparément les photos déjà existantes en base (voir ExistingPhotoGrid dans
+// UpdateRecipePage.tsx), car elles ne se suppriment/affichent pas de la même
+// façon (un File local n'a pas d'id serveur ; une photo déjà en base n'a pas
+// de File JS à montrer).
 
 export interface LocalPhoto {
   file: File;
@@ -276,6 +284,7 @@ export function PhotoGrid({
   onAdd: (files: FileList) => void;
   onRemove: (index: number) => void;
 }) {
+  const { t } = useTranslation();
   const remaining = MAX_PHOTOS - photos.length;
 
   return (
@@ -288,7 +297,7 @@ export function PhotoGrid({
           >
             <img
               src={p.preview}
-              alt={`Photo ${i + 1}`}
+              alt={t("recipe.form.photo_alt", { n: i + 1 })}
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
             <button
@@ -331,8 +340,12 @@ export function PhotoGrid({
         )}
       </div>
 
+      {/* Pluriel fait-maison : photos.length > 1 -> pluriel, sinon singulier
+          (0 et 1 sont tous les deux singuliers en français). */}
       <p style={{ fontSize: 12, color: "var(--color-text-dim)", marginTop: 8 }}>
-        {photos.length} / {MAX_PHOTOS} photo{photos.length > 1 ? "s" : ""} · 5 Mo max chacune
+        {photos.length > 1
+          ? t("recipe.form.photo_count_plural", { count: photos.length, max: MAX_PHOTOS })
+          : t("recipe.form.photo_count_singular", { count: photos.length, max: MAX_PHOTOS })}
       </p>
     </div>
   );
@@ -353,25 +366,29 @@ export interface RecipeFormValues {
   steps: string[];
 }
 
-export function validateRecipeForm(values: RecipeFormValues): string[] {
+// ⚠️ validateRecipeForm n'est PAS un composant React : elle ne peut donc pas
+// appeler useTranslation() elle-même (les hooks ne fonctionnent que dans des
+// composants / d'autres hooks). On lui injecte `t` en paramètre à la place —
+// la fonction reste pure et testable, tout en produisant du texte traduit.
+export function validateRecipeForm(values: RecipeFormValues, t: TFunction): string[] {
   const errors: string[] = [];
   const prep = Number(values.prepTime);
   const cook = Number(values.cookTime);
 
-  if (!values.title.trim()) errors.push("Le titre est requis.");
+  if (!values.title.trim()) errors.push(t("recipe.form.error_title_required"));
 
   if (!values.prepTime.trim() || !Number.isInteger(prep) || prep < 1)
-    errors.push("Le temps de préparation doit être un nombre entier de minutes (≥ 1).");
+    errors.push(t("recipe.form.error_prep_time_invalid"));
 
   if (values.cookTime.trim() && (!Number.isInteger(cook) || cook < 0))
-    errors.push("Le temps de cuisson doit être un nombre entier de minutes (≥ 0).");
+    errors.push(t("recipe.form.error_cook_time_invalid"));
 
-  if (values.ingredientsCount === 0) errors.push("Ajoutez au moins un ingrédient.");
+  if (values.ingredientsCount === 0) errors.push(t("recipe.form.error_no_ingredients"));
 
   const filledSteps = values.steps.map((s) => s.trim()).filter(Boolean);
-  if (filledSteps.length === 0) errors.push("Ajoutez au moins une étape.");
+  if (filledSteps.length === 0) errors.push(t("recipe.form.error_no_steps"));
   if (filledSteps.some((s) => s.length > MAX_STEP_LENGTH))
-    errors.push(`Chaque étape est limitée à ${MAX_STEP_LENGTH} caractères.`);
+    errors.push(t("recipe.form.error_step_too_long", { max: MAX_STEP_LENGTH }));
 
   return errors;
 }
@@ -395,8 +412,14 @@ export function buildIngredientsPayload(ingredients: SelectedIngredient[]): { in
 // Le back renvoie soit { error: "..." } soit { errors: { champ: "..." } } (422).
 // handleResponse (api/index.ts) les regroupe dans `err.messages` (ApiError).
 // On reste défensif : si l'erreur n'a pas ce format (ex. réseau coupé), on
-// retombe sur err.message.
-export function extractMessages(err: unknown, fallback = "Une erreur est survenue. Réessayez."): string[] {
+// retombe sur `fallback`.
+//
+// ⚠️ `fallback` est désormais OBLIGATOIRE (plus de valeur par défaut en
+// français en dur). Comme extractMessages() n'est pas un composant, elle ne
+// peut pas traduire elle-même : c'est à l'appelant (qui, lui, a `t` via
+// useTranslation()) de fournir un texte déjà traduit, ex :
+//   extractMessages(err, t("recipe.form.error_generic_fallback"))
+export function extractMessages(err: unknown, fallback: string): string[] {
   const messages = (err as { messages?: unknown })?.messages;
   if (Array.isArray(messages) && messages.length > 0) return messages.map(String);
   if (err instanceof Error && err.message) return [err.message];

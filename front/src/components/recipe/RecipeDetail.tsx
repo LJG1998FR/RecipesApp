@@ -6,6 +6,8 @@ import {
   BulbIcon, CheckIcon, PencilIcon,
 } from "../icons";
 import { toPhotoUrl } from "../../api";
+import { useTranslation } from "@/context/LocaleContext";
+import { CATEGORY_LABEL_KEYS } from "@/types";
 
 interface Props {
   recipe: Recipe;
@@ -43,13 +45,14 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
   const [liked,     setLiked]     = useState(false);
   const [activeTab, setActiveTab] = useState<"ingredients" | "steps">("ingredients");
   const [tipsOpen,  setTipsOpen]  = useState(false);
+  const { t } = useTranslation();
 
   var statsIcons = [
-    { icon: <ClockIcon size={16} />, value: recipe.prepTime,          label: "Préparation" }
+    { icon: <ClockIcon size={16} />, value: recipe.prepTime,          label: t("recipe.detail.stat_prep") }
   ];
 
   if(recipe.cookingTime !== null){
-    statsIcons.push({ icon: <FlameIcon />,           value: recipe.cookingTime,           label: "Cuisson"     });
+    statsIcons.push({ icon: <FlameIcon />,           value: recipe.cookingTime,           label: t("recipe.detail.stat_cook") });
   }
 
   // Le crayon n'apparaît que si LES DEUX conditions sont réunies :
@@ -57,6 +60,12 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
   // au clic (onEdit). Séparer les deux évite d'afficher un bouton qui ne
   // ferait rien si jamais un appelant oublie de brancher onEdit.
   const showEditButton = canEdit && !!onEdit;
+
+  // ⚠️ recipe.type vient de l'API (valeur backend, ex: "Plats") — on la
+  // traduit UNIQUEMENT pour l'affichage, via la même table que HomePage.
+  // Si la valeur ne correspond à aucune clé connue (donnée inattendue),
+  // on retombe sur la valeur brute plutôt que de planter.
+  const typeLabelKey = CATEGORY_LABEL_KEYS[recipe.type as keyof typeof CATEGORY_LABEL_KEYS];
 
   return (
     <div
@@ -68,16 +77,6 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
         flexDirection: "column",
       }}
     >
-      {/* ── Hero image ──
-          AVANT : recipe.image, absent de toute réponse API réelle (même
-          cause que RecipeCard.tsx — voir ce fichier pour le détail).
-          MAINTENANT : 1ère photo du tableau recipe.photos renvoyé par
-          RecipeController::serialize(). Optional chaining (?. et ??) car
-          je n'ai pas la version à jour de admin/types/index.ts pour ce
-          correctif : AJOUTEZ le champ `photos: { id:number; position:number|null; url:string }[]`
-          au type Recipe de admin/types pour que ceci soit bien typé (sinon
-          TypeScript considère `recipe.photos` comme `any`, ce qui masque
-          de futures erreurs au lieu de les révéler à la compilation). */}
       <div style={{ position: "relative", height: "clamp(260px, 42vh, 340px)", flexShrink: 0, backgroundColor: "var(--color-card)" }}>
         <img
           src={recipe.photos?.[0] ? toPhotoUrl(recipe.photos[0].url) : ""}
@@ -157,7 +156,7 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
               border: "1px solid rgba(224,154,90,0.3)",
             }}
           >
-            {recipe.type}
+            {typeLabelKey ? t(typeLabelKey) : recipe.type}
           </span>
         </div>
       </div>
@@ -224,7 +223,7 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ color: "var(--color-primary)" }}><BulbIcon /></span>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
-                  Astuces du chef
+                  {t("recipe.detail.tips_title")}
                 </span>
               </div>
               <span style={{ color: "var(--color-text-dim)" }}>
@@ -280,7 +279,7 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
                 cursor: "pointer",
               }}
             >
-              {tab === "ingredients" ? "Ingrédients" : "Étapes"}
+              {tab === "ingredients" ? t("recipe.detail.tab_ingredients") : t("recipe.detail.tab_steps")}
             </button>
           ))}
         </div>
@@ -302,7 +301,7 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
                 >
                   {i + 1}
                 </span>
-                <span style={{ fontSize: 14, color: "var(--color-text)" }}>{ing.label}</span>
+                <span style={{ fontSize: 14, color: "var(--color-text)" }}>{ing.amount} {ing.unit} {ing.label}</span>
               </li>
             ))}
           </ul>

@@ -4,6 +4,7 @@ import RecipeDetail from "../components/recipe/RecipeDetail";
 import Loading from "../components/layout/Loading";
 import { useEffect, useState } from "react";
 import { useUser } from "../context/UserContext";
+import { useTranslation } from "@/context/LocaleContext";
 
 interface Props {
   recipeId: number;
@@ -22,6 +23,7 @@ export default function RecipeDetailPage({ recipeId, onBack, onEdit }: Props) {
   const [recipe,    setRecipe]    = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error,     setError]     = useState(false);
+  const { t } = useTranslation();
 
   // ✅ Fetch une seule fois au montage du composant
   useEffect(() => {
@@ -47,13 +49,13 @@ export default function RecipeDetailPage({ recipeId, onBack, onEdit }: Props) {
       >
         <p style={{ fontSize: 40 }}>🍽️</p>
         <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-          Recette introuvable.
+          {t("recipe.not_found.message")}
         </p>
         <button
           onClick={onBack}
           style={{ fontSize: 14, fontWeight: 600, color: "var(--color-primary)" }}
         >
-          ← Retour
+          {t("recipe.not_found.back_button")}
         </button>
       </div>
     );

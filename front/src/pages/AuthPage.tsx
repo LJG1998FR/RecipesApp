@@ -4,6 +4,7 @@ import type { UserData } from "../context/UserContext";
 import { EyeIcon, MailIcon, LockIcon } from "../components/icons";
 import { getUserData, login, register } from "../api";
 import Loading from "../components/layout/Loading";
+import { useTranslation } from "@/context/LocaleContext";
 
 interface Props {
   onAuth: (userData: UserData) => void;
@@ -23,6 +24,7 @@ export default function AuthPage({ onAuth }: Props) {
   const [showPwd,   setShowPwd]   = useState(false);
   const [error,     setError]     = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async () => {
     setError("");
@@ -248,7 +250,7 @@ export default function AuthPage({ onAuth }: Props) {
           onMouseOver={(e) => (e.currentTarget.style.opacity = "0.88")}
           onMouseOut={(e)  => (e.currentTarget.style.opacity = "1")}
         >
-          {mode === "login" ? "Se connecter" : "Créer mon compte"}
+          {mode === "login" ? t("auth.login.button_submit") : t("auth.register.button_submit")}
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0" }}>

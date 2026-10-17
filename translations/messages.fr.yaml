@@ -1,0 +1,211 @@
+# ============================================================================
+# STRUCTURE :
+# - common  : éléments génériques (boutons, messages, erreurs, nav, catégories, badges)
+# - auth    : Authentification (login, register, logout)
+# - home    : Page d'accueil (recherche, filtres, liste de recettes)
+# - recipe  : Carte recette, page détail, formulaire partagé, ajout, édition
+# - profile : Page profil utilisateur
+# - saved   : Onglet "recettes sauvegardées"
+#
+# BUILD : {page}.{section}.{element}
+# Exemple : auth.login.button_submit
+# (NB: pour une section à 1 seule clé, on tolère {page}.{element} plutôt
+#  que de forcer une sous-section artificielle — cf. "saved.empty_state")
+# ============================================================================
+
+common:
+    buttons:
+        save: 'Enregistrer'
+        cancel: 'Annuler'
+        confirm: 'Confirmer'
+        back: 'Retour'
+        close: 'Fermer'
+        delete: 'Supprimer'
+        edit: 'Modifier'
+        add: 'Ajouter'
+    messages:
+        loading: 'Chargement…'
+        success: 'Opération réussie.'
+        no_results: 'Aucun résultat trouvé.'
+    errors:
+        generic: 'Une erreur est survenue. Veuillez réessayer.'
+        network: 'Impossible de contacter le serveur.'
+        required_field: 'Ce champ est requis.'
+    nav:
+        home: 'Accueil'
+        saved: 'Sauvegardés'
+        add_recipe: 'Ajouter une recette'
+        profile: 'Profil'
+    # ⚠️ Ces libellés sont UNIQUEMENT pour l'affichage. Les valeurs réelles
+    # ("Plats", "Desserts"...) viennent du backend (RecipeType.php) et
+    # servent aussi à filtrer les données côté front — ne jamais les
+    # remplacer par ces traductions dans la logique de filtre.
+    categories:
+        all: 'Tout'
+        plates: 'Plats'
+        desserts: 'Desserts'
+        mocktails: 'Mocktails'
+    badges:
+        optional: 'optionnel'
+
+auth:
+    login:
+        title: 'Bon retour, chef.'
+        email_label: 'Adresse e-mail'
+        email_placeholder: 'marie@example.com'
+        password_label: 'Mot de passe'
+        password_placeholder: 'Min. 8 caractères'
+        button_submit: 'Se connecter'
+        forgot_password: 'Mot de passe oublié ?'
+        switch_to_signup_text: 'Pas encore de compte ?'
+        switch_to_signup_link: "S'inscrire"
+        error_invalid_credentials: 'Une erreur est survenue. Vérifiez vos identifiants.'
+        error_invalid_email: 'Adresse e-mail invalide.'
+        error_password_too_short: 'Le mot de passe doit faire au moins 8 caractères.'
+    register:
+        title: 'Rejoindre la table.'
+        firstname_label: 'Prénom'
+        firstname_placeholder: 'Marie'
+        lastname_label: 'Nom'
+        lastname_placeholder: 'Dupont'
+        button_submit: 'Créer mon compte'
+        switch_to_login_text: 'Déjà un compte ?'
+        switch_to_login_link: 'Se connecter'
+        error_missing_names: 'Veuillez renseigner votre prénom et nom.'
+    logout:
+        button: 'Se déconnecter'
+        success_message: 'Déconnecté avec succès'
+
+home:
+    greeting: 'Bonjour, {name} 👋'
+    search_placeholder: 'Rechercher une recette…'
+    section_title_all: 'Toutes les recettes'
+    # Pas de moteur de pluriel en mode fait-maison : on choisit la clé
+    # singulier/pluriel dans le composant. Rappel : en français "0 recette"
+    # est SINGULIER (contrairement à l'anglais "0 recipes").
+    recipe_count_singular: '{count} recette'
+    recipe_count_plural: '{count} recettes'
+    empty_state: 'Aucune recette trouvée'
+
+recipe:
+    card:
+        time_prep_only: '{prepTime} min.'
+        time_prep_and_cook: '{prepTime} min. +{cookTime} min.'
+    detail:
+        stat_prep: 'Préparation'
+        stat_cook: 'Cuisson'
+        tips_title: 'Astuces du chef'
+        tab_ingredients: 'Ingrédients'
+        tab_steps: 'Étapes'
+    not_found:
+        message: 'Recette introuvable.'
+        back_button: '← Retour'
+
+    # ── Partagé entre AddRecipePage et UpdateRecipePage (RecipeFormShared.tsx) ──
+    # Volontairement DISTINCT de "recipe.detail.*" malgré des mots identiques
+    # ("Préparation", "Cuisson") : ce sont des libellés de formulaire, pas des
+    # badges d'affichage en lecture seule. Les lier aurait créé un couplage
+    # fragile entre deux écrans qui n'ont aucune raison de changer ensemble.
+    form:
+        title_label: 'Titre'
+        title_placeholder: 'ex. Tarte Tatin aux pommes'
+        people_label: 'Personnes'
+        category_label: 'Catégorie'
+        prep_label: 'Préparation'
+        cook_label: 'Cuisson'
+        photos_label: 'Photos'
+        ingredients_label: 'Ingrédients'
+        steps_label: 'Étapes'
+        tips_label: 'Astuces du chef'
+        step_placeholder: 'Étape {n}…'
+        tips_placeholder: "Partagez vos astuces…\n(une astuce par ligne)"
+        add_step_button: 'Ajouter une étape'
+        ingredient_singular_label: 'Ingrédient'
+        ingredient_search_placeholder: 'Tapez pour rechercher…'
+        ingredient_loading: 'Chargement des ingrédients…'
+        ingredient_load_error: 'Impossible de charger la liste des ingrédients. Rechargez la page.'
+        ingredient_no_match: 'Aucun ingrédient correspondant. Seul un administrateur peut en créer de nouveaux.'
+        quantity_label: 'Quantité'
+        quantity_placeholder: 'ex. 250 ou 1.5'
+        unit_placeholder: 'unité'
+        add_ingredient_button: "Ajouter l'ingrédient"
+        error_choose_ingredient: 'Choisissez un ingrédient dans la liste.'
+        error_quantity_min: 'La quantité doit être un nombre ≥ {min}.'
+        photo_alt: 'Photo {n}'
+        # Spécifique à ExistingPhotoGrid (UpdateRecipePage) : les photos déjà
+        # en base n'ont pas de numéro d'ordre affiché, contrairement aux
+        # nouvelles photos locales (photo_alt ci-dessus).
+        existing_photo_alt: 'Photo de la recette'
+        # Pluriel fait-maison (cf. règle "0 = singulier en français") : {count} <= 1 -> singular
+        photo_count_singular: '{count} / {max} photo · 5 Mo max chacune'
+        photo_count_plural: '{count} / {max} photos · 5 Mo max chacune'
+        photo_error_unsupported_format: '{filename} : format non supporté'
+        photo_error_too_large: '{filename} : plus de 5 Mo'
+        # Unifié : AddRecipePage et UpdateRecipePage utilisaient 2 formulations
+        # quasi identiques ("...photos" vs "...photos au total") sans vraie
+        # raison fonctionnelle de diverger.
+        photo_error_max_reached: 'Maximum {max} photos au total : certaines ont été ignorées'
+        error_title_required: 'Le titre est requis.'
+        error_prep_time_invalid: 'Le temps de préparation doit être un nombre entier de minutes (≥ 1).'
+        error_cook_time_invalid: 'Le temps de cuisson doit être un nombre entier de minutes (≥ 0).'
+        error_no_ingredients: 'Ajoutez au moins un ingrédient.'
+        error_no_steps: 'Ajoutez au moins une étape.'
+        error_step_too_long: 'Chaque étape est limitée à {max} caractères.'
+        # Remplace l'ancien défaut codé en dur dans extractMessages().
+        error_generic_fallback: 'Une erreur est survenue. Réessayez.'
+        error_photo_delete_failed: 'La suppression de la photo a échoué.'
+
+    add:
+        title: 'Nouvelle recette'
+        submit_button: "Confirmer l'ajout"
+        submitting: 'Envoi en cours…'
+        success_title: 'Recette ajoutée !'
+        success_message: '"{title}" a été publiée avec succès.'
+        back_home_button: "Retour à l'accueil"
+        photo_warning: "La recette a bien été créée, mais l'envoi des photos a échoué ({error}). Vous pourrez les ajouter depuis la modification de la recette."
+
+    update:
+        title: 'Modifier la recette'
+        error_not_found: 'Cette recette est introuvable. Elle a peut-être déjà été supprimée.'
+        error_forbidden: "Vous n'êtes pas autorisé à modifier cette recette."
+        error_generic_load: 'Impossible de charger cette recette. Réessayez dans un instant.'
+        success_message: 'Modifications enregistrées.'
+        submit_button: 'Enregistrer les modifications'
+        submitting: 'Enregistrement…'
+        photos_max_reached: 'Maximum de {max} photos atteint — supprimez-en une pour en ajouter une nouvelle.'
+        delete_button: 'Supprimer cette recette'
+        delete_confirm_title: 'Supprimer définitivement « {title} » ?'
+        delete_confirm_warning: 'Cette action est irréversible : la recette, ses étapes, ses ingrédients et ses photos seront supprimés.'
+        delete_confirm_button: 'Confirmer la suppression'
+        deleting: 'Suppression…'
+        error_update_failed: 'La mise à jour de la recette a échoué.'
+        error_delete_failed: 'La suppression de la recette a échoué.'
+        photo_upload_partial_error: "Les modifications ont été enregistrées, mais l'envoi des nouvelles photos a échoué ({error})."
+
+profile:
+    section_informations: 'Informations'
+    field_firstname: 'Prénom'
+    field_lastname: 'Nom'
+    field_email: 'Adresse e-mail'
+    readonly_badge: 'Non modifiable'
+    section_security: 'Sécurité'
+    password_label: 'Mot de passe'
+    password_edit_button: 'Modifier'
+    password_change_title: 'Changer le mot de passe'
+    password_current_label: 'Mot de passe actuel'
+    password_current_placeholder: '••••••••'
+    password_new_label: 'Nouveau mot de passe'
+    password_new_placeholder: 'Min. 8 caractères'
+    password_confirm_label: 'Confirmer le mot de passe'
+    password_confirm_placeholder: 'Répétez le mot de passe'
+    member_since: 'membre depuis {date}'
+    success_password_updated: 'Mot de passe mis à jour avec succès.'
+    error_current_password_required: 'Entrez votre mot de passe actuel.'
+    error_new_password_too_short: 'Le nouveau mot de passe doit faire au moins 8 caractères.'
+    error_passwords_mismatch: 'Les mots de passe ne correspondent pas.'
+    delete_account_title: 'Supprimer mon compte'
+    delete_account_subtitle: '⚠️ Supprimer définitivement votre compte ?'
+    delete_account_warning: 'Cette action est irréversible. Toutes vos données seront perdues.'
+
+saved:
+    empty_state: 'Vos recettes sauvegardées apparaîtront ici.'

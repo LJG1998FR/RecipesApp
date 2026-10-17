@@ -39,9 +39,11 @@ import AddRecipePage    from "../components/recipe/AddRecipePage";
 import UpdateRecipePage from "../components/recipe/UpdateRecipePage";
 import { isAuthenticated } from "../api";
 import { UserProvider } from "../context/UserContext";
+import { useTranslation } from "@/context/LocaleContext";
 
 export default function AppRouter() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [authed, setAuthed] = useState<boolean>(isAuthenticated());
   const [view,       setView]       = useState<AppView>("home");
@@ -101,7 +103,7 @@ export default function AppRouter() {
       >
         <p style={{ fontSize: 40 }}>🔖</p>
         <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-          Vos recettes sauvegardées apparaîtront ici.
+          {t("saved.empty_state")}
         </p>
       </div>
     );

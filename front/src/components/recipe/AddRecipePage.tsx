@@ -1,4 +1,4 @@
-import { RECIPE_CATEGORIES } from "../../types";
+import { RECIPE_CATEGORIES, CATEGORY_LABEL_KEYS } from "../../types";
 import type { Category, IngredientOption } from "../../types";
 import { useEffect, useRef, useState } from "react";
 import { CheckIcon, ChevronLeft, ClockIcon, FlameIcon, PlusIcon, GripIcon, TrashIcon } from "../icons";
@@ -9,6 +9,7 @@ import {
   validateRecipeForm, buildStepsPayload, buildIngredientsPayload,
 } from "./RecipeFormShared";
 import type { SelectedIngredient, LocalPhoto } from "./RecipeFormShared";
+import { useTranslation } from "../../context/LocaleContext";
 
 // NOTE : la plupart des petits composants (FormSection, IngredientInput,
 // PhotoGrid…) ont été déplacés dans RecipeFormShared.tsx, car UpdateRecipePage
@@ -20,6 +21,8 @@ import type { SelectedIngredient, LocalPhoto } from "./RecipeFormShared";
 type SubmitStatus = "idle" | "submitting" | "submitted";
 
 export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
+  const { t } = useTranslation();
+
   const [title,       setTitle]       = useState("");
   const [people,      setPeople]      = useState(2);
   const [category,    setCategory]    = useState<Exclude<Category, "Tout">>("Plats");
@@ -72,13 +75,13 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
     const accepted: File[] = [];
 
     for (const file of Array.from(files)) {
-      if (!ALLOWED_PHOTO_TYPES.includes(file.type)) rejected.push(`${file.name} : format non supporté`);
-      else if (file.size > MAX_PHOTO_SIZE)          rejected.push(`${file.name} : plus de 5 Mo`);
+      if (!ALLOWED_PHOTO_TYPES.includes(file.type)) rejected.push(t("recipe.form.photo_error_unsupported_format", { filename: file.name }));
+      else if (file.size > MAX_PHOTO_SIZE)          rejected.push(t("recipe.form.photo_error_too_large", { filename: file.name }));
       else                                          accepted.push(file);
     }
 
     const room = MAX_PHOTOS - photos.length;
-    if (accepted.length > room) rejected.push(`Maximum ${MAX_PHOTOS} photos : certaines ont été ignorées`);
+    if (accepted.length > room) rejected.push(t("recipe.form.photo_error_max_reached", { max: MAX_PHOTOS }));
 
     const mapped = accepted.slice(0, room).map((file) => ({ file, preview: URL.createObjectURL(file) }));
     setPhotos((p) => [...p, ...mapped]);
@@ -96,7 +99,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
     // Validation ET construction du payload sont désormais partagées avec
     // UpdateRecipePage.tsx (voir RecipeFormShared.tsx) : ce sont les mêmes
     // règles des deux côtés, pas de raison de les maintenir en double.
-    const errs = validateRecipeForm({ title, prepTime, cookTime, ingredientsCount: ingredients.length, steps });
+    const errs = validateRecipeForm({ title, prepTime, cookTime, ingredientsCount: ingredients.length, steps }, t);
     if (errs.length) { setErrors(errs); return; }
     setErrors([]);
     setPhotoWarning("");
@@ -128,15 +131,14 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           await uploadRecipePhotos(created.id, photos.map((p) => p.file));
         } catch (photoErr) {
           setPhotoWarning(
-            `La recette a bien été créée, mais l'envoi des photos a échoué (${extractMessages(photoErr)[0]}). ` +
-            "Vous pourrez les ajouter depuis la modification de la recette."
+            t("recipe.add.photo_warning", { error: extractMessages(photoErr, t("recipe.form.error_generic_fallback"))[0] })
           );
         }
       }
 
       setStatus("submitted");
     } catch (err) {
-      setErrors(extractMessages(err));
+      setErrors(extractMessages(err, t("recipe.form.error_generic_fallback")));
       setStatus("idle");
     }
   };
@@ -163,10 +165,10 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           </span>
         </div>
         <h2 style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
-          Recette ajoutée !
+          {t("recipe.add.success_title")}
         </h2>
         <p style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: photoWarning ? 12 : 28 }}>
-          "{title}" a été publiée avec succès.
+          {t("recipe.add.success_message", { title })}
         </p>
         {photoWarning && (
           <p style={{ fontSize: 13, color: "#e0b070", marginBottom: 28 }}>{photoWarning}</p>
@@ -180,7 +182,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
             cursor: "pointer",
           }}
         >
-          Retour à l'accueil
+          {t("recipe.add.back_home_button")}
         </button>
       </div>
     );
@@ -205,20 +207,20 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           <ChevronLeft />
         </button>
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: "var(--color-text)" }}>
-          Nouvelle recette
+          {t("recipe.add.title")}
         </h1>
       </div>
 
       <div style={{ padding: "0 20px" }}>
 
         {/* ── Titre ── */}
-        <FormSection title="Titre">
+        <FormSection title={t("recipe.form.title_label")}>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={255}
-            placeholder="ex. Tarte Tatin aux pommes"
+            placeholder={t("recipe.form.title_placeholder")}
             style={{ ...inputStyle, fontSize: 15, fontFamily: "var(--font-display)", fontWeight: 500, padding: "14px 16px", borderRadius: 14 }}
           />
         </FormSection>
@@ -228,7 +230,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           {/* Personnes */}
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
-              Personnes
+              {t("recipe.form.people_label")}
             </p>
             <div style={{
               display: "flex", alignItems: "center",
@@ -249,7 +251,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           {/* Catégorie */}
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
-              Catégorie
+              {t("recipe.form.category_label")}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {RECIPE_CATEGORIES.map((c) => {
@@ -266,7 +268,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
                       border: isActive ? "1px solid transparent" : "1px solid var(--color-border)",
                     }}
                   >
-                    {c}
+                    {t(CATEGORY_LABEL_KEYS[c])}
                   </button>
                 );
               })}
@@ -277,8 +279,8 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
         {/* ── Préparation + Cuisson (2 colonnes, en minutes) ── */}
         <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
           {[
-            { label: "Préparation", badge: undefined,    icon: <ClockIcon size={15} />, value: prepTime, set: setPrepTime, placeholder: "15", min: 1 },
-            { label: "Cuisson",     badge: "optionnel",   icon: <FlameIcon />,           value: cookTime, set: setCookTime, placeholder: "30", min: 0 },
+            { label: t("recipe.form.prep_label"), badge: undefined,                      icon: <ClockIcon size={15} />, value: prepTime, set: setPrepTime, placeholder: "15", min: 1 },
+            { label: t("recipe.form.cook_label"), badge: t("common.badges.optional"),     icon: <FlameIcon />,           value: cookTime, set: setCookTime, placeholder: "30", min: 0 },
           ].map(({ label, badge, icon, value, set, placeholder, min }) => (
             <div key={label} style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
@@ -314,12 +316,12 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
         </div>
 
         {/* ── Photos ── */}
-        <FormSection title="Photos" badge="optionnel">
+        <FormSection title={t("recipe.form.photos_label")} badge={t("common.badges.optional")}>
           <PhotoGrid photos={photos} onAdd={addPhotos} onRemove={removePhoto} />
         </FormSection>
 
         {/* ── Ingrédients ── */}
-        <FormSection title="Ingrédients">
+        <FormSection title={t("recipe.form.ingredients_label")}>
           {ingredients.length > 0 && (
             <ul style={{ listStyle: "none", padding: 0, marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
               {ingredients.map((ing, i) => (
@@ -351,7 +353,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
         </FormSection>
 
         {/* ── Étapes ── */}
-        <FormSection title="Étapes">
+        <FormSection title={t("recipe.form.steps_label")}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {steps.map((step, i) => (
               <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
@@ -367,7 +369,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
                   <textarea
                     value={step}
                     onChange={(e) => updateStep(i, e.target.value)}
-                    placeholder={`Étape ${i + 1}…`}
+                    placeholder={t("recipe.form.step_placeholder", { n: i + 1 })}
                     rows={2}
                     maxLength={MAX_STEP_LENGTH}
                     style={{ ...inputStyle, resize: "none", lineHeight: 1.55, padding: "10px 14px" }}
@@ -397,16 +399,16 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
               color: "var(--color-text-muted)", cursor: "pointer",
             }}
           >
-            <PlusIcon size={15} /> Ajouter une étape
+            <PlusIcon size={15} /> {t("recipe.form.add_step_button")}
           </button>
         </FormSection>
 
         {/* ── Astuces : un seul champ texte, sans limite ── */}
-        <FormSection title="Astuces du chef" badge="optionnel">
+        <FormSection title={t("recipe.form.tips_label")} badge={t("common.badges.optional")}>
           <textarea
             value={tips}
             onChange={(e) => setTips(e.target.value)}
-            placeholder={"Partagez vos astuces…\n(une astuce par ligne)"}
+            placeholder={t("recipe.form.tips_placeholder")}
             rows={4}
             style={{ ...inputStyle, resize: "vertical", lineHeight: 1.55 }}
           />
@@ -439,7 +441,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
               cursor: submitting ? "wait" : "pointer", opacity: submitting ? 0.6 : 1,
             }}
           >
-            <CheckIcon /> {submitting ? "Envoi en cours…" : "Confirmer l'ajout"}
+            <CheckIcon /> {submitting ? t("recipe.add.submitting") : t("recipe.add.submit_button")}
           </button>
           <button
             onClick={onCancel}
@@ -451,7 +453,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
               border: "1px solid var(--color-border)", cursor: "pointer",
             }}
           >
-            Annuler
+            {t("common.buttons.cancel")}
           </button>
         </div>
 

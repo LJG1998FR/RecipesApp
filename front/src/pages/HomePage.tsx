@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import type { Category, Recipe } from "../types";
-import { CATEGORIES } from "../types";
+import { CATEGORIES, CATEGORY_LABEL_KEYS } from "../types";
 import { fetchRecipes } from "../api/index";
 import RecipeCard from "../components/recipe/RecipeCard";
 import { SearchIcon } from "../components/icons";
 import { useUser, getInitials } from "../context/UserContext";
 import Loading from "../components/layout/Loading";
+import { useTranslation } from "@/context/LocaleContext";
 
 interface Props {
   onSelectRecipe: (id: number) => void;
@@ -13,6 +14,7 @@ interface Props {
 
 export default function HomePage({ onSelectRecipe }: Props) {
   const { user } = useUser();
+  const { t } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<Category>("Tout");
   const [search, setSearch] = useState("");
   const [fetched,   setFetched]   = useState<Recipe[]>([]);
@@ -26,6 +28,8 @@ export default function HomePage({ onSelectRecipe }: Props) {
   }, []); // ← tableau vide = une seule fois
 
   // ✅ Le filtre se fait en mémoire, pas via l'API
+  // ⚠️ On compare toujours à la valeur TECHNIQUE (activeCategory, ex: "Plats"),
+  // jamais à son libellé traduit.
   const filtered = fetched.filter(
     (r) =>
       (activeCategory === "Tout" || r.type === activeCategory) &&
@@ -51,7 +55,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
       >
         {/* Salutation */}
         <p style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text)" }}>
-          Bonjour, {user.firstName} 👋
+          {t("home.greeting", { name: user.firstName })}
         </p>
 
         {/* Avatar circulaire */}
@@ -94,7 +98,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
           </span>
           <input
             type="text"
-            placeholder="Rechercher une recette…"
+            placeholder={t("home.search_placeholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -164,10 +168,14 @@ export default function HomePage({ onSelectRecipe }: Props) {
             fontFamily: "var(--font-display)",
           }}
         >
-          {activeCategory === "Tout" ? "Toutes les recettes" : activeCategory}
+          {activeCategory === "Tout" ? t("home.section_title_all") : t(CATEGORY_LABEL_KEYS[activeCategory])}
         </h2>
+        {/* Pas de vrai moteur de pluriel en mode fait-maison : on choisit
+        la clé singulier/pluriel ici-même. */}
         <span style={{ fontSize: 12, color: "var(--color-text-dim)" }}>
-          {filtered.length} recette{filtered.length !== 1 ? "s" : ""}
+          {filtered.length <= 1
+            ? t("home.recipe_count_singular", { count: filtered.length })
+            : t("home.recipe_count_plural", { count: filtered.length })}
         </span>
       </div>
 
@@ -176,7 +184,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
             <p style={{ fontSize: 36, marginBottom: 12 }}>🍽️</p>
-            <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>Aucune recette trouvée</p>
+            <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>{t("home.empty_state")}</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

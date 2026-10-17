@@ -1,20 +1,26 @@
+import { JSX } from "react/jsx-runtime";
 import type { NavTab } from "../../types";
 import { HomeIcon, BookmarkIcon, PersonIcon, PlusNavIcon } from "../icons";
+import { useTranslation } from "@/context/LocaleContext";
 
 interface Props {
   active: NavTab;
   onChange: (tab: NavTab) => void;
 }
 
-const NAV_ITEMS: { key: NavTab; icon: (active: boolean) => JSX.Element; label: string }[] = [
-  { key: "home",    icon: (a) => <HomeIcon active={a} />,     label: "Accueil"     },
-  { key: "saved",   icon: (a) => <BookmarkIcon active={a} />, label: "Sauvegardés" },
-  { key: "addrecipe",   icon: (a) => <PlusNavIcon active={a} />, label: "Ajouter une recette" },
-  { key: "profile", icon: (a) => <PersonIcon active={a} />,   label: "Profil"      },
+// On stocke ici la CLÉ de traduction (labelKey), pas le texte lui-même :
+// ce tableau est défini hors du composant, donc on n'a pas accès au hook
+// useTranslation() à cet endroit. La traduction se fait au rendu, plus bas.
+const NAV_ITEMS: { key: NavTab; icon: (active: boolean) => JSX.Element; labelKey: string }[] = [
+  { key: "home",    icon: (a) => <HomeIcon active={a} />,     labelKey: "common.nav.home"     },
+  { key: "saved",   icon: (a) => <BookmarkIcon active={a} />, labelKey: "common.nav.saved" },
+  { key: "addrecipe",   icon: (a) => <PlusNavIcon active={a} />, labelKey: "common.nav.add_recipe" },
+  { key: "profile", icon: (a) => <PersonIcon active={a} />,   labelKey: "common.nav.profile"      },
 ];
 
 export default function BottomNav({ active, onChange }: Props) {
-  return (
+  const { t } = useTranslation();
+return (
     <div
       style={{
         position: "fixed",
@@ -37,7 +43,7 @@ export default function BottomNav({ active, onChange }: Props) {
           padding: "10px 24px 4px",
         }}
       >
-        {NAV_ITEMS.map(({ key, icon, label }) => {
+        {NAV_ITEMS.map(({ key, icon, labelKey }) => {
           const isActive = active === key;
           return (
             <button
@@ -69,7 +75,7 @@ export default function BottomNav({ active, onChange }: Props) {
                   letterSpacing: isActive ? "0.01em" : "normal",
                 }}
               >
-                {label}
+                {t(labelKey)}
               </span>
             </button>
           );

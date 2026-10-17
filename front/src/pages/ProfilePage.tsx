@@ -4,9 +4,10 @@ import { logout, updateUser, deleteCurrentUser } from "../api";
 import Loading from '../components/layout/Loading';
 import { LockIcon, EyeIcon, CheckIcon } from "../components/icons";
 import { formatMemberSince } from "./AuthPage";
+import { useTranslation } from "@/context/LocaleContext";
 
 // ── Champ lecture seule ────────────────────────────────────────────────────
-const ReadonlyField = ({ label, value }: { label: string; value: string }) => (
+const ReadonlyField = ({ label, value, readonlyBadge }: { label: string; value: string; readonlyBadge: string }) => (
   <div style={{ marginBottom: 16 }}>
     <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 8 }}>
       {label}
@@ -29,7 +30,7 @@ const ReadonlyField = ({ label, value }: { label: string; value: string }) => (
           whiteSpace: "nowrap",
         }}
       >
-        Non modifiable
+        {readonlyBadge}
       </span>
     </div>
   </div>
@@ -74,6 +75,7 @@ const PwdField = ({
 
 export default function ProfilePage() {
   const { user, setUser } = useUser();
+  const { t } = useTranslation();
 
   const [editingPassword,  setEditingPassword]  = useState(false);
   const [currentPwd,       setCurrentPwd]       = useState("");
@@ -90,9 +92,9 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setError("");
-    if (!currentPwd)           return setError("Entrez votre mot de passe actuel.");
-    if (newPwd.length < 8)     return setError("Le nouveau mot de passe doit faire au moins 8 caractères.");
-    if (newPwd !== confirmPwd) return setError("Les mots de passe ne correspondent pas.");
+    if (!currentPwd)           return setError(t("profile.error_current_password_required"));
+    if (newPwd.length < 8)     return setError(t("profile.error_new_password_too_short"));
+    if (newPwd !== confirmPwd) return setError(t("profile.error_passwords_mismatch"));
 
     try {
       await updateUser(user.email, newPwd);
@@ -101,7 +103,7 @@ export default function ProfilePage() {
       setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
       setTimeout(() => setSaved(false), 3000);
     } catch {
-      setError("Une erreur est survenue. Veuillez réessayer.");
+      setError(t("common.errors.generic"));
     }
   };
 
@@ -174,7 +176,7 @@ export default function ProfilePage() {
           {user.firstName} {user.lastName}
         </p>
         <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-          membre depuis {formatMemberSince(user.memberSince)}
+          {t("profile.member_since", { date: formatMemberSince(user.memberSince) })}
         </p>
       </div>
 
@@ -187,11 +189,11 @@ export default function ProfilePage() {
             textTransform: "uppercase", color: "var(--color-text-dim)", marginBottom: 14,
           }}
         >
-          Informations
+          {t("profile.section_informations")}
         </p>
-        <ReadonlyField label="Prénom"         value={user.firstName} />
-        <ReadonlyField label="Nom"            value={user.lastName} />
-        <ReadonlyField label="Adresse e-mail" value={user.email} />
+        <ReadonlyField label={t("profile.field_firstname")} value={user.firstName} readonlyBadge={t("profile.readonly_badge")} />
+        <ReadonlyField label={t("profile.field_lastname")}  value={user.lastName}  readonlyBadge={t("profile.readonly_badge")} />
+        <ReadonlyField label={t("profile.field_email")}     value={user.email}     readonlyBadge={t("profile.readonly_badge")} />
 
         {/* ── Section Sécurité ── */}
         <p
@@ -201,11 +203,11 @@ export default function ProfilePage() {
             marginTop: 28, marginBottom: 14,
           }}
         >
-          Sécurité
+          {t("profile.section_security")}
         </p>
 
         <label style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", marginBottom: 8 }}>
-          Mot de passe
+          {t("profile.password_label")}
         </label>
 
         {!editingPassword ? (
@@ -233,7 +235,7 @@ export default function ProfilePage() {
               onClick={() => setEditingPassword(true)}
               style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)", cursor: "pointer" }}
             >
-              Modifier
+              {t("profile.password_edit_button")}
             </button>
           </div>
         ) : (
@@ -246,21 +248,21 @@ export default function ProfilePage() {
             }}
           >
             <p style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", marginBottom: 14 }}>
-              Changer le mot de passe
+              {t("profile.password_change_title")}
             </p>
             <PwdField
-              label="Mot de passe actuel" value={currentPwd}
+              label={t("profile.password_current_label")} value={currentPwd}
               onChange={setCurrentPwd} show={showCurrent}
-              onToggle={() => setShowCurrent((s) => !s)} placeholder="••••••••"
+              onToggle={() => setShowCurrent((s) => !s)} placeholder={t("profile.password_current_placeholder")}
             />
             <PwdField
-              label="Nouveau mot de passe" value={newPwd}
+              label={t("profile.password_new_label")} value={newPwd}
               onChange={setNewPwd} show={showNew}
-              onToggle={() => setShowNew((s) => !s)} placeholder="Min. 8 caractères"
+              onToggle={() => setShowNew((s) => !s)} placeholder={t("profile.password_new_placeholder")}
             />
             <div style={{ marginBottom: 4 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
-                Confirmer le mot de passe
+                {t("profile.password_confirm_label")}
               </label>
               <div
                 style={{
@@ -275,7 +277,7 @@ export default function ProfilePage() {
                   type="password"
                   value={confirmPwd}
                   onChange={(e) => setConfirmPwd(e.target.value)}
-                  placeholder="Répétez le mot de passe"
+                  placeholder={t("profile.password_confirm_placeholder")}
                   style={{
                     flex: 1, background: "transparent", border: "none", outline: "none",
                     fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
@@ -302,7 +304,7 @@ export default function ProfilePage() {
                   border: "1px solid var(--color-border)", cursor: "pointer",
                 }}
               >
-                Annuler
+                {t("common.buttons.cancel")}
               </button>
               <button
                 onClick={handleSave}
@@ -313,7 +315,7 @@ export default function ProfilePage() {
                   color: "#171210", cursor: "pointer",
                 }}
               >
-                Enregistrer
+                {t("common.buttons.save")}
               </button>
             </div>
           </div>
@@ -330,7 +332,7 @@ export default function ProfilePage() {
           >
             <span style={{ color: "#a8c87a" }}><CheckIcon /></span>
             <p style={{ fontSize: 13, color: "#a8c87a", margin: 0 }}>
-              Mot de passe mis à jour avec succès.
+              {t("profile.success_password_updated")}
             </p>
           </div>
         )}
@@ -345,7 +347,7 @@ export default function ProfilePage() {
           }}
           onClick={handleLogout}
         >
-          Se déconnecter
+          {t("auth.logout.button")}
         </button>  
 
         {/* ── Suppression du compte ── */}
@@ -359,7 +361,7 @@ export default function ProfilePage() {
             }}
             onClick={() => setShowDeleteConfirm(true)}
           >
-            Supprimer mon compte
+            {t("profile.delete_account_title")}
           </button>
         ) : (
           /* Confirmation inline — évite une modale pour une action aussi destructrice */
@@ -369,10 +371,10 @@ export default function ProfilePage() {
             border: "1px solid rgba(180,50,50,0.25)",
           }}>
             <p style={{ fontSize: 14, fontWeight: 600, color: "#e07070", marginBottom: 6 }}>
-              ⚠️ Supprimer définitivement votre compte ?
+              {t("profile.delete_account_subtitle")}
             </p>
             <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 16 }}>
-              Cette action est irréversible. Toutes vos données seront perdues.
+              {t("profile.delete_account_warning")}
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button
@@ -385,7 +387,7 @@ export default function ProfilePage() {
                   border: "1px solid var(--color-border)", cursor: "pointer",
                 }}
               >
-                Annuler
+                {t("common.buttons.cancel")}
               </button>
               <button
                 onClick={handleDeleteAccount}

@@ -2,6 +2,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
+import { LocaleProvider } from "./context/LocaleContext";
+
 
 // BrowserRouter doit envelopper toute l'application UNE SEULE FOIS.
 // Règle absolue : jamais de BrowserRouter imbriqué dans un composant enfant.
@@ -18,7 +20,11 @@ if (!container) {
 createRoot(container).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      {/* LocaleProvider doit englober App pour que useTranslation() */}
+      {/* soit utilisable n'importe où dans l'arbre (y compris AdminApp) */}
+      <LocaleProvider>
+        <App />
+      </LocaleProvider>
     </BrowserRouter>
   </StrictMode>
 );

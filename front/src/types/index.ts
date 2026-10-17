@@ -57,6 +57,19 @@ export const RECIPE_CATEGORIES = ["Plats", "Desserts", "Mocktails"] as const;
 export const UNITS = ["g", "kg", "ml", "L", "cl", "c.s.", "c.c.", "unité(s)", "pincée(s)", "tranche(s)", "botte(s)"];
 export type Category = (typeof CATEGORIES)[number];
 
+// ── Libellés traduits des catégories ────────────────────────────────────────
+// Les valeurs de CATEGORIES ("Plats", "Desserts"...) sont aussi les valeurs
+// renvoyées par l'API (cf. RecipeType.php côté back) et servent à filtrer
+// les données : on ne les traduit donc JAMAIS directement. Cette table fait
+// uniquement le lien "valeur technique" -> "clé de traduction" pour
+// l'affichage, partagée par HomePage et RecipeDetail.
+export const CATEGORY_LABEL_KEYS: Record<Category, string> = {
+  Tout: "common.categories.all",
+  Plats: "common.categories.plates",
+  Desserts: "common.categories.desserts",
+  Mocktails: "common.categories.mocktails",
+};
+
 // ── Onglets de navigation ──────────────────────────────────────────────────────
 // "editrecipe" : pas un VRAI onglet visible dans la BottomNav (pas d'icône
 // dédiée ajoutée), mais réutilise le même mécanisme que "addrecipe" pour

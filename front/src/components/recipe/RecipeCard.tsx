@@ -1,3 +1,4 @@
+import { useTranslation } from "@/context/LocaleContext";
 import { toPhotoUrl } from "../../api";
 import type { Recipe } from "../../types";
 
@@ -7,6 +8,9 @@ interface Props {
 }
 
 export default function RecipeCard({ recipe, onSelect }: Props) {
+  
+  const { t } = useTranslation();
+  const hasCookTime = parseInt(recipe.cookTime) > 0;
   return (
     <div
       onClick={onSelect}
@@ -67,7 +71,9 @@ export default function RecipeCard({ recipe, onSelect }: Props) {
             backdropFilter: "blur(4px)",
           }}
         >
-          {recipe.prepTime} min. {parseInt(recipe.cookTime) > 0 ? "+" + recipe.cookTime + " min." : ""}
+        {hasCookTime
+            ? t("recipe.card.time_prep_and_cook", { prepTime: recipe.prepTime, cookTime: recipe.cookTime })
+            : t("recipe.card.time_prep_only", { prepTime: recipe.prepTime })}
         </span>
       </div>
 
@@ -85,15 +91,6 @@ export default function RecipeCard({ recipe, onSelect }: Props) {
         >
           {recipe.title}
         </p>
-        {/*
-          Bloc "subtitle" + notation (StarIcon/rating/reviews) retiré ici :
-          ces champs n'ont jamais existé côté back (ni dans l'entité Recipe,
-          ni dans RecipeController::serialize()). Ce n'était pas un bug
-          d'affichage comme pour l'image, juste du texte "undefined" silencieux
-          car React n'affiche rien pour undefined — plus sournois, donc plus
-          dangereux de le laisser traîner. À réintroduire seulement si vous
-          ajoutez un vrai système de notation côté back (nouvelle colonne/table).
-        */}
       </div>
     </div>
   );
