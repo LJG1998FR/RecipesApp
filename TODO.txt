@@ -1,5 +1,7 @@
 FRONT-OFFICE:
+- Carousel photos
 - Pagination
 
 BACK-OFFICE:
 - photos on dashboard
+- rewrite tests

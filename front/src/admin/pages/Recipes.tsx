@@ -31,6 +31,7 @@ import type {
   RecipeStep,
   RecipeIngredientItem,
   IngredientOption,
+  RecipePhoto,
 } from "../types";
 import Table, { type Column } from "../components/ui/Table";
 import { StatusBadge } from "../components/ui/Badge";
@@ -43,6 +44,10 @@ import {
   updateRecipe as apiUpdateRecipe,
   deleteRecipe as apiDeleteRecipe,
   updateRecipeStatus,
+  uploadRecipePhotos,
+  deleteRecipePhoto,
+  reorderRecipePhoto,
+  toPhotoUrl,
 } from "../../api";
 
 interface RecipesProps {
@@ -68,6 +73,11 @@ interface RecipeForm {
   tips: string;
   steps: RecipeStep[];
   ingredients: RecipeIngredientItem[];
+  // Photos DÉJÀ persistées côté serveur (vide en création tant que la
+  // recette n'existe pas). Contrairement à steps/ingredients, ce champ n'est
+  // JAMAIS envoyé dans le payload de POST/PUT recette : les photos ont leurs
+  // propres endpoints (voir PhotoController) et se gèrent indépendamment.
+  photos: RecipePhoto[];
 }
 
 const EMPTY_FORM: RecipeForm = {
@@ -80,7 +90,25 @@ const EMPTY_FORM: RecipeForm = {
   tips: "",
   steps: [],
   ingredients: [],
+  photos: [],
 };
+
+// ── Photo en attente d'envoi (mode création uniquement) ────────────────────
+// Tant que la recette n'existe pas, on ne peut pas appeler l'API photos
+// (elle a besoin d'un recipeId). On garde donc le File brut en mémoire, le
+// temps de la création, accompagné d'une URL de preview locale.
+interface PendingPhoto {
+  file: File;
+  previewUrl: string;
+}
+
+// Dupliqué volontairement depuis PhotoController.php (back) : on valide vite
+// côté client pour le confort de l'admin, mais c'est le SERVEUR qui fait foi.
+// Si ces constantes changent côté back un jour, il faudra penser à les
+// resynchroniser ici — un bon candidat pour un futur endpoint de config.
+const MAX_PHOTOS = 5;
+const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5 Mo, comme PhotoController::MAX_FILE_SIZE
 
 // ── Sous-composant : barre de recherche d'ingrédients ─────────────────────────
 // Isolé dans son propre composant pour ne pas alourdir la modale principale.
@@ -206,6 +234,14 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
   // donc on fetche le détail au clic sur "Modifier".
   const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
 
+  // ── État local des photos ───────────────────────────────────────────────
+  // pendingPhotos : fichiers choisis en mode CRÉATION, pas encore envoyés
+  //                 (ils le seront juste après la création de la recette).
+  // photoError / uploadingPhotos : feedback UI, partagés création + édition.
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+
   // Filtres de la liste
   const [filterType, setFilterType] = useState<RecipeType | "Tous">("Tous");
   const [filterStatus, setFilterStatus] = useState<RecipeStatus | "Tous">("Tous");
@@ -218,6 +254,21 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
       .then(setAllIngredients)
       .catch(() => console.error("Impossible de charger les ingrédients"))
       .finally(() => setLoadingIngredients(false));
+  }, []);
+
+  // ── Nettoyage des object URLs de preview (évite les fuites mémoire) ───────
+  // PIÈGE CLASSIQUE : un `useEffect(() => { ... }, [])` capturerait
+  // `pendingPhotos` tel qu'il était AU MONTAGE du composant (closure figée),
+  // pas sa valeur actuelle au moment du démontage. On passe donc par un ref,
+  // mis à jour à chaque render, que le cleanup peut lire "en direct".
+  const pendingPhotosRef = useRef<PendingPhoto[]>([]);
+  useEffect(() => {
+    pendingPhotosRef.current = pendingPhotos;
+  }, [pendingPhotos]);
+  useEffect(() => {
+    return () => {
+      pendingPhotosRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    };
   }, []);
 
   // ── Filtrage de la liste ───────────────────────────────────────────────────
@@ -233,6 +284,7 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
   function openCreate() {
     setForm(EMPTY_FORM);
     setSubmitError(null);
+    resetPendingPhotos();
     setEditingRecipe(false);
   }
 
@@ -247,6 +299,7 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
   async function openEdit(recipe: Recipe) {
     setIsLoadingRecipe(true);
     setSubmitError(null);
+    resetPendingPhotos();
     // On ouvre immédiatement la modale avec les données partielles de la liste
     // pour que l'admin voie un feedback visuel (spinner) plutôt qu'un clic sans réponse.
     setEditingRecipe(recipe);
@@ -278,6 +331,10 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
               amount: ing.amount,
             }))
           : [],
+        // Même prudence runtime que pour steps/ingredients ci-dessus :
+        // RecipeController::serialize() garantit "photos" => [] au minimum,
+        // mais on ne fait jamais confiance aveuglément à ce qui vient du réseau.
+        photos: Array.isArray(fullRecipe.photos) ? fullRecipe.photos : [],
       });
     } catch (err) {
       setSubmitError("Impossible de charger la recette. Veuillez réessayer.");
@@ -289,6 +346,7 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
   function closeModal() {
     setEditingRecipe(null);
     setSubmitError(null);
+    resetPendingPhotos();
   }
 
   // ── Mise à jour d'un champ scalaire du formulaire ─────────────────────────
@@ -361,6 +419,114 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
     }));
   }
 
+  // ── Gestion des photos ──────────────────────────────────────────────────────
+  //
+  // ATTENTION, comportement volontairement différent entre les deux modes :
+  //
+  // - CRÉATION (!isEditing) : il n'y a pas encore de recipeId, donc PAS
+  //   d'appel réseau ici. On stocke juste les File en mémoire (pendingPhotos)
+  //   avec une preview locale. L'envoi réel se fait dans handleSubmit, juste
+  //   après la création de la recette.
+  //
+  // - ÉDITION (isEditing) : la recette existe déjà, donc chaque action
+  //   (ajout / suppression / réordonnancement) part en requête TOUT DE SUITE,
+  //   indépendamment du bouton "Enregistrer". C'est différent de
+  //   steps/ingredients, qui eux sont bufferisés dans `form` jusqu'au submit.
+  //   Pourquoi cette différence ? Parce que PhotoController n'est pas raccordé
+  //   au PUT /api/recipes/{id} — ce sont des endpoints REST séparés
+  //   (POST/DELETE/PATCH .../photos). On respecte le découpage de l'API
+  //   plutôt que de réinventer un système de "photos en attente" côté front
+  //   pour l'édition, ce qui ajouterait de la complexité pour peu de valeur.
+
+  function resetPendingPhotos() {
+    // Toujours révoquer les object URLs avant de vider le tableau,
+    // sinon le navigateur garde les blobs en mémoire indéfiniment.
+    pendingPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    setPendingPhotos([]);
+    setPhotoError(null);
+  }
+
+  /** Valide un lot de fichiers contre les règles de PhotoController. Renvoie un message d'erreur ou null. */
+  function validatePhotoFiles(files: File[], alreadyCount: number): string | null {
+    if (alreadyCount + files.length > MAX_PHOTOS) {
+      return `Maximum ${MAX_PHOTOS} photos par recette (${alreadyCount} déjà présente${alreadyCount > 1 ? "s" : ""}).`;
+    }
+    for (const file of files) {
+      if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+        return `Format non supporté : ${file.name} (jpeg, png, webp ou gif uniquement).`;
+      }
+      if (file.size > MAX_PHOTO_SIZE) {
+        return `Fichier trop volumineux (5 Mo max) : ${file.name}.`;
+      }
+    }
+    return null;
+  }
+
+  // CRÉATION : on stage les fichiers localement, aucun appel réseau.
+  function handleSelectPhotos(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList);
+    const error = validatePhotoFiles(files, form.photos.length + pendingPhotos.length);
+    if (error) {
+      setPhotoError(error);
+      return;
+    }
+    setPhotoError(null);
+    const newPending = files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
+    setPendingPhotos((prev) => [...prev, ...newPending]);
+  }
+
+  function removePendingPhoto(index: number) {
+    setPendingPhotos((prev) => {
+      URL.revokeObjectURL(prev[index].previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  // ÉDITION : upload immédiat vers la recette déjà existante.
+  async function handleUploadPhotosNow(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !editingRecipe) return;
+    const files = Array.from(fileList);
+    const error = validatePhotoFiles(files, form.photos.length);
+    if (error) {
+      setPhotoError(error);
+      return;
+    }
+    setPhotoError(null);
+    setUploadingPhotos(true);
+    try {
+      const uploaded = await uploadRecipePhotos(editingRecipe.id, files);
+      setForm((prev) => ({ ...prev, photos: [...prev.photos, ...uploaded] }));
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Échec de l'envoi des photos.");
+    } finally {
+      setUploadingPhotos(false);
+    }
+  }
+
+  async function handleDeletePhoto(photoId: number) {
+    if (!editingRecipe) return;
+    try {
+      await deleteRecipePhoto(editingRecipe.id, photoId);
+      setForm((prev) => ({ ...prev, photos: prev.photos.filter((p) => p.id !== photoId) }));
+    } catch {
+      setPhotoError("Impossible de supprimer cette photo.");
+    }
+  }
+
+  async function handleReorderPhoto(photoId: number, position: number) {
+    if (!editingRecipe) return;
+    try {
+      const updated = await reorderRecipePhoto(editingRecipe.id, photoId, position);
+      setForm((prev) => ({
+        ...prev,
+        photos: prev.photos.map((p) => (p.id === photoId ? updated : p)),
+      }));
+    } catch {
+      setPhotoError("Impossible de réordonner les photos.");
+    }
+  }
+
   // ── Soumission du formulaire ───────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -410,8 +576,40 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
           })),
         };
 
+        // Appel 1/2 : la recette est créée SANS photos. C'est obligatoire —
+        // PhotoController a besoin d'un recipeId qui n'existe qu'une fois
+        // la recette persistée (voir POST /api/recipes/{recipeId}/photos).
         const created = await createRecipe(payload);
-        onAdd({ ...created, status: form.status });
+
+        // Appel 2/2 : si des photos ont été choisies avant la création
+        // (stockées dans pendingPhotos, jamais envoyées jusqu'ici), on les
+        // pousse maintenant vers la recette qu'on vient d'obtenir.
+        let uploadedPhotos: RecipePhoto[] = [];
+        if (pendingPhotos.length > 0) {
+          try {
+            uploadedPhotos = await uploadRecipePhotos(
+              created.id,
+              pendingPhotos.map((p) => p.file)
+            );
+          } catch (photoErr) {
+            // La recette existe DÉJÀ en base (appel 1 réussi) : impossible et
+            // inutile de "rollback" — ce sont deux requêtes HTTP indépendantes,
+            // pas une transaction partagée. On informe l'admin et on reste sur
+            // la modale, repassée en mode édition sur la recette fraîchement
+            // créée, pour qu'il puisse réessayer l'envoi sans tout ressaisir.
+            resetPendingPhotos();
+            onAdd({ ...created, status: form.status, photos: [] });
+            setEditingRecipe({ ...created, status: form.status, photos: [] });
+            setForm((prev) => ({ ...prev, photos: [] }));
+            setSubmitError(
+              "La recette a été créée, mais l'envoi des photos a échoué. Vous pouvez réessayer ci-dessous."
+            );
+            return; // on NE ferme PAS la modale dans ce cas précis
+          }
+        }
+
+        resetPendingPhotos();
+        onAdd({ ...created, status: form.status, photos: uploadedPhotos });
       }
 
       closeModal();
@@ -779,6 +977,171 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
                   placeholder="Conseils, variantes…"
                   style={{ resize: "vertical" }}
                 />
+              </div>
+
+              {/* ─── SECTION : Photos ───────────────────────────────────────────
+                  Deux comportements selon le mode (voir les handlers plus haut) :
+                  - création  → staging local, aucun appel réseau avant submit
+                  - édition   → upload / suppression / réordonnancement immédiats */}
+              <div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
+                  <label className="block text-sm font-medium text-slate-700">Photos</label>
+                  <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                    {form.photos.length + pendingPhotos.length} / {MAX_PHOTOS}
+                  </span>
+                </div>
+
+                {photoError && (
+                  <div
+                    style={{
+                      marginBottom: 8, padding: "6px 10px", borderRadius: 8,
+                      backgroundColor: "#fff1f2", border: "1px solid #fecdd3",
+                      color: "#e11d48", fontSize: 12,
+                    }}
+                  >
+                    {photoError}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.625rem" }}>
+                  {/* Photos déjà persistées côté serveur */}
+                  {form.photos.map((photo) => (
+                    <div
+                      key={photo.id}
+                      style={{
+                        position: "relative", width: 92, height: 92,
+                        borderRadius: 10, overflow: "hidden", border: "1px solid #e2e8f0",
+                        flexShrink: 0, background: "#f1f5f9",
+                      }}
+                    >
+                      <img
+                        src={toPhotoUrl(photo.url)}
+                        alt=""
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                      {/* En création, editingRecipe === false : pas d'actions possibles sur des
+                          photos "déjà persistées" puisqu'il n'y en a jamais à ce stade. */}
+                      {editingRecipe && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePhoto(photo.id)}
+                            title="Supprimer"
+                            style={{
+                              position: "absolute", top: 4, right: 4,
+                              width: 22, height: 22, borderRadius: "50%",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              backgroundColor: "rgba(15,23,42,0.72)", color: "#fff", cursor: "pointer",
+                            }}
+                          >
+                            <TrashIcon />
+                          </button>
+                          <input
+                            type="number"
+                            defaultValue={photo.position ?? 0}
+                            title="Position d'affichage"
+                            onBlur={(e) => {
+                              const next = Number(e.target.value);
+                              if (!Number.isNaN(next) && next !== photo.position) {
+                                handleReorderPhoto(photo.id, next);
+                              }
+                            }}
+                            style={{
+                              position: "absolute", bottom: 3, left: 3, width: 30,
+                              fontSize: 10, padding: "1px 3px", borderRadius: 4,
+                              border: "1px solid #e2e8f0", backgroundColor: "#fff",
+                            }}
+                          />
+                        </>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Photos choisies mais pas encore envoyées (création uniquement) */}
+                  {pendingPhotos.map((p, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        position: "relative", width: 92, height: 92,
+                        borderRadius: 10, overflow: "hidden",
+                        border: "1px dashed #c7d2fe", flexShrink: 0,
+                      }}
+                    >
+                      <img
+                        src={p.previewUrl}
+                        alt=""
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                      <span
+                        style={{
+                          position: "absolute", bottom: 3, left: 3,
+                          fontSize: 9, padding: "1px 5px", borderRadius: 4,
+                          backgroundColor: "#eef2ff", color: "#4f46e5", fontWeight: 600,
+                        }}
+                      >
+                        à envoyer
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removePendingPhoto(i)}
+                        title="Retirer"
+                        style={{
+                          position: "absolute", top: 4, right: 4,
+                          width: 22, height: 22, borderRadius: "50%",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          backgroundColor: "rgba(15,23,42,0.72)", color: "#fff", cursor: "pointer",
+                        }}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Bouton d'ajout — masqué une fois la limite atteinte */}
+                  {form.photos.length + pendingPhotos.length < MAX_PHOTOS && (
+                    <label
+                      style={{
+                        width: 92, height: 92, borderRadius: 10, flexShrink: 0,
+                        border: "2px dashed #c7d2fe", backgroundColor: "#eef2ff",
+                        display: "flex", flexDirection: "column", alignItems: "center",
+                        justifyContent: "center", gap: 4, color: "#4f46e5", fontSize: 11,
+                        cursor: uploadingPhotos ? "not-allowed" : "pointer",
+                        opacity: uploadingPhotos ? 0.6 : 1,
+                      }}
+                    >
+                      {uploadingPhotos ? (
+                        "Envoi…"
+                      ) : (
+                        <>
+                          <PlusIcon />
+                          Ajouter
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept={ALLOWED_PHOTO_TYPES.join(",")}
+                        multiple
+                        disabled={uploadingPhotos}
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          if (editingRecipe) {
+                            handleUploadPhotosNow(e.target.files);
+                          } else {
+                            handleSelectPhotos(e.target.files);
+                          }
+                          // Sans ça, resélectionner le même fichier après l'avoir
+                          // retiré ne redéclencherait pas onChange (même valeur).
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
+                  JPEG, PNG, WebP ou GIF — 5 Mo max par photo, {MAX_PHOTOS} photos max.
+                  {!editingRecipe && " Envoyées juste après la création de la recette."}
+                </p>
               </div>
 
               {/* ─── SECTION : Étapes ─── */}

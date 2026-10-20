@@ -73,17 +73,19 @@ export function formatDate(userTsp: number): string {
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 export default function Overview({ users, recipes, currentRole }: OverviewProps) {
-  const publishedCount = recipes.filter((r) => r.status === "published").length;
+  const publishedCount = recipes.filter((r) => r.status === "PUBLISHED").length;
   const platsCount     = recipes.filter((r) => r.type === "Plats").length;
   const autresCount    = recipes.filter((r) => r.type !== "Plats").length;
   const dessertsCount  = recipes.filter((r) => r.type === "Desserts").length;
   const mocktailsCount = recipes.filter((r) => r.type === "Mocktails").length;
 
   const recentRecipes = [...recipes]
-    .sort((a, b) => b.createdAt-a.createdAt);
+    .sort((a, b) => b.createdAt-a.createdAt)
+    .slice(0, 5);
 
   const recentUsers = [...users]
-    .sort((a, b) => b.createdAt-a.createdAt);
+    .sort((a, b) => b.createdAt-a.createdAt)
+    .slice(0, 5);
 
   return (
     <div style={{ padding: "2rem", maxWidth: 960 }}>
