@@ -77,7 +77,7 @@ export const CATEGORY_LABEL_KEYS: Record<Category, string> = {
 export type NavTab = "home" | "saved" | "profile" | "addrecipe" | "editrecipe";
 
 // ── Vues principales ───────────────────────────────────────────────────────────
-export type AppView = "home" | "detail" | "addrecipe";
+export type AppView = "home" | "detail" | "addrecipe" | "myrecipes";
 
 // ── Mode auth ─────────────────────────────────────────────────────────────────
 export type AuthMode = "login" | "signup";

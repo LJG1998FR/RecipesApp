@@ -24,6 +24,15 @@
  * depuis cet écran ; le bouton "Modifier" en avait justement besoin pour
  * savoir qui est connecté, ce qui l'a révélé.
  * ─────────────────────────────────────────────────────────────────────────
+ * AJOUT — "Mes recettes" :
+ * Même traitement que "detail" : un état `view === "myrecipes"` affiche
+ * MyRecipesPage en plein écran, SANS passer par le shell à onglets ni par
+ * BottomNav (demande explicite, pour ne pas en faire un NavTab comme
+ * "editrecipe"). On réutilise `openEdit` et `openRecipe`, déjà écrits pour
+ * RecipeDetailPage, comme callbacks de MyRecipesPage : pas de nouvelle
+ * logique de navigation à inventer, juste la brancher sur un point d'entrée
+ * de plus.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
 import { useState } from "react";
@@ -34,6 +43,7 @@ import AuthPage         from "../pages/AuthPage";
 import HomePage         from "../pages/HomePage";
 import RecipeDetailPage from "../pages/RecipeDetailPage";
 import ProfilePage      from "../pages/ProfilePage";
+import MyRecipesPage     from "../pages/MyRecipesPage";
 import BottomNav        from "../components/layout/BottomNav";
 import AddRecipePage    from "../components/recipe/AddRecipePage";
 import UpdateRecipePage from "../components/recipe/UpdateRecipePage";
@@ -69,7 +79,7 @@ export default function AppRouter() {
   const openEdit = (id: number) => {
     setEditingRecipeId(id);
     setActiveNav("editrecipe");
-    // On quitte l'écran détail plein écran (view === "detail") pour revenir
+    // On quitte l'écran plein écran actif (detail OU myrecipes) pour revenir
     // dans le shell à onglets, qui est ce qui affiche réellement
     // UpdateRecipePage (via renderPage(), cf. plus bas) — cohérent avec le
     // choix déjà fait pour "addrecipe".
@@ -81,8 +91,12 @@ export default function AppRouter() {
     setActiveNav("home");
   };
 
+  // "Mes recettes" : écran plein écran poussé depuis ProfilePage, au même
+  // titre que RecipeDetailPage l'est depuis HomePage — PAS un NavTab.
+  const openMyRecipes = () => setView("myrecipes");
+
   const renderPage = () => {
-    if (activeNav === "profile")   return <ProfilePage />;
+    if (activeNav === "profile")   return <ProfilePage onOpenMyRecipes={openMyRecipes} />;
     if (activeNav === "addrecipe") return <AddRecipePage onCancel={() => setActiveNav("home")} />;
     if (activeNav === "editrecipe" && editingRecipeId !== null) {
       return (
@@ -110,18 +124,22 @@ export default function AppRouter() {
     return <HomePage onSelectRecipe={openRecipe} />;
   };
 
+  // ── Écrans plein écran (pas de BottomNav) ───────────────────────────────────
+  // "detail" et "myrecipes" partagent exactement le même traitement visuel :
+  // même wrapper, même absence de BottomNav. Variable plutôt que dupliquer le
+  // JSX du wrapper deux fois (un seul endroit à modifier si le style change).
+  const fullScreenWrapperStyle = {
+    backgroundColor: "var(--color-background)",
+    maxWidth: 430,
+    margin: "0 auto",
+    minHeight: "100dvh",
+  } as const;
+
   return (
     <UserProvider>
       {view === "detail" && selectedId !== null ? (
         // ── Détail recette : plein écran sans BottomNav ───────────────────────
-        <div
-          style={{
-            backgroundColor: "var(--color-background)",
-            maxWidth: 430,
-            margin: "0 auto",
-            minHeight: "100dvh",
-          }}
-        >
+        <div style={fullScreenWrapperStyle}>
           <RecipeDetailPage
             recipeId={selectedId}
             onBack={() => {
@@ -132,6 +150,18 @@ export default function AppRouter() {
               setSelectedId(null);
             }}
             onEdit={openEdit}
+          />
+        </div>
+      ) : view === "myrecipes" ? (
+        // ── Mes recettes : plein écran sans BottomNav ──────────────────────────
+        <div style={fullScreenWrapperStyle}>
+          <MyRecipesPage
+            onBack={() => setView("home")}
+            // openEdit gère déjà `setView("home")` en interne : pas besoin de
+            // fermer "myrecipes" nous-mêmes avant, un seul appel suffit.
+            onEditRecipe={openEdit}
+            // Idem pour openRecipe : il bascule déjà `view` sur "detail".
+            onViewRecipe={openRecipe}
           />
         </div>
       ) : (

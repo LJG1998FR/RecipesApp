@@ -2,7 +2,7 @@ import { useState } from "react";
 import { getInitials, useUser } from "../context/UserContext";
 import { logout, updateUser, deleteCurrentUser } from "../api";
 import Loading from '../components/layout/Loading';
-import { LockIcon, EyeIcon, CheckIcon } from "../components/icons";
+import { LockIcon, EyeIcon, CheckIcon, ChevronLeft } from "../components/icons";
 import { formatMemberSince } from "./AuthPage";
 import { useTranslation } from "@/context/LocaleContext";
 
@@ -73,7 +73,18 @@ const PwdField = ({
   </div>
 );
 
-export default function ProfilePage() {
+interface Props {
+  /**
+   * Ouvre MyRecipesPage, en plein écran, au-dessus de tout (même mécanisme
+   * que AppRouter utilise pour RecipeDetailPage via `view === "detail"`).
+   * ProfilePage ne sait PAS comment la navigation est faite derrière — elle
+   * se contente d'appeler ce callback, exactement comme RecipeDetailPage le
+   * fait déjà avec `onEdit`. Çà évite de coupler ce composant à AppRouter.
+   */
+  onOpenMyRecipes: () => void;
+}
+
+export default function ProfilePage({ onOpenMyRecipes }: Props) {
   const { user, setUser } = useUser();
   const { t } = useTranslation();
 
@@ -181,6 +192,31 @@ export default function ProfilePage() {
       </div>
 
       <div style={{ padding: "0 20px" }}>
+
+        {/* ── Mes recettes ──────────────────────────────────────────────────────
+            Volontairement AVANT "Informations" : c'est l'action la plus probable
+            pour quelqu'un qui publie des recettes, autant la mettre en avant
+            plutôt que de la noyer en bas de page. */}
+        <button
+          onClick={onOpenMyRecipes}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "16px 18px", borderRadius: 16, marginBottom: 24,
+            backgroundColor: "var(--color-card)",
+            border: "1px solid var(--color-border)",
+            cursor: "pointer",
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
+            {t("profile.my_recipes_button")}
+          </span>
+          {/* Pas d'icône "chevron droit" dans le set actuel : on réutilise
+              ChevronLeft pivoté à 180°, même trick déjà utilisé par
+              ChevronDown ailleurs dans le code (rotation conditionnelle). */}
+          <span style={{ color: "var(--color-text-dim)", display: "inline-flex", transform: "rotate(180deg)" }}>
+            <ChevronLeft />
+          </span>
+        </button>
 
         {/* ── Section Informations ── */}
         <p

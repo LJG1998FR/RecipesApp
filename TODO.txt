@@ -1,5 +1,4 @@
 FRONT-OFFICE:
-- My Recipe page
 - Pagination
 
 BACK-OFFICE:
