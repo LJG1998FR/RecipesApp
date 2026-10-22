@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import type { Category, Recipe } from "../types";
 import { CATEGORIES, CATEGORY_LABEL_KEYS } from "../types";
-import { fetchRecipes } from "../api/index";
+import { fetchRecipesPaginated } from "../api/index";
 import RecipeCard from "../components/recipe/RecipeCard";
 import { SearchIcon } from "../components/icons";
 import { useUser, getInitials } from "../context/UserContext";
 import Loading from "../components/layout/Loading";
+import PaginationControls from "../components/layout/PaginationControls";
 import { useTranslation } from "@/context/LocaleContext";
 
 interface Props {
@@ -17,24 +18,68 @@ export default function HomePage({ onSelectRecipe }: Props) {
   const { t } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<Category>("Tout");
   const [search, setSearch] = useState("");
-  const [fetched,   setFetched]   = useState<Recipe[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Version "debouncée" de search : on évite de déclencher une requête
+  // réseau à chaque frappe. 300ms est un bon compromis réactivité/charge.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // ✅ Fetch une seule fois au montage du composant
+  // ── Pagination (chargée depuis le serveur, 10/20/50 par page) ───────────────
+  // Avant : un seul fetch au montage, puis filtre catégorie/recherche EN MÉMOIRE
+  // sur la liste complète. Problème : ça charge toutes les recettes d'un coup,
+  // ce que la pagination a justement pour but d'éviter. `items` est désormais
+  // la page courante renvoyée par GET /api/recipes, déjà filtrée côté serveur.
+  const [items,          setItems]          = useState<Recipe[]>([]);
+  const [page,           setPage]           = useState(1);
+  const [limit,          setLimit]          = useState(10); // 10 par défaut : cartes hautes, écran de téléphone
+  const [total,          setTotal]          = useState(0);
+  const [totalPages,     setTotalPages]     = useState(1);
+  // Deux états de chargement distincts :
+  // - isLoading   → tout premier chargement (écran plein <Loading/>)
+  // - isLoadingList → changement de page/filtre/taille (la liste reste visible, juste atténuée)
+  const [isLoading,     setIsLoading]     = useState(true);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+  const [listError,     setListError]     = useState("");
+
+  async function loadRecipes() {
+    setIsLoadingList(true);
+    setListError("");
+    try {
+      // ⚠️ On filtre toujours par la valeur TECHNIQUE (activeCategory, ex: "Plats"),
+      // jamais par son libellé traduit — le serveur ne connaît pas les traductions.
+      const res = await fetchRecipesPaginated<Recipe>({
+        page,
+        limit,
+        type: activeCategory !== "Tout" ? activeCategory : undefined,
+        search: debouncedSearch || undefined,
+      });
+      setItems(res.items);
+      setTotal(res.pagination.total);
+      setTotalPages(res.pagination.totalPages);
+    } catch {
+      setListError(t("home.load_error"));
+    } finally {
+      setIsLoading(false);
+      setIsLoadingList(false);
+    }
+  }
+
+  // Debounce de la recherche texte
   useEffect(() => {
-    fetchRecipes()
-      .then((res) => setFetched(res))
-      .finally(() => setIsLoading(false));
-  }, []); // ← tableau vide = une seule fois
+    const timeout = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
-  // ✅ Le filtre se fait en mémoire, pas via l'API
-  // ⚠️ On compare toujours à la valeur TECHNIQUE (activeCategory, ex: "Plats"),
-  // jamais à son libellé traduit.
-  const filtered = fetched.filter(
-    (r) =>
-      (activeCategory === "Tout" || r.type === activeCategory) &&
-      (search === "" || r.title.toLowerCase().includes(search.toLowerCase()))
-  );
+  // Revenir à la page 1 dès qu'un filtre, la recherche ou la taille de page
+  // change — sinon on pourrait rester sur une "page 4" qui n'existe plus
+  // une fois le résultat filtré.
+  useEffect(() => {
+    setPage(1);
+  }, [activeCategory, debouncedSearch, limit]);
+
+  // Rechargement serveur à chaque changement de page/catégorie/recherche/limite
+  useEffect(() => {
+    loadRecipes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, activeCategory, debouncedSearch]);
 
   // ✅ Garde-fous : user non chargé OU recettes en cours de fetch
   if (!user || isLoading) {
@@ -173,27 +218,57 @@ export default function HomePage({ onSelectRecipe }: Props) {
         {/* Pas de vrai moteur de pluriel en mode fait-maison : on choisit
         la clé singulier/pluriel ici-même. */}
         <span style={{ fontSize: 12, color: "var(--color-text-dim)" }}>
-          {filtered.length <= 1
-            ? t("home.recipe_count_singular", { count: filtered.length })
-            : t("home.recipe_count_plural", { count: filtered.length })}
+          {total <= 1
+            ? t("home.recipe_count_singular", { count: total })
+            : t("home.recipe_count_plural", { count: total })}
         </span>
       </div>
 
+      {/* ── Erreur de chargement ── */}
+      {listError && (
+        <div style={{ padding: "0 20px 14px" }}>
+          <p style={{ fontSize: 13, color: "#e07070" }}>{listError}</p>
+        </div>
+      )}
+
       {/* ── Liste des recettes ────────────────────────────────────────────── */}
-      <div style={{ padding: "0 20px" }}>
-        {filtered.length === 0 ? (
+      <div
+        style={{
+          padding: "0 20px",
+          opacity: isLoadingList ? 0.6 : 1,
+          transition: "opacity 0.15s",
+        }}
+      >
+        {items.length === 0 && !isLoadingList ? (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
             <p style={{ fontSize: 36, marginBottom: 12 }}>🍽️</p>
             <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>{t("home.empty_state")}</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {filtered.map((r) => (
+            {items.map((r) => (
               <RecipeCard key={r.id} recipe={r} onSelect={() => onSelectRecipe(r.id)} />
             ))}
           </div>
         )}
       </div>
+
+      {/* ── Pagination ────────────────────────────────────────────────────── */}
+      <PaginationControls
+        page={page}
+        limit={limit}
+        total={total}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onLimitChange={setLimit}
+        disabled={isLoadingList}
+        labels={{
+          perPage: t("home.pagination.per_page"),
+          page: t("home.pagination.page"),
+          previous: t("home.pagination.previous"),
+          next: t("home.pagination.next"),
+        }}
+      />
 
       {/* Espace pour la BottomNav fixe */}
       <div style={{ height: 90 }} />

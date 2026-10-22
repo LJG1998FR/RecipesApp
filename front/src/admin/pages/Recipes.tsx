@@ -37,9 +37,11 @@ import Table, { type Column } from "../components/ui/Table";
 import { StatusBadge } from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
+import Pagination from "../components/ui/Pagination";
 import {
   fetchIngredients,
   fetchRecipe,
+  fetchRecipesPaginated,
   createRecipe,
   updateRecipe as apiUpdateRecipe,
   deleteRecipe as apiDeleteRecipe,
@@ -246,6 +248,64 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
   const [filterType, setFilterType] = useState<RecipeType | "Tous">("Tous");
   const [filterStatus, setFilterStatus] = useState<RecipeStatus | "Tous">("Tous");
   const [search, setSearch] = useState("");
+  // Version "debouncée" de search : on évite de déclencher une requête
+  // réseau à chaque frappe. 300ms est un bon compromis réactivité/charge.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // ── Pagination (liste chargée depuis le serveur, 10/20/50 par page) ────────
+  // NOTE : `recipes` (la prop) n'est plus la source d'affichage de la table —
+  // elle ne contenait de toute façon que la liste complète, ce que la
+  // pagination serveur a justement pour but d'éviter de charger d'un coup.
+  // `items` est la page courante renvoyée par GET /api/recipes.
+  const [items, setItems] = useState<Recipe[]>(recipes);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [total, setTotal] = useState(recipes.length);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+
+  // ── Chargement de la page courante depuis le serveur ────────────────────────
+  async function loadRecipes() {
+    setIsLoadingList(true);
+    setListError(null);
+    try {
+      const res = await fetchRecipesPaginated({
+        page,
+        limit,
+        type: filterType !== "Tous" ? filterType : undefined,
+        status: filterStatus !== "Tous" ? filterStatus : undefined,
+        search: debouncedSearch || undefined,
+      });
+      setItems(res.items);
+      setTotal(res.pagination.total);
+      setTotalPages(res.pagination.totalPages);
+    } catch (err) {
+      setListError(
+        err instanceof Error ? err.message : "Impossible de charger les recettes."
+      );
+    } finally {
+      setIsLoadingList(false);
+    }
+  }
+
+  // Debounce de la recherche texte (évite une requête par caractère tapé)
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  // Revenir à la page 1 dès qu'un filtre, la recherche ou la taille de page change
+  // — sinon on pourrait se retrouver sur une "page 4" qui n'existe plus.
+  useEffect(() => {
+    setPage(1);
+  }, [filterType, filterStatus, debouncedSearch, limit]);
+
+  // Rechargement serveur à chaque changement de page/filtres/limite
+  useEffect(() => {
+    loadRecipes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, filterType, filterStatus, debouncedSearch]);
 
   // ── Chargement du référentiel ingrédients ──────────────────────────────────
   useEffect(() => {
@@ -270,15 +330,6 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
       pendingPhotosRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
     };
   }, []);
-
-  // ── Filtrage de la liste ───────────────────────────────────────────────────
-  const filtered = recipes.filter((r) => {
-    if (filterType !== "Tous" && r.type !== filterType) return false;
-    if (filterStatus !== "Tous" && r.status !== filterStatus) return false;
-    if (search && !r.title.toLowerCase().includes(search.toLowerCase()))
-      return false;
-    return true;
-  });
 
   // ── Ouverture modale création ──────────────────────────────────────────────
   function openCreate() {
@@ -559,6 +610,10 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
         const updated = await apiUpdateRecipe(editingRecipe.id, payload);
         // On fusionne le résultat API avec le status local (pas retourné par l'API)
         onUpdate({ ...updated, status: form.status });
+        // La page affichée vient du serveur (pagination) : on la recharge pour
+        // refléter la modification (le tri par date de création peut aussi
+        // avoir déplacé la recette d'une page à l'autre).
+        loadRecipes();
       } else {
         // ── CRÉATION ────────────────────────────────────────────────────────
         // Steps : on n'envoie que description — l'index est généré côté serveur.
@@ -604,12 +659,15 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
             setSubmitError(
               "La recette a été créée, mais l'envoi des photos a échoué. Vous pouvez réessayer ci-dessous."
             );
+            loadRecipes(); // la recette existe déjà côté serveur, donc potentiellement dans la liste
             return; // on NE ferme PAS la modale dans ce cas précis
           }
         }
 
         resetPendingPhotos();
         onAdd({ ...created, status: form.status, photos: uploadedPhotos });
+        // Une nouvelle recette a pu changer le total et le nombre de pages
+        loadRecipes();
       }
 
       closeModal();
@@ -627,6 +685,13 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
     try {
       await apiDeleteRecipe(id);
       onDelete(id);
+      // Si on vient de supprimer le dernier élément d'une page (page > 1),
+      // reculer d'une page plutôt que d'afficher une page vide.
+      if (items.length === 1 && page > 1) {
+        setPage(page - 1); // déclenche loadRecipes() via le useEffect de pagination
+      } else {
+        loadRecipes();
+      }
     } catch (err) {
       console.error("Erreur lors de la suppression :", err);
     } finally {
@@ -737,8 +802,8 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
             Recettes
           </h1>
           <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "0.25rem" }}>
-            {filtered.length} / {recipes.length} recette
-            {recipes.length !== 1 ? "s" : ""}
+            {total} recette{total !== 1 ? "s" : ""}
+            {(filterType !== "Tous" || filterStatus !== "Tous" || debouncedSearch) && " (filtrées)"}
           </p>
         </div>
         <Button variant="primary" onClick={openCreate} leftIcon={<PlusIcon />}>
@@ -787,6 +852,23 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
         </select>
       </div>
 
+      {/* ── Erreur de chargement de la liste ── */}
+      {listError && (
+        <div
+          style={{
+            marginBottom: "1rem",
+            padding: "0.625rem 0.875rem",
+            borderRadius: "0.375rem",
+            backgroundColor: "#fff1f2",
+            border: "1px solid #fecdd3",
+            color: "#e11d48",
+            fontSize: "0.875rem",
+          }}
+        >
+          {listError}
+        </div>
+      )}
+
       {/* ── Table ── */}
       <div
         style={{
@@ -794,13 +876,24 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
           border: "1px solid #e2e8f0",
           borderRadius: "0.75rem",
           overflow: "hidden",
+          opacity: isLoadingList ? 0.6 : 1,
+          transition: "opacity 0.15s",
         }}
       >
         <Table
           columns={columns}
-          data={filtered}
+          data={items}
           keyExtractor={(r) => r.id}
           emptyState="Aucune recette ne correspond aux filtres."
+        />
+        <Pagination
+          page={page}
+          limit={limit}
+          total={total}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoadingList}
         />
       </div>
 

@@ -28,6 +28,37 @@ function authHeaders(): HeadersInit {
   };
 }
 
+// ── Pagination ─────────────────────────────────────────────────────────────────
+//
+// Enveloppe renvoyée par les endpoints de liste quand `page`/`limit` sont
+// fournis (voir IngredientController/UserController/RecipeController::list()).
+// Sans ces paramètres, les mêmes endpoints renvoient toujours un tableau brut
+// (rétrocompatibilité pour les appelants qui ont besoin de la liste complète,
+// ex. le sélecteur d'ingrédients du formulaire Recette).
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  pagination: PaginationMeta;
+}
+
+export interface PaginationQuery {
+  page?: number;
+  limit?: number;
+}
+
+function buildPaginationParams(query: PaginationQuery): URLSearchParams {
+  const params = new URLSearchParams();
+  if (query.page)  params.set("page", String(query.page));
+  if (query.limit) params.set("limit", String(query.limit));
+  return params;
+}
+
 export class ApiError extends Error {
   status: number;
   messages: string[];
@@ -122,6 +153,43 @@ export async function fetchRecipes(): Promise<Recipe[]> {
 export async function fetchAdminRecipes(): Promise<AdminRecipe[]> {
   const { data } = await apiClient.get("/api/recipes");
   return data;
+}
+
+export interface RecipesQuery extends PaginationQuery {
+  type?: string;
+  status?: string;
+  search?: string;
+}
+
+/**
+ * Liste paginée des recettes — GET /api/recipes?page=&limit=&type=&status=&search=
+ *
+ * Utilisée par :
+ *  - la page admin (Recipes.tsx), typée <AdminRecipe> (valeur par défaut) ;
+ *  - la page d'accueil front-office (HomePage.tsx), typée <Recipe> explicitement
+ *    (`fetchRecipesPaginated<Recipe>({ ... })`).
+ *
+ * C'est le MÊME endpoint Symfony dans les deux cas (RecipeController::list()) :
+ * seul le typage TypeScript diffère, pour que chaque front reçoive la forme
+ * qu'il attend. Le serveur, lui, restreint déjà automatiquement les résultats
+ * aux recettes publiées pour un utilisateur non-admin (voir RecipeController).
+ *
+ * `type`/`status`/`search` remplacent le filtrage qui se faisait auparavant
+ * côté client : une fois paginé, filtrer en mémoire ne porterait que sur la
+ * page courante, pas sur l'ensemble des recettes.
+ */
+export async function fetchRecipesPaginated<T = AdminRecipe>(
+  query: RecipesQuery = {}
+): Promise<PaginatedResponse<T>> {
+  const params = buildPaginationParams(query);
+  if (query.type) params.set("type", query.type);
+  if (query.status) params.set("status", query.status);
+  if (query.search) params.set("search", query.search);
+
+  const res = await fetch(`${BASE_URL}/api/recipes?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<PaginatedResponse<T>>(res);
 }
 
 // GET /api/recipes/{id} — un SEUL point d'entrée pour la recette détaillée.
@@ -247,6 +315,17 @@ export async function fetchUsers(): Promise<User[]> {
   return data;
 }
 
+/** Liste paginée des utilisateurs pour la page admin (Users.tsx). */
+export async function fetchUsersPaginated(
+  query: PaginationQuery = {}
+): Promise<PaginatedResponse<User>> {
+  const params = buildPaginationParams(query);
+  const res = await fetch(`${BASE_URL}/api/users?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<PaginatedResponse<User>>(res);
+}
+
 export async function createUser(payload: object) {
   const { data } = await apiClient.post("/api/users/create", payload);
   return data;
@@ -277,6 +356,27 @@ export async function fetchAdminIngredients(): Promise<Ingredient[]> {
     headers: authHeaders(),
   });
   return handleResponse<Ingredient[]>(res);
+}
+
+export interface IngredientsQuery extends PaginationQuery {
+  search?: string;
+}
+
+/**
+ * Liste paginée des ingrédients pour la page admin (Ingredients.tsx).
+ * `search` remplace le filtre local sur `ingredients` (qui ne porterait
+ * plus que sur la page courante une fois le référentiel paginé).
+ */
+export async function fetchAdminIngredientsPaginated(
+  query: IngredientsQuery = {}
+): Promise<PaginatedResponse<Ingredient>> {
+  const params = buildPaginationParams(query);
+  if (query.search) params.set("search", query.search);
+
+  const res = await fetch(`${BASE_URL}/api/ingredients?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse<PaginatedResponse<Ingredient>>(res);
 }
  
 /**

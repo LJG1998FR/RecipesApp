@@ -1,7 +1,7 @@
 FRONT-OFFICE:
 - Carousel photos
-- Pagination
+- Emails
+- Password requirements
 
 BACK-OFFICE:
-- photos on dashboard
 - rewrite tests

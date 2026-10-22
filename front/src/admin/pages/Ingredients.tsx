@@ -18,12 +18,13 @@
 //   "Supprimer" proactivement. L'erreur API reste un filet de sécurité.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Ingredient } from "../types";
 import Table, { type Column } from "../components/ui/Table";
 import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
-import { normalizeForSearch } from "../../types/utils";
+import Pagination from "../components/ui/Pagination";
+import { fetchAdminIngredientsPaginated } from "../../api";
 
 // Unités disponibles — cohérent avec le front public (front/src/types/index.ts)
 const UNITS = [
@@ -56,10 +57,58 @@ export default function Ingredients({ ingredients, onAdd, onUpdate, onDelete }: 
   const [isSubmitting,      setIsSubmitting]      = useState(false);
   const [submitError,       setSubmitError]       = useState("");
 
-  // ── Filtre local ───────────────────────────────────────────────────────────
-  const filtered = ingredients.filter((i) =>
-    search === "" || normalizeForSearch(i.label).includes(search.toLowerCase()) //i.label.toLowerCase().includes(search.toLowerCase())
-  );
+  // ── Pagination (chargée depuis le serveur, 10/20/50 par page) ───────────────
+  // NOTE : `ingredients` (la prop) n'est plus la source d'affichage de la table —
+  // elle contenait de toute façon le référentiel complet, ce que la pagination
+  // serveur a justement pour but d'éviter de charger d'un coup. `items` est la
+  // page courante renvoyée par GET /api/ingredients.
+  const [items,          setItems]          = useState<Ingredient[]>(ingredients);
+  const [page,           setPage]           = useState(1);
+  const [limit,          setLimit]          = useState(20);
+  const [total,          setTotal]          = useState(ingredients.length);
+  const [totalPages,     setTotalPages]     = useState(1);
+  const [isLoadingList,  setIsLoadingList]  = useState(false);
+  const [listError,      setListError]      = useState("");
+  // Version debouncée de `search` : on évite une requête réseau par frappe.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  async function loadIngredients() {
+    setIsLoadingList(true);
+    setListError("");
+    try {
+      const res = await fetchAdminIngredientsPaginated({
+        page,
+        limit,
+        search: debouncedSearch || undefined,
+      });
+      setItems(res.items);
+      setTotal(res.pagination.total);
+      setTotalPages(res.pagination.totalPages);
+    } catch (err) {
+      setListError(
+        err instanceof Error ? err.message : "Impossible de charger les ingrédients."
+      );
+    } finally {
+      setIsLoadingList(false);
+    }
+  }
+
+  // Debounce de la recherche texte
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  // Revenir à la page 1 dès que la recherche ou la taille de page change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, limit]);
+
+  // Rechargement serveur à chaque changement de page/recherche/limite
+  useEffect(() => {
+    loadIngredients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, debouncedSearch]);
 
   // ── Ouverture modale ───────────────────────────────────────────────────────
   function openCreate() {
@@ -110,6 +159,10 @@ export default function Ingredients({ ingredients, onAdd, onUpdate, onDelete }: 
         await onAdd(payload);
       }
       closeModal();
+      // La table affiche la page renvoyée par le serveur (pagination) : on la
+      // recharge pour refléter la création/modification (le tri alphabétique
+      // peut aussi avoir déplacé l'ingrédient d'une page à l'autre).
+      loadIngredients();
     } catch (err: unknown) {
       // L'erreur remonte de AdminApp via la couche API
       const message = err instanceof Error ? err.message : "Une erreur est survenue.";
@@ -125,6 +178,11 @@ export default function Ingredients({ ingredients, onAdd, onUpdate, onDelete }: 
     try {
       await onDelete(deleteConfirm.id);
       setDeleteConfirm(null);
+      if (items.length === 1 && page > 1) {
+        setPage(page - 1); // déclenche loadIngredients() via le useEffect de pagination
+      } else {
+        loadIngredients();
+      }
     } catch (err: unknown) {
       // En cas d'erreur inattendue du serveur, on ferme quand même la modale
       // et l'AdminApp rechargera les données
@@ -227,10 +285,8 @@ export default function Ingredients({ ingredients, onAdd, onUpdate, onDelete }: 
         <div>
           <h1 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0f172a" }}>Ingrédients</h1>
           <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "0.25rem" }}>
-            {ingredients.length} ingrédient{ingredients.length !== 1 ? "s" : ""} au total
-            {search && filtered.length !== ingredients.length
-              ? ` · ${filtered.length} affiché${filtered.length !== 1 ? "s" : ""}`
-              : ""}
+            {total} ingrédient{total !== 1 ? "s" : ""} au total
+            {debouncedSearch && " (filtrés)"}
           </p>
         </div>
         <Button variant="primary" onClick={openCreate} leftIcon={<PlusIcon />}>
@@ -249,22 +305,48 @@ export default function Ingredients({ ingredients, onAdd, onUpdate, onDelete }: 
         />
       </div>
 
+      {/* ── Erreur de chargement de la liste ── */}
+      {listError && (
+        <div style={{
+          marginBottom: "1rem",
+          padding: "0.625rem 0.875rem",
+          borderRadius: "0.375rem",
+          backgroundColor: "#fff1f2",
+          border: "1px solid #fecdd3",
+          color: "#e11d48",
+          fontSize: "0.875rem",
+        }}>
+          {listError}
+        </div>
+      )}
+
       {/* ── Table ── */}
       <div style={{
         background: "#fff",
         border: "1px solid #e2e8f0",
         borderRadius: "0.75rem",
         overflow: "hidden",
+        opacity: isLoadingList ? 0.6 : 1,
+        transition: "opacity 0.15s",
       }}>
         <Table
           columns={columns}
-          data={filtered}
+          data={items}
           keyExtractor={(i) => i.id}
           emptyState={
             search
               ? `Aucun ingrédient ne correspond à "${search}".`
               : "Aucun ingrédient pour le moment. Commencez par en ajouter un !"
           }
+        />
+        <Pagination
+          page={page}
+          limit={limit}
+          total={total}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoadingList}
         />
       </div>
 

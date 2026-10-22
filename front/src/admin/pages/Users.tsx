@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { User, UserRole } from "../types";
 import Table, { type Column } from "../components/ui/Table";
 import { RoleBadge } from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
+import Pagination from "../components/ui/Pagination";
 import { formatDate } from "./Overview";
-import { createUser, updateUser } from "../../api";
+import { createUser, updateUser, fetchUsersPaginated } from "../../api";
 
 interface UsersProps {
   users:        User[];
@@ -27,6 +28,47 @@ export default function Users({ users, currentUserId, onAdd, onUpdate, onDelete 
   const [editingUser,   setEditingUser]   = useState<User | null | false>(null);
   const [form,          setForm]          = useState(EMPTY_FORM);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+
+  // ── Pagination (chargée depuis le serveur, 10/20/50 par page) ───────────────
+  // NOTE : `users` (la prop) n'est plus la source d'affichage de la table —
+  // elle contenait de toute façon la liste complète, ce que la pagination
+  // serveur a justement pour but d'éviter de charger d'un coup. `items` est
+  // la page courante renvoyée par GET /api/users.
+  const [items,         setItems]         = useState<User[]>(users);
+  const [page,          setPage]          = useState(1);
+  const [limit,         setLimit]         = useState(20);
+  const [total,         setTotal]         = useState(users.length);
+  const [totalPages,    setTotalPages]    = useState(1);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+  const [listError,     setListError]     = useState("");
+
+  async function loadUsers() {
+    setIsLoadingList(true);
+    setListError("");
+    try {
+      const res = await fetchUsersPaginated({ page, limit });
+      setItems(res.items);
+      setTotal(res.pagination.total);
+      setTotalPages(res.pagination.totalPages);
+    } catch (err) {
+      setListError(
+        err instanceof Error ? err.message : "Impossible de charger les utilisateurs."
+      );
+    } finally {
+      setIsLoadingList(false);
+    }
+  }
+
+  // Revenir à la page 1 quand la taille de page change
+  useEffect(() => {
+    setPage(1);
+  }, [limit]);
+
+  // Rechargement serveur à chaque changement de page/limite
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit]);
 
   // Détermine si l'utilisateur en cours d'édition est soi-même
   const isEditingSelf = editingUser && (editingUser as User).id === currentUserId;
@@ -59,6 +101,9 @@ export default function Users({ users, currentUserId, onAdd, onUpdate, onDelete 
       onAdd(form);
     }
     closeModal();
+    // La table affiche la page renvoyée par le serveur (pagination) : on la
+    // recharge pour refléter la création/modification.
+    loadUsers();
   }
 
   function setField<K extends keyof typeof EMPTY_FORM>(key: K, value: typeof EMPTY_FORM[K]) {
@@ -135,7 +180,7 @@ export default function Users({ users, currentUserId, onAdd, onUpdate, onDelete 
         <div>
           <h1 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0f172a" }}>Utilisateurs</h1>
           <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "0.25rem" }}>
-            {users.length} utilisateur{users.length !== 1 ? "s" : ""}
+            {total} utilisateur{total !== 1 ? "s" : ""}
           </p>
         </div>
         <Button variant="primary" onClick={openCreate} leftIcon={<PlusIcon />}>
@@ -143,12 +188,39 @@ export default function Users({ users, currentUserId, onAdd, onUpdate, onDelete 
         </Button>
       </div>
 
-      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "0.75rem", overflow: "hidden" }}>
+      {listError && (
+        <div style={{
+          marginBottom: "1rem",
+          padding: "0.625rem 0.875rem",
+          borderRadius: "0.375rem",
+          backgroundColor: "#fff1f2",
+          border: "1px solid #fecdd3",
+          color: "#e11d48",
+          fontSize: "0.875rem",
+        }}>
+          {listError}
+        </div>
+      )}
+
+      <div style={{
+        background: "#fff", border: "1px solid #e2e8f0", borderRadius: "0.75rem", overflow: "hidden",
+        opacity: isLoadingList ? 0.6 : 1,
+        transition: "opacity 0.15s",
+      }}>
         <Table
           columns={columns}
-          data={users}
+          data={items}
           keyExtractor={(u) => u.id}
           emptyState="Aucun utilisateur pour le moment."
+        />
+        <Pagination
+          page={page}
+          limit={limit}
+          total={total}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          disabled={isLoadingList}
         />
       </div>
 
@@ -246,7 +318,20 @@ export default function Users({ users, currentUserId, onAdd, onUpdate, onDelete 
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
-            <Button variant="danger" onClick={() => { onDelete(deleteConfirm); setDeleteConfirm(null); }}>
+            <Button
+              variant="danger"
+              onClick={() => {
+                // ⚠️ NOTE : onDelete() (AdminApp.deleteUser) ne fait QUE retirer
+                // l'utilisateur du state local — il n'appelle pas l'API
+                // deleteUser(id) de "../../api". C'est un comportement déjà
+                // présent avant la pagination (pas introduit ici) : la table
+                // se rafraîchira donc en rappelant le serveur, où l'utilisateur
+                // sera toujours présent, tant que ce point n'est pas corrigé.
+                onDelete(deleteConfirm);
+                setDeleteConfirm(null);
+                loadUsers();
+              }}
+            >
               Supprimer
             </Button>
           </Modal.Footer>

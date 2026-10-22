@@ -27,11 +27,44 @@ class UserController extends AbstractController
     // Réservé aux SUPER_ADMIN (géré aussi par access_control dans security.yaml)
 
     #[Route('', name: 'list', methods: ['GET'])]
-    public function list(): JsonResponse
+    public function list(Request $request): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_SUPER_ADMIN');
 
-        $users = $this->userRepository->findAll();
+        // ── Rétrocompatibilité ──────────────────────────────────────────────
+        // fetchUsers() est aussi appelé par AdminApp.tsx au chargement initial
+        // pour alimenter l'Overview (stats globales) sans query params.
+        // Sans `page`/`limit` → on garde l'ancien comportement (tableau brut).
+        if (!$request->query->has('page') && !$request->query->has('limit')) {
+            $users = $this->userRepository->findBy([], ['id' => 'ASC']);
+
+            $data = array_map(fn(User $u) => [
+                'id'        => $u->getId(),
+                'firstName' => $u->getFirstName(),
+                'lastName'  => $u->getLastName(),
+                'email'     => $u->getEmail(),
+                'role'      => $u->getHighestRole(),
+                'createdAt' => $u->getCreatedAt(),
+            ], $users);
+
+            return $this->json($data, Response::HTTP_OK);
+        }
+
+        [$page, $limit] = $this->getPaginationParams($request);
+
+        $qb = $this->userRepository->createQueryBuilder('u')
+            ->orderBy('u.id', 'ASC');
+
+        $total = (int) (clone $qb)
+            ->select('COUNT(u.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $users = $qb
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
 
         $data = array_map(fn(User $u) => [
             'id'        => $u->getId(),
@@ -42,7 +75,10 @@ class UserController extends AbstractController
             'createdAt' => $u->getCreatedAt(),
         ], $users);
 
-        return $this->json($data, Response::HTTP_OK);
+        return $this->json([
+            'items' => $data,
+            'pagination' => $this->buildPaginationMeta($page, $limit, $total),
+        ], Response::HTTP_OK);
     }
 
     // ── GET /api/users/{id} ────────────────────────────────────────────────────
@@ -328,6 +364,47 @@ class UserController extends AbstractController
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+
+    /**
+     * Lit `page` et `limit` depuis la query string et les normalise.
+     *
+     * `limit` est volontairement restreint à {10, 20, 50} : on ne fait pas
+     * confiance à une valeur arbitraire envoyée par le client (ex: limit=99999
+     * forcerait Doctrine à charger toute la table en une requête).
+     *
+     * @return array{0: int, 1: int} [page, limit]
+     */
+    private function getPaginationParams(Request $request): array
+    {
+        $allowedLimits = [10, 20, 50];
+
+        $page = (int) $request->query->get('page', 1);
+        if ($page < 1) {
+            $page = 1;
+        }
+
+        $limit = (int) $request->query->get('limit', 20);
+        if (!in_array($limit, $allowedLimits, true)) {
+            $limit = 20;
+        }
+
+        return [$page, $limit];
+    }
+
+    /**
+     * Construit le bloc "pagination" attaché à chaque réponse de liste paginée.
+     *
+     * @return array{page: int, limit: int, total: int, totalPages: int}
+     */
+    private function buildPaginationMeta(int $page, int $limit, int $total): array
+    {
+        return [
+            'page'       => $page,
+            'limit'      => $limit,
+            'total'      => $total,
+            'totalPages' => $limit > 0 ? (int) ceil($total / $limit) : 0,
+        ];
+    }
 
     /**
      * Peut voir le profil d'un utilisateur ?

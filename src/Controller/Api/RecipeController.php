@@ -46,16 +46,74 @@ class RecipeController extends AbstractController
     // ── GET /api/recipes ───────────────────────────────────────────────────────
 
     #[Route('', name: 'recipes_list', methods: ['GET'])]
-    public function list(): JsonResponse
+    public function list(Request $request): JsonResponse
     {
         $isAdmin = $this->isGranted('ROLE_ADMIN');
-        $recipes = $isAdmin
-        ? $this->recipeRepository->findAll()
-        : $this->recipeRepository->findBy(['status' => RecipeStatus::PUBLISHED]);
+
+        // ── Rétrocompatibilité ──────────────────────────────────────────────
+        // Le front public (fetchRecipes()) et le chargement initial de
+        // l'admin (fetchAdminRecipes(), pour l'Overview) appellent cet endpoint
+        // sans `page`/`limit` et attendent un tableau brut. On ne paginate
+        // que si l'appelant le demande explicitement (Recipes.tsx admin).
+        if (!$request->query->has('page') && !$request->query->has('limit')) {
+            $recipes = $isAdmin
+                ? $this->recipeRepository->findAll()
+                : $this->recipeRepository->findBy(['status' => RecipeStatus::PUBLISHED]);
+
+            $data = array_map(fn(Recipe $r) => $this->serialize($r), $recipes);
+
+            return $this->json($data, Response::HTTP_OK);
+        }
+
+        [$page, $limit] = $this->getPaginationParams($request);
+
+        $qb = $this->recipeRepository->createQueryBuilder('r')
+            ->orderBy('r.created_at', 'DESC');
+
+        if (!$isAdmin) {
+            // Un utilisateur non-admin ne voit que les recettes publiées
+            $qb->andWhere('r.status = :status')
+               ->setParameter('status', RecipeStatus::PUBLISHED);
+        } elseif ($rawStatus = $request->query->get('status')) {
+            // Un admin peut filtrer par statut (ex: ?status=PUBLISHED)
+            $status = RecipeStatus::tryFrom($rawStatus);
+            if ($status) {
+                $qb->andWhere('r.status = :status')->setParameter('status', $status);
+            }
+        }
+
+        if ($rawType = $request->query->get('type')) {
+            $type = RecipeType::tryFrom($rawType);
+            if ($type) {
+                $qb->andWhere('r.type = :type')->setParameter('type', $type);
+            }
+        }
+
+        if ($search = trim((string) $request->query->get('search', ''))) {
+            // LIKE insensible à la casse : mêmes résultats que le filtre front qu'on remplace
+            $qb->andWhere('LOWER(r.title) LIKE :search')
+               ->setParameter('search', '%' . mb_strtolower($search) . '%');
+        }
+
+        // ── Comptage AVANT setFirstResult/setMaxResults, sur une copie du QB ──
+        // (clone pour ne pas perturber la requête principale avec le SELECT COUNT)
+        $total = (int) (clone $qb)
+            ->select('COUNT(r.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $recipes = $qb
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
 
         $data = array_map(fn(Recipe $r) => $this->serialize($r), $recipes);
 
-        return $this->json($data, Response::HTTP_OK);
+        return $this->json([
+            'items' => $data,
+            'pagination' => $this->buildPaginationMeta($page, $limit, $total),
+        ], Response::HTTP_OK);
     }
 
     #[Route('/my-recipes', name: 'my-recipes', methods: ['GET'])]
@@ -394,6 +452,47 @@ class RecipeController extends AbstractController
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+
+    /**
+     * Lit `page` et `limit` depuis la query string et les normalise.
+     *
+     * `limit` est volontairement restreint à {10, 20, 50} : on ne fait pas
+     * confiance à une valeur arbitraire envoyée par le client (ex: limit=99999
+     * forcerait Doctrine à charger toute la table en une requête).
+     *
+     * @return array{0: int, 1: int} [page, limit]
+     */
+    private function getPaginationParams(Request $request): array
+    {
+        $allowedLimits = [10, 20, 50];
+
+        $page = (int) $request->query->get('page', 1);
+        if ($page < 1) {
+            $page = 1;
+        }
+
+        $limit = (int) $request->query->get('limit', 20);
+        if (!in_array($limit, $allowedLimits, true)) {
+            $limit = 20;
+        }
+
+        return [$page, $limit];
+    }
+
+    /**
+     * Construit le bloc "pagination" attaché à chaque réponse de liste paginée.
+     *
+     * @return array{page: int, limit: int, total: int, totalPages: int}
+     */
+    private function buildPaginationMeta(int $page, int $limit, int $total): array
+    {
+        return [
+            'page'       => $page,
+            'limit'      => $limit,
+            'total'      => $total,
+            'totalPages' => $limit > 0 ? (int) ceil($total / $limit) : 0,
+        ];
+    }
 
     /**
      * Découpe le champ `tips` (TEXT en base) en tableau, une astuce par ligne.

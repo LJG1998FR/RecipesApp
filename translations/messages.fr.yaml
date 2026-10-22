@@ -86,6 +86,13 @@ home:
     recipe_count_singular: '{count} recette'
     recipe_count_plural: '{count} recettes'
     empty_state: 'Aucune recette trouvée'
+    load_error: 'Impossible de charger les recettes.'
+    pagination: 
+        "per_page": 'Par page'
+        "page": 'Page'
+        "previous": 'Précédent'
+        "next": 'Suivant'
+    
 
 recipe:
     card:

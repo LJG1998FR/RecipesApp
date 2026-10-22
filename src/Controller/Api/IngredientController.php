@@ -46,16 +46,54 @@ class IngredientController extends AbstractController
      * sérialiser. Doctrine ne sait pas serializer ses entités tout seul.
      */
     #[Route('', name: 'list', methods: ['GET'])]
-    public function list(): JsonResponse
+    public function list(Request $request): JsonResponse
     {
-        $ingredients = $this->ingredientRepository->findAll();
+        // ── Rétrocompatibilité ──────────────────────────────────────────────
+        // Le sélecteur d'ingrédients du formulaire Recette (fetchIngredients())
+        // a besoin du RÉFÉRENTIEL COMPLET pour filtrer en mémoire côté client.
+        // Il n'envoie ni `page` ni `limit` → on garde alors l'ancien comportement
+        // (tableau brut, pas d'enveloppe). Seul l'appelant qui envoie
+        // explicitement `page`/`limit` (la page admin Ingrédients) reçoit la
+        // version paginée.
+        if (!$request->query->has('page') && !$request->query->has('limit')) {
+            $ingredients = $this->ingredientRepository->findBy([], ['label' => 'ASC']);
+            $data = array_map(fn(Ingredient $i) => $this->serialize($i), $ingredients);
+
+            return $this->json($data, Response::HTTP_OK);
+        }
+
+        [$page, $limit] = $this->getPaginationParams($request);
+
+        $qb = $this->ingredientRepository->createQueryBuilder('i')
+            ->orderBy('i.label', 'ASC');
+
+        // Recherche optionnelle (même rôle que le filtre local de Ingredients.tsx,
+        // qui ne peut plus filtrer que la page courante une fois paginé).
+        if ($search = trim((string) $request->query->get('search', ''))) {
+            $qb->andWhere('LOWER(i.label) LIKE :search')
+               ->setParameter('search', '%' . mb_strtolower($search) . '%');
+        }
+
+        $total = (int) (clone $qb)
+            ->select('COUNT(i.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $ingredients = $qb
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
 
         $data = array_map(
             fn(Ingredient $i) => $this->serialize($i),
             $ingredients
         );
 
-        return $this->json($data, Response::HTTP_OK);
+        return $this->json([
+            'items' => $data,
+            'pagination' => $this->buildPaginationMeta($page, $limit, $total),
+        ], Response::HTTP_OK);
     }
 
     // ── GET /api/ingredients/{id} ──────────────────────────────────────────────
@@ -302,6 +340,47 @@ class IngredientController extends AbstractController
     }
 
     // ── Helpers privés ─────────────────────────────────────────────────────────
+
+    /**
+     * Lit `page` et `limit` depuis la query string et les normalise.
+     *
+     * `limit` est volontairement restreint à {10, 20, 50} : on ne fait pas
+     * confiance à une valeur arbitraire envoyée par le client (ex: limit=99999
+     * forcerait Doctrine à charger toute la table en une requête).
+     *
+     * @return array{0: int, 1: int} [page, limit]
+     */
+    private function getPaginationParams(Request $request): array
+    {
+        $allowedLimits = [10, 20, 50];
+
+        $page = (int) $request->query->get('page', 1);
+        if ($page < 1) {
+            $page = 1;
+        }
+
+        $limit = (int) $request->query->get('limit', 20);
+        if (!in_array($limit, $allowedLimits, true)) {
+            $limit = 20;
+        }
+
+        return [$page, $limit];
+    }
+
+    /**
+     * Construit le bloc "pagination" attaché à chaque réponse de liste paginée.
+     *
+     * @return array{page: int, limit: int, total: int, totalPages: int}
+     */
+    private function buildPaginationMeta(int $page, int $limit, int $total): array
+    {
+        return [
+            'page'       => $page,
+            'limit'      => $limit,
+            'total'      => $total,
+            'totalPages' => $limit > 0 ? (int) ceil($total / $limit) : 0,
+        ];
+    }
 
     /**
      * Valide les données d'un ingrédient.
