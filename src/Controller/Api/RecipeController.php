@@ -10,8 +10,10 @@ use App\Entity\RecipeIngredient;
 use App\Entity\Step;
 use App\Enums\RecipeStatus;
 use App\Enums\RecipeType;
+use App\Mail\AppMailer;
 use App\Repository\IngredientRepository;
 use App\Repository\RecipeRepository;
+use App\Repository\UserRepository;
 use App\Service\PhotoUploader;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,6 +22,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/recipes', name: 'api_recipes_')]
@@ -174,10 +177,11 @@ class RecipeController extends AbstractController
     // }
 
     #[Route('', name: 'add', methods: ['POST'])]
-    public function add(Request $request): JsonResponse
+    public function add(Request $request, AppMailer $mailer, UserRepository $userRepository): JsonResponse
     {
         // Tout utilisateur authentifié peut créer une recette
         // (IS_AUTHENTICATED_FULLY est déjà garanti par le firewall)
+        $user = $this->security->getUser();
 
         $data = json_decode($request->getContent(), true);
 
@@ -246,7 +250,7 @@ class RecipeController extends AbstractController
         //       Sans ça, un plantage en cours de route laisserait une recette
         //       sans étapes ni ingrédients en base.
         $recipe = new Recipe();
-        $this->em->wrapInTransaction(function () use ($recipe, $data, $type, $stepsData, $ingredientsData, $ingredientsById) {
+        $this->em->wrapInTransaction(function () use ($recipe, $data, $type, $stepsData, $ingredientsData, $ingredientsById, $user) {
             $recipe->setTitle(trim($data['title']));
             $recipe->setNbPeople((int) $data['nbPeople']);
             $recipe->setType($type);
@@ -254,7 +258,9 @@ class RecipeController extends AbstractController
             $recipe->setCookingTime(isset($data['cookingTime']) ? (int) $data['cookingTime'] : null);
             $recipe->setTips(isset($data['tips']) && trim($data['tips']) !== '' ? trim($data['tips']) : null);
             $recipe->setCreatedAt(time());
-            $recipe->setUser($this->security->getUser());   // toujours lier au créateur
+            if ($user) {
+                $recipe->setUser($user);
+            }
             $recipe->setStatus(RecipeStatus::PENDING);
 
             // Collection de photos (vide) créée dès maintenant : persistée par cascade (Recipe.photoCollection)
@@ -281,6 +287,15 @@ class RecipeController extends AbstractController
             $this->em->persist($recipe);
             // flush() est appelé automatiquement à la fin de wrapInTransaction
         });
+
+        // Mail à l'auteur
+        $mailer->sendRecipePending($recipe);
+
+        // Mail aux admins — seulement si ce n'est PAS un admin qui a créé la recette
+        if ($user && !in_array('ROLE_ADMIN', $user->getRoles()) && !in_array('ROLE_SUPER_ADMIN', $user->getRoles())) {
+            $admins = $userRepository->findAdmins();
+            $mailer->sendAdminNewRecipeAlert($recipe, $admins);
+        }
 
         return $this->json($this->serialize($recipe), Response::HTTP_CREATED);
     }
@@ -709,5 +724,32 @@ class RecipeController extends AbstractController
             'position' => $p->getPosition(),
             'url'      => $this->photoUploader->publicPath($p),
         ], $photos);
+    }
+
+    #[Route('/{id}/moderate', name: 'moderate', methods: ['PATCH'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function moderate(int $id, Request $request, AppMailer $mailer): JsonResponse
+    {
+        $recipe = $this->recipeRepository->find($id);
+        if (!$recipe) {
+            return $this->json(['error' => 'Recipe not found'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $decision = $data['decision'] ?? null; // 'accept' | 'decline'
+
+        if ($decision === 'accept') {
+            $recipe->setStatus(RecipeStatus::PUBLISHED);
+            $this->em->flush();
+            $mailer->sendRecipeAccepted($recipe);
+        } elseif ($decision === 'decline') {
+            $recipe->setStatus(RecipeStatus::DECLINED);
+            $this->em->flush();
+            $mailer->sendRecipeDeclined($recipe, $data['reason'] ?? null);
+        } else {
+            return $this->json(['error' => 'Invalid decision'], 422);
+        }
+
+        return $this->json(['status' => $recipe->getStatus()->value]);
     }
 }

@@ -40,6 +40,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 100)]
     private ?string $lastName = null;
 
+    #[ORM\Column(length: 5, options: ['default' => 'fr'])]
+    private string $locale = 'fr';
+
     /**
      * @var Collection<int, Recipe>
      */
@@ -210,5 +213,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         } else {
             return "ROLE_USER";
         }
+    }
+
+    public function getLocale(): string
+    {
+        return $this->locale;
+    }
+
+    public function setLocale(string $locale): static
+    {
+        $this->locale = $locale;
+        return $this;
     }
 }

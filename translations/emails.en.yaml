@@ -1,0 +1,45 @@
+welcome:
+    subject: 'Welcome to Saveurs, {firstName}!'
+    heading: 'Welcome, {firstName}!'
+    body: 'Your Saveurs account is ready. Come discover and share your recipes.'
+    cta_button: 'Discover the app'
+    footer: 'You are receiving this email because you just created a Saveurs account.'
+
+recipe_pending:
+    subject: 'Your recipe "{title}" is under review'
+    heading: 'Recipe received!'
+    body: 'Your recipe "{title}" has been successfully submitted. Our moderation team will review it shortly.'
+    info_label: 'Status'
+    info_value: 'Pending validation'
+    footer: "You'll receive an email as soon as your recipe has been reviewed."
+
+recipe_accepted:
+    subject: 'Your recipe "{title}" is now live!'
+    heading: 'Great news!'
+    body: 'Your recipe "{title}" has been approved by our team and is now visible to all Saveurs users.'
+    cta_button: 'View my recipe'
+    footer: 'Thank you for contributing to the Saveurs community!'
+
+recipe_declined:
+    subject: 'Your recipe "{title}" was not approved'
+    heading: 'Recipe not approved'
+    body: 'After review, your recipe "{title}" was unfortunately not approved by our moderation team.'
+    reason_label: 'Reason given by moderation:'
+    reason_fallback: 'No specific reason provided.'
+    footer: 'Feel free to edit it and submit it again.'
+
+password_changed:
+    subject: 'Your password has been changed'
+    heading: 'Password changed'
+    body: 'Hi {firstName}, we confirm that your Saveurs account password has just been changed.'
+    warning: "If you didn't make this change, please contact us immediately."
+    footer: 'This email is sent automatically for your security.'
+
+admin_new_recipe:
+    subject: '[Moderation] New recipe to review: {title}'
+    heading: 'New recipe to moderate'
+    body: 'Hi {firstName}, a new recipe has been submitted by a user and is awaiting your approval.'
+    recipe_title_label: 'Title'
+    recipe_author_label: 'Author'
+    cta_button: 'Go to admin panel'
+    footer: 'You are receiving this email because you have moderation rights on Saveurs.'

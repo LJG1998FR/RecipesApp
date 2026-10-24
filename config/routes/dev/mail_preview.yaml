@@ -1,0 +1,5 @@
+# config/routes/dev/mail_preview.yaml
+when@dev:
+    mail_preview:
+        resource: '../../../src/Controller/Dev/'
+        type: attribute

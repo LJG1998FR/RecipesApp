@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\User;
+use App\Mail\AppMailer;
 use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -22,6 +23,7 @@ class AuthController extends AbstractController
         EntityManagerInterface $em,
         UserPasswordHasherInterface $hasher,
         JWTTokenManagerInterface $jwtManager,
+        AppMailer $mailer
     ): JsonResponse {
         $data = json_decode($request->getContent(), true);
 
@@ -29,6 +31,7 @@ class AuthController extends AbstractController
         $password  = $data['password'] ?? '';
         $firstName = trim($data['firstName'] ?? '');
         $lastName  = trim($data['lastName'] ?? '');
+        $locale = in_array($data['locale'] ?? '', ['fr', 'en'], true) ? $data['locale'] : 'fr';
 
         // Validations basiques
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -54,9 +57,12 @@ class AuthController extends AbstractController
         $user->setCreatedAt(time());
         $user->setRoles(['ROLE_USER']);
         $user->setPassword($hasher->hashPassword($user, $password));
+        $user->setLocale($locale);
 
         $em->persist($user);
         $em->flush();
+
+        $mailer->sendWelcome($user);
 
         $token = $jwtManager->create($user);
 

@@ -1,0 +1,45 @@
+welcome:
+    subject: 'Bienvenue sur Saveurs, {firstName} !'
+    heading: 'Bienvenue, {firstName} !'
+    body: 'Votre compte Saveurs est prêt. Venez découvrir et partager vos recettes.'
+    cta_button: "Découvrir l'app"
+    footer: 'Vous recevez cet email car vous venez de créer un compte sur Saveurs.'
+
+recipe_pending:
+    subject: 'Votre recette "{title}" est en cours de modération'
+    heading: 'Recette bien reçue !'
+    body: 'Votre recette "{title}" a été soumise avec succès. Notre équipe de modération va la examiner sous peu.'
+    info_label: 'Statut'
+    info_value: 'En attente de validation'
+    footer: 'Vous recevrez un email dès que votre recette aura été examinée.'
+
+recipe_accepted:
+    subject: 'Votre recette "{title}" est publiée !'
+    heading: 'Bonne nouvelle !'
+    body: 'Votre recette "{title}" a été validée par notre équipe et est maintenant visible par tous les utilisateurs de Saveurs.'
+    cta_button: 'Voir ma recette'
+    footer: 'Merci de contribuer à la communauté Saveurs !'
+
+recipe_declined:
+    subject: 'Votre recette "{title}" n''a pas été retenue'
+    heading: 'Recette non retenue'
+    body: 'Après examen, votre recette "{title}" n''a malheureusement pas été validée par notre équipe de modération.'
+    reason_label: 'Motif indiqué par la modération :'
+    reason_fallback: 'Aucun motif spécifique fourni.'
+    footer: "N'hésitez pas à la modifier et la soumettre à nouveau."
+
+password_changed:
+    subject: 'Votre mot de passe a été modifié'
+    heading: 'Mot de passe modifié'
+    body: 'Bonjour {firstName}, nous vous confirmons que le mot de passe de votre compte Saveurs vient d''être modifié.'
+    warning: "Si vous n'êtes pas à l'origine de cette modification, contactez-nous immédiatement."
+    footer: 'Cet email est envoyé automatiquement pour votre sécurité.'
+
+admin_new_recipe:
+    subject: '[Modération] Nouvelle recette à examiner : {title}'
+    heading: 'Nouvelle recette à modérer'
+    body: 'Bonjour {firstName}, une nouvelle recette a été soumise par un utilisateur et attend votre validation.'
+    recipe_title_label: 'Titre'
+    recipe_author_label: 'Auteur'
+    cta_button: "Accéder à l'administration"
+    footer: 'Vous recevez cet email car vous disposez des droits de modération sur Saveurs.'

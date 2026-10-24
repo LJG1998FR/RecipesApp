@@ -115,9 +115,9 @@ export async function getUserData() {
   return data;
 }
 
-export async function register(email: string, password: string, firstName: string, lastName: string) {
+export async function register(email: string, password: string, firstName: string, lastName: string, locale: string) {
   const { data } = await apiClient.post("/api/register", {
-    email, password, firstName, lastName,
+    email, password, firstName, lastName, locale
   });
   tokenStorage.setTokens(data);
   return data;

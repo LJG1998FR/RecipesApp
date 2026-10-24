@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\User;
+use App\Mail\AppMailer;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -122,7 +123,7 @@ class UserController extends AbstractController
     // PERSONNE ne peut changer son propre rôle.
 
     #[Route('/update', name: 'update', methods: ['PUT'])]
-    public function update(Request $request): JsonResponse
+    public function update(Request $request, AppMailer $mailer): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
@@ -196,84 +197,10 @@ class UserController extends AbstractController
         }
 
         $this->em->flush();
+        $mailer->sendPasswordChanged($target);
 
         return $this->json($this->serialize($target), Response::HTTP_OK);
     }
-
-       // ── PUT /api/users/admin-update ────────────────────────────────────────────────────
-
-    /*#[Route('/admin-update', name: 'admin-update', methods: ['PUT'])]
-    public function updateAsAdmin(Request $request): JsonResponse
-    {
-        
-        $data = json_decode($request->getContent(), true);
-
-        if (!is_array($data)) {
-            return $this->json(
-                ['error' => 'Invalid JSON body.'],
-                Response::HTTP_BAD_REQUEST,
-            );
-        }
-
-        $user = $this->userRepository->findOneBy(["id" => $data["id"]]);
-
-        if (!$user) {
-            return $this->json(
-                ['error' => "User not found."],
-                Response::HTTP_NOT_FOUND,
-            );
-        }
-
-        if (!$this->canAccessUser($user)) {
-            return $this->json(
-                ['error' => 'You are not allowed to update this user.'],
-                Response::HTTP_FORBIDDEN,
-            );
-        }
-
-        // At least one updatable field must be provided
-        $updatableFields = ['email', 'firstName', 'lastName', 'password', 'role'];
-        if (empty(array_intersect(array_keys($data), $updatableFields))) {
-            return $this->json(
-                ['error' => 'No updatable field provided. Accepted fields: ' . implode(', ', $updatableFields)],
-                Response::HTTP_BAD_REQUEST,
-            );
-        }
-
-        $errors = $this->validateUserData($data);
-        if (!empty($errors)) {
-            return $this->json(['errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        if (isset($data['firstName'])) {
-            $user->setFirstName(trim($data['firstName']));
-        }
-
-        if (isset($data['lastName'])) {
-            $user->setLastName(trim($data['lastName']));
-        }
-
-        if (isset($data['email'])) {
-            // Ensure the new email is not already used by another account
-            $existing = $this->userRepository->findOneBy(['email' => trim($data['email'])]);
-            if ($existing && $existing->getId() !== $user->getId()) {
-                return $this->json(
-                    ['errors' => ['email' => 'This email address is already in use.']],
-                    Response::HTTP_CONFLICT,
-                );
-            }
-            $user->setEmail(trim($data['email']));
-        }
-
-        if (isset($data['password'])) {
-            $hashed = $this->passwordHasher->hashPassword($user, $data['password']);
-            $user->setPassword($hashed);
-        }
-
-        $this->em->flush();
-
-        return $this->json($this->serialize($user), Response::HTTP_OK);
-    }*/
 
     // ── DELETE /api/users/{id} ─────────────────────────────────────────────────
     #[Route('/{id}', name: 'delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]

@@ -1,0 +1,68 @@
+<html lang="{{ locale }}">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0; font-family: Arial, sans-serif; background:#171210; color:#f0e8e0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+                <td align="center" style="padding: 40px 20px;">
+                    <table role="presentation" width="100%" style="max-width: 480px;" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="padding-bottom: 24px;">
+                                <h1 style="font-size: 22px; margin: 0;">
+                                    {{ 'admin_new_recipe.heading'|trans({}, 'emails', locale) }}
+                                </h1>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding-bottom: 20px; font-size: 15px; line-height: 1.6;">
+                                {{ 'admin_new_recipe.body'|trans({'{firstName}': admin.firstName}, 'emails', locale) }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding-bottom: 28px;">
+                                <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+                                    style="background:#221e1b; border:1px solid #2e2924; border-radius:12px; padding:14px 18px;">
+                                    <tr>
+                                        <td style="font-size: 12px; color:#a89880; padding-bottom:2px;">
+                                            {{ 'admin_new_recipe.recipe_title_label'|trans({}, 'emails', locale) }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-size: 15px; font-weight:bold; padding-bottom:10px;">
+                                            {{ recipe.title }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-size: 12px; color:#a89880; padding-bottom:2px;">
+                                            {{ 'admin_new_recipe.recipe_author_label'|trans({}, 'emails', locale) }}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-size: 14px;">
+                                            {{ recipe.user.firstName }} {{ recipe.user.lastName }}
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding-bottom: 32px;">
+                                <a href="http://localhost:5173/admin/recipes"
+                                style="background:#e09a5a; color:#171210; padding:12px 24px; border-radius:12px; text-decoration:none; font-weight:bold; display:inline-block;">
+                                    {{ 'admin_new_recipe.cta_button'|trans({}, 'emails', locale) }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="font-size: 12px; color: #a89880; border-top: 1px solid #2e2924; padding-top: 16px;">
+                                {{ 'admin_new_recipe.footer'|trans({}, 'emails', locale) }}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>

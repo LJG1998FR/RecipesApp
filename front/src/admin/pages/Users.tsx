@@ -6,7 +6,7 @@ import Modal from "../components/ui/Modal";
 import Button from "../components/ui/Button";
 import Pagination from "../components/ui/Pagination";
 import { formatDate } from "./Overview";
-import { createUser, updateUser, fetchUsersPaginated } from "../../api";
+import { createUser, updateUser, fetchUsersPaginated, deleteUser } from "../../api";
 
 interface UsersProps {
   users:        User[];
@@ -104,6 +104,25 @@ export default function Users({ users, currentUserId, onAdd, onUpdate, onDelete 
     // La table affiche la page renvoyée par le serveur (pagination) : on la
     // recharge pour refléter la création/modification.
     loadUsers();
+  }
+
+  // ── Suppression ────────────────────────────────────────────────────────────
+  async function handleDelete(id: number) {
+    try {
+      await deleteUser(id);
+      onDelete(id);
+      // Si on vient de supprimer le dernier élément d'une page (page > 1),
+      // reculer d'une page plutôt que d'afficher une page vide.
+      if (items.length === 1 && page > 1) {
+        setPage(page - 1); // déclenche loadUsers() via le useEffect de pagination
+      } else {
+        loadUsers();
+      }
+    } catch (err) {
+      console.error("Erreur lors de la suppression :", err);
+    } finally {
+      setDeleteConfirm(null);
+    }
   }
 
   function setField<K extends keyof typeof EMPTY_FORM>(key: K, value: typeof EMPTY_FORM[K]) {
@@ -320,17 +339,7 @@ export default function Users({ users, currentUserId, onAdd, onUpdate, onDelete 
             <Button variant="secondary" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
             <Button
               variant="danger"
-              onClick={() => {
-                // ⚠️ NOTE : onDelete() (AdminApp.deleteUser) ne fait QUE retirer
-                // l'utilisateur du state local — il n'appelle pas l'API
-                // deleteUser(id) de "../../api". C'est un comportement déjà
-                // présent avant la pagination (pas introduit ici) : la table
-                // se rafraîchira donc en rappelant le serveur, où l'utilisateur
-                // sera toujours présent, tant que ce point n'est pas corrigé.
-                onDelete(deleteConfirm);
-                setDeleteConfirm(null);
-                loadUsers();
-              }}
+              onClick={() => handleDelete(deleteConfirm)}
             >
               Supprimer
             </Button>

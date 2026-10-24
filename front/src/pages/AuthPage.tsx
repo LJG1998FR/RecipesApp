@@ -24,7 +24,7 @@ export default function AuthPage({ onAuth }: Props) {
   const [showPwd,   setShowPwd]   = useState(false);
   const [error,     setError]     = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const handleSubmit = async () => {
     setError("");
@@ -38,7 +38,7 @@ export default function AuthPage({ onAuth }: Props) {
       try {
         setIsLoading(true);
       if (mode === "signup") {
-        await register(email, password, firstName, lastName);
+        await register(email, password, firstName, lastName, locale);
       } else {
         await login(email, password);
       }
@@ -143,10 +143,11 @@ export default function AuthPage({ onAuth }: Props) {
               { label: "Nom",    value: lastName,  set: setLastName,  placeholder: "Dupont" },
             ].map(({ label, value, set, placeholder }) => (
               <div key={label} style={{ flex: 1 }}>
-                <label style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
+                <label htmlFor={"signup_label_"+label} style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
                   {label}
                 </label>
                 <input
+                  id={"signup_label_"+label}
                   type="text"
                   value={value}
                   onChange={(e) => set(e.target.value)}
@@ -170,7 +171,7 @@ export default function AuthPage({ onAuth }: Props) {
 
         {/* E-mail */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
+          <label htmlFor="label_email" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
             Adresse e-mail
           </label>
           <div
@@ -184,6 +185,7 @@ export default function AuthPage({ onAuth }: Props) {
           >
             <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}><MailIcon /></span>
             <input
+              id="label_email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -198,7 +200,7 @@ export default function AuthPage({ onAuth }: Props) {
 
         {/* Mot de passe */}
         <div style={{ marginBottom: 8 }}>
-          <label style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
+          <label htmlFor="label_password" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
             Mot de passe
           </label>
           <div
@@ -212,6 +214,7 @@ export default function AuthPage({ onAuth }: Props) {
           >
             <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}><LockIcon /></span>
             <input
+              id="label_password"
               type={showPwd ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
