@@ -11,6 +11,7 @@ import { Recipe } from "../types";
 import apiClient, { tokenStorage } from "./client";
 import { User, Recipe as AdminRecipe, RecipePhoto, IngredientOption } from "../admin/types";
 import { Ingredient } from "../admin/types";
+import { ApiValidationError } from "./errors";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -74,17 +75,10 @@ export class ApiError extends Error {
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
- 
-    const messages: string[] = [];
-    if (typeof body?.error === "string") messages.push(body.error);
-    if (body?.errors && typeof body.errors === "object") {
-      for (const [field, msg] of Object.entries(body.errors)) {
-        messages.push(`${field} : ${String(msg)}`);
-      }
+    if (body?.errors) {
+      throw new ApiValidationError(body.errors);
     }
-    if (messages.length === 0) messages.push(`Erreur HTTP ${res.status}`);
- 
-    throw new ApiError(res.status, messages);
+    throw new Error(body?.error ?? `Erreur HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
 }

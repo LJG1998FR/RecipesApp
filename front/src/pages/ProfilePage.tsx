@@ -5,6 +5,9 @@ import Loading from '../components/layout/Loading';
 import { LockIcon, EyeIcon, CheckIcon, ChevronLeft } from "../components/icons";
 import { formatMemberSince } from "./AuthPage";
 import { useTranslation } from "@/context/LocaleContext";
+import { isPasswordValid } from "@/utils/passwordPolicy";
+import PasswordRequirements from "@/components/form/PasswordRequirements";
+import { ApiValidationError } from "@/api/errors";
 
 // ── Champ lecture seule ────────────────────────────────────────────────────
 const ReadonlyField = ({ label, value, readonlyBadge }: { label: string; value: string; readonlyBadge: string }) => (
@@ -104,17 +107,22 @@ export default function ProfilePage({ onOpenMyRecipes }: Props) {
   const handleSave = async () => {
     setError("");
     if (!currentPwd)           return setError(t("profile.error_current_password_required"));
-    if (newPwd.length < 8)     return setError(t("profile.error_new_password_too_short"));
+    //if (newPwd.length < 8)     return setError(t("profile.error_new_password_too_short"));
+    if (!isPasswordValid(newPwd)) return setError(t("common.errors.password.invalid"));
     if (newPwd !== confirmPwd) return setError(t("profile.error_passwords_mismatch"));
 
     try {
-      await updateUser(user.email, newPwd);
+      await updateUser({user});
       setSaved(true);
       setEditingPassword(false);
       setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
       setTimeout(() => setSaved(false), 3000);
-    } catch {
-      setError(t("common.errors.generic"));
+    } catch(err) {
+      if (err instanceof ApiValidationError && err.errors.password) {
+        setError(err.errors.password.map((code) => t(`common.errors.password.${code}`, { min: 16 })).join(" "));
+      } else {
+        setError(t("auth.login.error_invalid_credentials"));
+      }
     }
   };
 
@@ -296,6 +304,7 @@ export default function ProfilePage({ onOpenMyRecipes }: Props) {
               onChange={setNewPwd} show={showNew}
               onToggle={() => setShowNew((s) => !s)} placeholder={t("profile.password_new_placeholder")}
             />
+            <PasswordRequirements password={newPwd} />
             <div style={{ marginBottom: 4 }}>
               <label style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
                 {t("profile.password_confirm_label")}

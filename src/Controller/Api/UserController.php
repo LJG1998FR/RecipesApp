@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use App\Entity\User;
 use App\Mail\AppMailer;
 use App\Repository\UserRepository;
+use App\Security\PasswordPolicy;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -377,8 +378,11 @@ class UserController extends AbstractController
             }
         }
 
-        if (!empty($data['password']) && strlen((string) $data['password']) < 8) {
-            $errors['password'] = 'Password must be at least 8 characters.';
+        if (isset($data['password'])) {
+            $passwordErrors = PasswordPolicy::validate($data['password']);
+            if (!empty($passwordErrors)) {
+                $errors['password'] = $passwordErrors; // tableau de codes au lieu d'une string
+            }
         }
 
         return $errors;

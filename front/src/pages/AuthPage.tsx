@@ -5,6 +5,9 @@ import { EyeIcon, MailIcon, LockIcon } from "../components/icons";
 import { getUserData, login, register } from "../api";
 import Loading from "../components/layout/Loading";
 import { useTranslation } from "@/context/LocaleContext";
+import { isPasswordValid } from "@/utils/passwordPolicy";
+import { ApiValidationError } from "@/api/errors";
+import PasswordRequirements from "@/components/form/PasswordRequirements";
 
 interface Props {
   onAuth: (userData: UserData) => void;
@@ -26,30 +29,38 @@ export default function AuthPage({ onAuth }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const { t, locale } = useTranslation();
 
-  const handleSubmit = async () => {
-    setError("");
-    if (mode === "signup" && (!firstName.trim() || !lastName.trim()))
-      return setError("Veuillez renseigner votre prénom et nom.");
-    if (!email.includes("@"))
-      return setError("Adresse e-mail invalide.");
-    if (password.length < 8)
-      return setError("Le mot de passe doit faire au moins 8 caractères.");
+const handleSubmit = async () => {
+  setError("");
+  if (mode === "signup" && (!firstName.trim() || !lastName.trim()))
+    return setError("Veuillez renseigner votre prénom et nom.");
+  if (!email.includes("@"))
+    return setError("Adresse e-mail invalide.");
 
-      try {
-        setIsLoading(true);
-      if (mode === "signup") {
-        await register(email, password, firstName, lastName, locale);
-      } else {
-        await login(email, password);
-      }
-      const userData: UserData = await getUserData();
-      onAuth(userData);
-    } catch {
-      setError("Une erreur est survenue. Vérifiez vos identifiants.");
-    } finally {
-      setIsLoading(false);
+  // ⚠️ La règle des 16 caractères ne s'applique QU'à l'inscription,
+  // jamais au login — sinon on bloquerait les comptes existants !
+  if (mode === "signup" && !isPasswordValid(password)){
+    return setError(t("common.errors.password.invalid"));
+  }
+
+  try {
+    setIsLoading(true);
+    if (mode === "signup") {
+      await register(email, password, firstName, lastName, locale);
+    } else {
+      await login(email, password);
     }
-  };
+    const userData: UserData = await getUserData();
+    onAuth(userData);
+  } catch (err) {
+    if (err instanceof ApiValidationError && err.errors.password) {
+      setError(err.errors.password.map((code) => t(`common.errors.password.${code}`, { min: 16 })).join(" "));
+    } else {
+      setError(t("auth.login.error_invalid_credentials"));
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   if (isLoading) {
     return <Loading />;
@@ -218,7 +229,7 @@ export default function AuthPage({ onAuth }: Props) {
               type={showPwd ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min. 8 caractères"
+              placeholder="Min. 16 caractères"
               style={{
                 flex: 1, background: "transparent", border: "none", outline: "none",
                 fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
@@ -228,6 +239,7 @@ export default function AuthPage({ onAuth }: Props) {
               <EyeIcon off={!showPwd} />
             </button>
           </div>
+          {mode === "signup" && <PasswordRequirements password={password} />}
         </div>
 
         {mode === "login" && (

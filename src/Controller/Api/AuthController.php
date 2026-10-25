@@ -4,6 +4,7 @@ namespace App\Controller\Api;
 
 use App\Entity\User;
 use App\Mail\AppMailer;
+use App\Security\PasswordPolicy;
 use Doctrine\ORM\EntityManagerInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -37,8 +38,13 @@ class AuthController extends AbstractController
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $this->json(['error' => 'Adresse e-mail invalide.'], 422);
         }
-        if (strlen($password) < 8) {
-            return $this->json(['error' => 'Le mot de passe doit faire au moins 8 caractères.'], 422);
+        $passwordErrors = PasswordPolicy::validate($password);
+        if (!empty($passwordErrors)) {
+            return $this->json([
+                'errors' => [
+                    'password' => $passwordErrors, // ex: ["too_short", "missing_uppercase"]
+                ],
+            ], 422);
         }
         if (!$firstName || !$lastName) {
             return $this->json(['error' => 'Prénom et nom requis.'], 422);

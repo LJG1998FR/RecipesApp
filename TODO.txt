@@ -1,8 +1,7 @@
 FRONT-OFFICE:
 - Web accessibility
 - Carousel photos
-- Password requirements
-- Delete account => redirect to login
 
 BACK-OFFICE:
 - rewrite tests
+- forgotten password
