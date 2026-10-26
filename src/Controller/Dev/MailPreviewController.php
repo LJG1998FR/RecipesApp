@@ -32,6 +32,7 @@ class MailPreviewController extends AbstractController
             'recipe-declined'  => 'Recette refusée',
             'password-changed' => 'Mot de passe modifié',
             'admin-new-recipe' => 'Alerte admin : nouvelle recette',
+            'password-reset'   => 'Réinitialisation de mot de passe'
         ];
 
         return $this->render('dev/mail_preview_index.html.twig', ['emails' => $emails]);
@@ -55,6 +56,7 @@ class MailPreviewController extends AbstractController
             'recipe-declined'  => ['emails/recipe_declined.html.twig',  ['recipe' => $fakeRecipe, 'locale' => $locale, 'reason' => 'Photos de mauvaise qualité, merci de les retravailler.']],
             'password-changed' => ['emails/password_changed.html.twig', ['user' => $fakeUser, 'locale' => $locale]],
             'admin-new-recipe' => ['emails/admin_new_recipe.html.twig', ['recipe' => $fakeRecipe, 'locale' => $locale, 'admin' => $fakeUser]],
+            'password-reset' => ['emails/password_reset.html.twig', ['resetUrl' => '#', 'expiryMinutes' => 15, 'locale' => $locale, 'user' => $fakeUser]],
             default            => throw $this->createNotFoundException("Email \"$name\" inconnu."),
         };
 

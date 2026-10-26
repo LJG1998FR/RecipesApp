@@ -8,6 +8,7 @@ import { useTranslation } from "@/context/LocaleContext";
 import { isPasswordValid } from "@/utils/passwordPolicy";
 import { ApiValidationError } from "@/api/errors";
 import PasswordRequirements from "@/components/form/PasswordRequirements";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   onAuth: (userData: UserData) => void;
@@ -28,6 +29,7 @@ export default function AuthPage({ onAuth }: Props) {
   const [error,     setError]     = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { t, locale } = useTranslation();
+  const navigate = useNavigate();
 
 const handleSubmit = async () => {
   setError("");
@@ -104,9 +106,9 @@ const handleSubmit = async () => {
             }}
           >
             {mode === "login" ? (
-              <>Bon retour,<br /><em style={{ color: "var(--color-primary)", fontStyle: "italic" }}>chef.</em></>
+              <>{t("auth.login.title")}<br /><em style={{ color: "var(--color-primary)", fontStyle: "italic" }}>{t("auth.login.subtitle")}</em></>
             ) : (
-              <>Rejoindre<br /><em style={{ color: "var(--color-primary)", fontStyle: "italic" }}>la table.</em></>
+              <>{t("auth.register.title")}<br /><em style={{ color: "var(--color-primary)", fontStyle: "italic" }}>{t("auth.register.subtitle")}</em></>
             )}
           </h1>
         </div>
@@ -141,7 +143,7 @@ const handleSubmit = async () => {
                 color: mode === m ? "#171210" : "var(--color-text-muted)",
               }}
             >
-              {m === "login" ? "Connexion" : "Inscription"}
+              {m === "login" ? t("auth.login.button_title") : t("auth.register.button_title")}
             </button>
           ))}
         </div>
@@ -150,8 +152,8 @@ const handleSubmit = async () => {
         {mode === "signup" && (
           <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
             {[
-              { label: "Prénom", value: firstName, set: setFirstName, placeholder: "Marie" },
-              { label: "Nom",    value: lastName,  set: setLastName,  placeholder: "Dupont" },
+              { label: t("auth.register.firstname_label"), value: firstName, set: setFirstName, placeholder: t("auth.register.firstname_placeholder") },
+              { label: t("auth.register.lastname_label"),    value: lastName,  set: setLastName,  placeholder:t("auth.register.lastname_placeholder") },
             ].map(({ label, value, set, placeholder }) => (
               <div key={label} style={{ flex: 1 }}>
                 <label htmlFor={"signup_label_"+label} style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
@@ -183,7 +185,7 @@ const handleSubmit = async () => {
         {/* E-mail */}
         <div style={{ marginBottom: 16 }}>
           <label htmlFor="label_email" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
-            Adresse e-mail
+            {t("auth.login.email_label")}
           </label>
           <div
             style={{
@@ -200,7 +202,7 @@ const handleSubmit = async () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="marie@example.com"
+              placeholder={t("auth.login.email_placeholder")}
               style={{
                 flex: 1, background: "transparent", border: "none", outline: "none",
                 fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
@@ -212,7 +214,7 @@ const handleSubmit = async () => {
         {/* Mot de passe */}
         <div style={{ marginBottom: 8 }}>
           <label htmlFor="label_password" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
-            Mot de passe
+            {t("auth.login.password_label")}
           </label>
           <div
             style={{
@@ -229,7 +231,7 @@ const handleSubmit = async () => {
               type={showPwd ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min. 16 caractères"
+              placeholder={t("auth.login.password_placeholder")}
               style={{
                 flex: 1, background: "transparent", border: "none", outline: "none",
                 fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
@@ -244,8 +246,8 @@ const handleSubmit = async () => {
 
         {mode === "login" && (
           <div style={{ textAlign: "right", marginBottom: 8 }}>
-            <button style={{ fontSize: 12, color: "var(--color-primary)" }}>
-              Mot de passe oublié ?
+            <button onClick={() => navigate("/mot-de-passe-oublie")} style={{ fontSize: 12, color: "var(--color-primary)" }}>
+              {t("auth.login.forgot_password")}
             </button>
           </div>
         )}
@@ -275,12 +277,12 @@ const handleSubmit = async () => {
         </div>
 
         <p style={{ fontSize: 12, textAlign: "center", color: "var(--color-text-dim)" }}>
-          {mode === "login" ? "Pas encore de compte ? " : "Déjà un compte ? "}
+          {mode === "login" ? t("auth.login.switch_to_signup_text") : t("auth.register.switch_to_login_text")}
           <button type="submit"
             onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
             style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)" }}
           >
-            {mode === "login" ? "S'inscrire" : "Se connecter"}
+            {mode === "login" ? t("auth.login.switch_to_signup_link") : t("auth.register.switch_to_login_link")}
           </button>
         </p>
       </div>

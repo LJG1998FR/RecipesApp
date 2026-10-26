@@ -50,6 +50,8 @@ security:
         - { path: ^/api/login,              roles: PUBLIC_ACCESS }
         - { path: ^/api/register,           roles: PUBLIC_ACCESS }
         - { path: ^/api/token/refresh,      roles: PUBLIC_ACCESS }
+        - { path: ^/api/password/forgot, roles: PUBLIC_ACCESS }
+        - { path: ^/api/password/reset,  roles: PUBLIC_ACCESS }
 
         # ── Liste de tous les users : SUPER_ADMIN uniquement ────────────────────
         # On restreint ici car il n'y a pas de notion de "sa propre ressource"

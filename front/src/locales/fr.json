@@ -45,33 +45,63 @@
     },
     "auth": {
         "login": {
-            "title": "Bon retour, chef.",
+            "title": "Bon retour, ",
+            "subtitle": "chef.",
+            "button_title": "Connexion",
             "email_label": "Adresse e-mail",
             "email_placeholder": "marie@example.com",
             "password_label": "Mot de passe",
             "password_placeholder": "Min. 16 caractères",
             "button_submit": "Se connecter",
             "forgot_password": "Mot de passe oublié ?",
-            "switch_to_signup_text": "Pas encore de compte ?",
+            "switch_to_signup_text": "Pas encore de compte ? ",
             "switch_to_signup_link": "S'inscrire",
             "error_invalid_credentials": "Une erreur est survenue. Vérifiez vos identifiants.",
             "error_invalid_email": "Adresse e-mail invalide.",
             "error_password_too_short": "Le mot de passe doit faire au moins 16 caractères."
         },
         "register": {
-            "title": "Rejoindre la table.",
+            "title": "Rejoindre ",
+            "subtitle": "la table.",
+            "button_title": "Inscription",
             "firstname_label": "Prénom",
             "firstname_placeholder": "Marie",
             "lastname_label": "Nom",
             "lastname_placeholder": "Dupont",
             "button_submit": "Créer mon compte",
-            "switch_to_login_text": "Déjà un compte ?",
+            "switch_to_login_text": "Déjà un compte ? ",
             "switch_to_login_link": "Se connecter",
             "error_missing_names": "Veuillez renseigner votre prénom et nom."
         },
         "logout": {
             "button": "Se déconnecter",
             "success_message": "Déconnecté avec succès"
+        },
+        "forgot_password": {
+            "title": "Mot de passe oublié",
+            "description": "Indiquez l'adresse e-mail associée à votre compte. Nous vous enverrons un lien pour choisir un nouveau mot de passe.",
+            "email_label": "Adresse e-mail",
+            "email_placeholder": "marie@example.com",
+            "submit_button": "Envoyer le lien",
+            "submitting": "Envoi…",
+            "success_message": "Si un compte existe avec l'adresse {email}, vous allez recevoir un e-mail contenant un lien de réinitialisation.",
+            "back_to_login": "Retour à la connexion",
+            "error_generic": "Une erreur est survenue. Réessayez dans quelques instants."
+        },
+        "reset_password": {
+            "title": "Nouveau mot de passe",
+            "description": "Choisissez un nouveau mot de passe pour votre compte.",
+            "password_label": "Nouveau mot de passe",
+            "password_placeholder": "Min. 16 caractères",
+            "confirm_label": "Confirmer le mot de passe",
+            "confirm_placeholder": "Répétez le mot de passe",
+            "submit_button": "Valider le nouveau mot de passe",
+            "submitting": "Mise à jour…",
+            "success_message": "Votre mot de passe a bien été mis à jour.",
+            "back_to_login": "Se connecter",
+            "invalid_link_message": "Ce lien de réinitialisation est invalide ou incomplet.",
+            "request_new_link": "Demander un nouveau lien",
+            "expired_or_used": "Ce lien a expiré ou a déjà été utilisé. Demandez-en un nouveau."
         }
     },
     "home": {

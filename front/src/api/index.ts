@@ -83,6 +83,26 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ── Mot de passe oublié ──────────────────────────────────────────────────
+
+export async function requestPasswordReset(email: string, locale: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/password/forgot`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, locale }),
+  });
+  await handleResponse(res);
+}
+
+export async function resetPassword(token: string, password: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/password/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password }),
+  });
+  await handleResponse(res);
+}
+
 // Transforme un chemin relatif ("/recipes/xxx/yyy.jpg") en URL absolue affichable
 export function toPhotoUrl(relativeUrl: string): string {
   return `${BASE_URL}${relativeUrl}`;

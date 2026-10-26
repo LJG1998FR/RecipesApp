@@ -43,3 +43,12 @@ admin_new_recipe:
     recipe_author_label: 'Auteur'
     cta_button: "Accéder à l'administration"
     footer: 'Vous recevez cet email car vous disposez des droits de modération sur Saveurs.'
+
+password_reset:
+    subject: 'Réinitialisation de votre mot de passe'
+    heading: 'Réinitialisation de mot de passe'
+    body: 'Bonjour {firstName}, vous avez demandé la réinitialisation du mot de passe de votre compte Saveurs. Cliquez sur le bouton ci-dessous pour en choisir un nouveau.'
+    cta_button: 'Réinitialiser mon mot de passe'
+    expiry_notice: 'Ce lien est valable pendant {minutes} minutes.'
+    warning: "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : votre mot de passe restera inchangé."
+    footer: 'Cet email est envoyé automatiquement pour votre sécurité.'

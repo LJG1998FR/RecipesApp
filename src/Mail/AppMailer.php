@@ -152,4 +152,20 @@ class AppMailer
             );
         }
     }
+
+    public function sendPasswordReset(User $user, string $resetUrl): void
+    {
+        $this->send(
+            toEmail: $user->getEmail(),
+            locale: $user->getLocale(),
+            subjectTransKey: 'password_reset.subject',
+            subjectParams: [],
+            template: 'emails/password_reset.html.twig',
+            context: [
+                'user' => $user,
+                'resetUrl' => $resetUrl,
+                'expiryMinutes' => 60,
+            ],
+        );
+    }
 }
