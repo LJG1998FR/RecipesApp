@@ -1,7 +1,9 @@
 FRONT-OFFICE:
 - Web accessibility
 - Carousel photos
+- Choose language
 
 BACK-OFFICE:
+- rate limiter
 - rewrite tests
-- forgotten password
+- automatisation on project init

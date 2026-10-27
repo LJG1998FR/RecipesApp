@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Recipe } from "../../admin/types";
 import {
   StarIcon, ClockIcon, FlameIcon,
-  ChevronLeft, ChevronDown, HeartIcon,
+  ChevronLeft, ChevronRight, ChevronDown, HeartIcon,
   BulbIcon, CheckIcon, PencilIcon,
 } from "../icons";
 import { toPhotoUrl } from "../../api";
@@ -47,6 +47,28 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
   const [tipsOpen,  setTipsOpen]  = useState(false);
   const { t } = useTranslation();
 
+  // ── Carousel photos ──────────────────────────────────────────────────────
+  // `recipe.photos` peut être undefined (ancienne recette sans collection,
+  // ou champ pas encore chargé) : on sécurise avec un tableau vide plutôt
+  // que de laisser planter .length / [photoIndex] plus bas.
+  const photos = recipe.photos ?? [];
+  const [photoIndex, setPhotoIndex] = useState(0);
+
+  // Si le composant est réutilisé pour une AUTRE recette sans être démonté
+  // (ex: navigation "recette suivante" sans repasser par la liste), l'index
+  // de la photo précédente resterait affiché par défaut. On le remet à 0
+  // à chaque changement de recette — piège classique en React.
+  useEffect(() => {
+    setPhotoIndex(0);
+  }, [recipe.id]);
+
+  // Navigation en "boucle" (de la dernière photo on repart sur la 1ère et
+  // inversement) : c'est le comportement standard d'un carousel. On ne
+  // montre les flèches que s'il y a au moins 2 photos, sinon ça n'a pas de sens.
+  const hasMultiplePhotos = photos.length > 1;
+  const goToPrevPhoto = () => setPhotoIndex((i) => (i - 1 + photos.length) % photos.length);
+  const goToNextPhoto = () => setPhotoIndex((i) => (i + 1) % photos.length);
+
   var statsIcons = [
     { icon: <ClockIcon size={16} />, value: recipe.prepTime,          label: t("recipe.detail.stat_prep") }
   ];
@@ -79,8 +101,8 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
     >
       <div style={{ position: "relative", height: "clamp(260px, 42vh, 340px)", flexShrink: 0, backgroundColor: "var(--color-card)" }}>
         <img
-          src={recipe.photos?.[0] ? toPhotoUrl(recipe.photos[0].url) : ""}
-          alt={recipe.title}
+          src={photos[photoIndex] ? toPhotoUrl(photos[photoIndex].url) : ""}
+          alt={`${recipe.title} (${photoIndex + 1}/${photos.length})`}
           style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
         />
         {/* Dégradé : sombre en haut (boutons) et en bas (badge catégorie) */}
@@ -91,6 +113,61 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
               "linear-gradient(to bottom, rgba(23,18,16,0.7) 0%, rgba(23,18,16,0) 35%, rgba(23,18,16,0) 55%, rgba(23,18,16,0.92) 100%)",
           }}
         />
+
+        {/* ── Flèches du carousel — uniquement si plusieurs photos ── */}
+        {hasMultiplePhotos && (
+          <>
+            <button
+              onClick={goToPrevPhoto}
+              aria-label="Photo précédente"
+              style={{
+                position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+                width: 34, height: 34, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                backgroundColor: "rgba(23,18,16,0.55)",
+                color: "var(--color-text)",
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              <ChevronLeft />
+            </button>
+            <button
+              onClick={goToNextPhoto}
+              aria-label="Photo suivante"
+              style={{
+                position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                width: 34, height: 34, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                backgroundColor: "rgba(23,18,16,0.55)",
+                color: "var(--color-text)",
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              <ChevronRight />
+            </button>
+
+            {/* ── Points indicateurs — au-dessus du badge catégorie pour ne pas le chevaucher ── */}
+            <div
+              style={{
+                position: "absolute", bottom: 48, left: 0, right: 0,
+                display: "flex", justifyContent: "center", gap: 6,
+              }}
+            >
+              {photos.map((photo, i) => (
+                <span
+                  key={photo.id}
+                  style={{
+                    width: i === photoIndex ? 16 : 6,
+                    height: 6,
+                    borderRadius: 99,
+                    backgroundColor: i === photoIndex ? "var(--color-primary)" : "rgba(240,232,224,0.45)",
+                    transition: "width 0.2s, background-color 0.2s",
+                  }}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Boutons retour + [modifier] + like */}
         <div
