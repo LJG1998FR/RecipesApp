@@ -126,7 +126,10 @@ home:
         "page": 'Page'
         "previous": 'Précédent'
         "next": 'Suivant'
-    
+language_switcher:
+    label: 'Changer de langue'
+    current: 'Langue actuelle : {lang}'
+
 
 recipe:
     card:

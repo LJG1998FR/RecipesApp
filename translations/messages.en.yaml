@@ -130,6 +130,10 @@ home:
         "page": 'Page'
         "previous": 'Previous'
         "next": 'Next'
+language_switcher:
+  label: 'Switch language'
+  current: 'Current language: {lang}'
+
 
 recipe:
     card:

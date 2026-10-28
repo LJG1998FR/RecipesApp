@@ -119,6 +119,10 @@
             "next": "Next"
         }
     },
+    "language_switcher": {
+        "label": "Switch language",
+        "current": "Current language: {lang}"
+    },
     "recipe": {
         "card": {
             "time_prep_only": "{prepTime} min.",
