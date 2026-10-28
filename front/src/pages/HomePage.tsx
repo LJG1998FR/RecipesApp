@@ -8,6 +8,7 @@ import { useUser, getInitials } from "../context/UserContext";
 import Loading from "../components/layout/Loading";
 import PaginationControls from "../components/layout/PaginationControls";
 import { useTranslation } from "@/context/LocaleContext";
+import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 
 interface Props {
   onSelectRecipe: (id: number) => void;
@@ -95,32 +96,27 @@ export default function HomePage({ onSelectRecipe }: Props) {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "52px 20px 16px",   /* 52px top = safe area + breathing room */
+          padding: "52px 20px 16px",
         }}
       >
-        {/* Salutation */}
         <p style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text)" }}>
           {t("home.greeting", { name: user.firstName })}
         </p>
 
-        {/* Avatar circulaire */}
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: "50%",
-            backgroundColor: "var(--color-primary)",
-            color: "#171210",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 16,
-            fontWeight: 700,
-            fontFamily: "var(--font-display)",
-            flexShrink: 0,
-          }}
-        >
-          {getInitials(user)}
+        {/* Groupe : sélecteur de langue + avatar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <LanguageSwitcher />
+          <div
+            style={{
+              width: 42, height: 42, borderRadius: "50%",
+              backgroundColor: "var(--color-primary)", color: "#171210",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 16, fontWeight: 700, fontFamily: "var(--font-display)",
+              flexShrink: 0,
+            }}
+          >
+            {getInitials(user)}
+          </div>
         </div>
       </div>
 

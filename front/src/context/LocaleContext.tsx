@@ -49,7 +49,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    loader().then((mod) => setMessages(mod.default));
+    loader().then((mod) => {
+      setMessages(mod.default);
+      document.documentElement.lang = locale;
+    });
   }, [locale]);
 
   function setLocale(newLocale: Locale) {

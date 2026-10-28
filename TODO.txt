@@ -1,7 +1,7 @@
 FRONT-OFFICE:
 - Web accessibility
-- Carousel photos
 - Choose language
+- Legal mentions
 
 BACK-OFFICE:
 - rate limiter

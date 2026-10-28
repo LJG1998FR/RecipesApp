@@ -195,7 +195,7 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
             {showEditButton && (
               <button
                 onClick={onEdit}
-                aria-label="Modifier la recette"
+                aria-label={t('recipe.update.title')}
                 style={{
                   width: 38, height: 38, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",

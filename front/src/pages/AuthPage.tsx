@@ -9,6 +9,7 @@ import { isPasswordValid } from "@/utils/passwordPolicy";
 import { ApiValidationError } from "@/api/errors";
 import PasswordRequirements from "@/components/form/PasswordRequirements";
 import { useNavigate } from "react-router-dom";
+import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 
 interface Props {
   onAuth: (userData: UserData) => void;
@@ -94,6 +95,10 @@ const handleSubmit = async () => {
               "linear-gradient(to bottom, rgba(23,18,16,0.15) 0%, rgba(23,18,16,0.5) 50%, rgba(23,18,16,1) 100%)",
           }}
         />
+        {/* Sélecteur de langue flottant */}
+        <div style={{ position: "absolute", top: 48, right: 20, zIndex: 10 }}>
+          <LanguageSwitcher />
+        </div>
         <div className="absolute">
           <h1
             style={{

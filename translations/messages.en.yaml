@@ -1,0 +1,269 @@
+# ============================================================================
+# STRUCTURE:
+# - common  : generic elements (buttons, messages, errors, nav, categories, badges)
+# - auth    : Authentication (login, register, logout)
+# - home    : Home page (search, filters, recipe list)
+# - recipe  : Recipe card, detail page, shared form, add, edit
+# - profile : User profile page
+# - saved   : "Saved recipes" tab
+#
+# BUILD: {page}.{section}.{element}
+# Example: auth.login.button_submit
+# (NB: for a section with a single key, {page}.{element} is tolerated rather
+#  than forcing an artificial sub-section — cf. "saved.empty_state")
+#
+# ⚠️ This file MUST keep the exact same key structure as messages.fr.yaml.
+# A key present in one file and missing in the other falls back to the raw
+# key being displayed on screen (see LocaleContext.tsx -> t()).
+# ============================================================================
+
+common:
+    buttons:
+        save: 'Save'
+        cancel: 'Cancel'
+        confirm: 'Confirm'
+        back: 'Back'
+        close: 'Close'
+        delete: 'Delete'
+        edit: 'Edit'
+        add: 'Add'
+    messages:
+        loading: 'Loading…'
+        success: 'Operation successful.'
+        no_results: 'No results found.'
+    errors:
+        generic: 'Something went wrong. Please try again.'
+        network: 'Unable to reach the server.'
+        required_field: 'This field is required.'
+        password:
+            too_short: 'At least {min} characters'
+            missing_uppercase: 'At least one uppercase letter'
+            missing_lowercase: 'At least one lowercase letter'
+            missing_digit: 'At least one digit'
+            invalid: 'Password does not meet the required criteria.'
+    nav:
+        home: 'Home'
+        saved: 'Saved'
+        add_recipe: 'Add a recipe'
+        profile: 'Profile'
+    # ⚠️ These labels are for DISPLAY ONLY. The actual values ("Plats",
+    # "Desserts"...) come from the backend (RecipeType.php) and are also
+    # used to filter data on the front end — never replace them with these
+    # translations in the filtering logic.
+    categories:
+        all: 'All'
+        plates: 'Main dishes'
+        desserts: 'Desserts'
+        mocktails: 'Mocktails'
+    badges:
+        optional: 'optional'
+
+auth:
+    login:
+        title: 'Welcome back, '
+        subtitle: 'chef.'
+        button_title: 'Login'
+        email_label: 'Email address'
+        email_placeholder: 'marie@example.com'
+        password_label: 'Password'
+        password_placeholder: 'Min. 16 characters'
+        button_submit: 'Sign in'
+        forgot_password: 'Forgot password?'
+        switch_to_signup_text: "Don't have an account yet? "
+        switch_to_signup_link: 'Sign up'
+        error_invalid_credentials: 'Something went wrong. Please check your credentials.'
+        error_invalid_email: 'Invalid email address.'
+        error_password_too_short: 'Password must be at least 16 characters long.'
+    register:
+        title: 'Join '
+        subtitle: 'the table.'
+        button_title: 'Sign up'
+        firstname_label: 'First name'
+        firstname_placeholder: 'Marie'
+        lastname_label: 'Last name'
+        lastname_placeholder: 'Dupont'
+        button_submit: 'Create my account'
+        switch_to_login_text: 'Already have an account? '
+        switch_to_login_link: 'Sign in'
+        error_missing_names: 'Please enter your first and last name.'
+    logout:
+        button: 'Sign out'
+        success_message: 'Successfully signed out'
+    forgot_password:
+        title: 'Forgot password'
+        description: 'Enter the email address linked to your account. We''ll send you a link to choose a new password.'
+        email_label: 'Email address'
+        email_placeholder: 'marie@example.com'
+        submit_button: 'Send the link'
+        submitting: 'Sending…'
+        success_message: 'If an account exists for the address {email}, you will receive an email with a reset link.'
+        back_to_login: 'Back to sign in'
+        error_generic: 'Something went wrong. Please try again in a moment.'
+    reset_password:
+        title: 'New password'
+        description: 'Choose a new password for your account.'
+        password_label: 'New password'
+        password_placeholder: 'Min. 16 characters'
+        confirm_label: 'Confirm password'
+        confirm_placeholder: 'Repeat the password'
+        submit_button: 'Confirm new password'
+        submitting: 'Updating…'
+        success_message: 'Your password has been successfully updated.'
+        back_to_login: 'Sign in'
+        invalid_link_message: 'This reset link is invalid or incomplete.'
+        request_new_link: 'Request a new link'
+        expired_or_used: 'This link has expired or has already been used. Please request a new one.'
+
+home:
+    greeting: 'Hello, {name} 👋'
+    search_placeholder: 'Search for a recipe…'
+    section_title_all: 'All recipes'
+    # No built-in pluralization engine here: the singular/plural key is
+    # chosen in the component. Reminder: in English "0 recipes" is PLURAL
+    # (unlike French "0 recette", which is singular).
+    recipe_count_singular: '{count} recipe'
+    recipe_count_plural: '{count} recipes'
+    empty_state: 'No recipes found'
+    load_error: 'Unable to load recipes.'
+    pagination:
+        "per_page": 'Per page'
+        "page": 'Page'
+        "previous": 'Previous'
+        "next": 'Next'
+
+recipe:
+    card:
+        time_prep_only: '{prepTime} min.'
+        time_prep_and_cook: '{prepTime} min. +{cookTime} min.'
+    detail:
+        stat_prep: 'Prep time'
+        stat_cook: 'Cook time'
+        tips_title: "Chef's tips"
+        tab_ingredients: 'Ingredients'
+        tab_steps: 'Steps'
+    not_found:
+        message: 'Recipe not found.'
+        back_button: '← Back'
+
+    # ── Shared between AddRecipePage and UpdateRecipePage (RecipeFormShared.tsx) ──
+    # Deliberately DISTINCT from "recipe.detail.*" despite similar wording
+    # ("Prep time", "Cook time"): these are form labels, not read-only
+    # display badges. Linking them would create a fragile coupling between
+    # two screens that have no reason to change together.
+    form:
+        title_label: 'Title'
+        title_placeholder: 'e.g. Apple Tarte Tatin'
+        people_label: 'Servings'
+        category_label: 'Category'
+        prep_label: 'Prep time'
+        cook_label: 'Cook time'
+        photos_label: 'Photos'
+        ingredients_label: 'Ingredients'
+        steps_label: 'Steps'
+        tips_label: "Chef's tips"
+        step_placeholder: 'Step {n}…'
+        tips_placeholder: "Share your tips…\n(one tip per line)"
+        add_step_button: 'Add a step'
+        ingredient_singular_label: 'Ingredient'
+        ingredient_search_placeholder: 'Type to search…'
+        ingredient_loading: 'Loading ingredients…'
+        ingredient_load_error: 'Unable to load the ingredient list. Please reload the page.'
+        ingredient_no_match: 'No matching ingredient. Only an administrator can create new ones.'
+        quantity_label: 'Quantity'
+        quantity_placeholder: 'e.g. 250 or 1.5'
+        unit_placeholder: 'unit'
+        add_ingredient_button: 'Add ingredient'
+        error_choose_ingredient: 'Choose an ingredient from the list.'
+        error_quantity_min: 'Quantity must be a number ≥ {min}.'
+        photo_alt: 'Photo {n}'
+        # Specific to ExistingPhotoGrid (UpdateRecipePage): photos already
+        # saved don't have a displayed order number, unlike new local
+        # photos (photo_alt above).
+        existing_photo_alt: 'Recipe photo'
+        # Home-made plural (cf. "0 = plural in English" rule): {count} == 1 -> singular
+        photo_count_singular: '{count} / {max} photo · 5 MB max each'
+        photo_count_plural: '{count} / {max} photos · 5 MB max each'
+        photo_error_unsupported_format: '{filename}: unsupported format'
+        photo_error_too_large: '{filename}: over 5 MB'
+        # Unified: AddRecipePage and UpdateRecipePage used 2 near-identical
+        # phrasings without any real functional reason to differ.
+        photo_error_max_reached: 'Maximum {max} photos in total: some were ignored'
+        error_title_required: 'Title is required.'
+        error_prep_time_invalid: 'Prep time must be a whole number of minutes (≥ 1).'
+        error_cook_time_invalid: 'Cook time must be a whole number of minutes (≥ 0).'
+        error_no_ingredients: 'Add at least one ingredient.'
+        error_no_steps: 'Add at least one step.'
+        error_step_too_long: 'Each step is limited to {max} characters.'
+        # Replaces the old default hard-coded in extractMessages().
+        error_generic_fallback: 'Something went wrong. Please try again.'
+        error_photo_delete_failed: 'Failed to delete the photo.'
+
+    add:
+        title: 'New recipe'
+        submit_button: 'Confirm submission'
+        submitting: 'Submitting…'
+        success_title: 'Pending review'
+        success_message: '"{title}" is now awaiting moderation approval.'
+        back_home_button: 'Back to home'
+        photo_warning: 'The recipe was created successfully, but uploading the photos failed ({error}). You can add them later by editing the recipe.'
+
+    update:
+        title: 'Edit recipe'
+        error_not_found: 'This recipe could not be found. It may have already been deleted.'
+        error_forbidden: 'You are not allowed to edit this recipe.'
+        error_generic_load: 'Unable to load this recipe. Please try again in a moment.'
+        success_message: 'Changes saved.'
+        submit_button: 'Save changes'
+        submitting: 'Saving…'
+        photos_max_reached: 'Maximum of {max} photos reached — remove one to add a new one.'
+        delete_button: 'Delete this recipe'
+        delete_confirm_title: 'Permanently delete "{title}"?'
+        delete_confirm_warning: 'This action is irreversible: the recipe, its steps, ingredients and photos will be deleted.'
+        delete_confirm_button: 'Confirm deletion'
+        deleting: 'Deleting…'
+        error_update_failed: 'Failed to update the recipe.'
+        error_delete_failed: 'Failed to delete the recipe.'
+        photo_upload_partial_error: 'Your changes were saved, but uploading the new photos failed ({error}).'
+
+profile:
+    section_informations: 'Information'
+    field_firstname: 'First name'
+    field_lastname: 'Last name'
+    field_email: 'Email address'
+    readonly_badge: 'Not editable'
+    section_security: 'Security'
+    password_label: 'Password'
+    password_edit_button: 'Edit'
+    password_change_title: 'Change password'
+    password_current_label: 'Current password'
+    password_current_placeholder: '••••••••'
+    password_new_label: 'New password'
+    password_new_placeholder: 'Min. 16 characters'
+    password_confirm_label: 'Confirm password'
+    password_confirm_placeholder: 'Repeat the password'
+    member_since: 'member since {date}'
+    success_password_updated: 'Password successfully updated.'
+    error_current_password_required: 'Enter your current password.'
+    error_new_password_too_short: 'The new password must be at least 16 characters long.'
+    error_passwords_mismatch: 'Passwords do not match.'
+    my_recipes_button: 'My recipes'
+    my_recipes:
+        title: 'My recipes'
+        section_published: 'Published'
+        section_pending: 'Awaiting publication'
+        section_declined: 'Declined'
+        empty_all: "You don't have any recipes yet."
+        load_error: 'Unable to load your recipes.'
+        delete_error: 'Unable to delete this recipe.'
+        delete_confirm: 'Confirm deletion?'
+        delete_cancel: 'Cancel'
+        delete_button: 'Delete'
+        edit_button: 'Edit'
+        status_pending: 'Pending'
+        status_declined: 'Declined'
+    delete_account_title: 'Delete my account'
+    delete_account_subtitle: '⚠️ Permanently delete your account?'
+    delete_account_warning: 'This action is irreversible. All your data will be lost.'
+
+saved:
+    empty_state: 'Your saved recipes will appear here.'
