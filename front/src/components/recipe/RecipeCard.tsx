@@ -11,9 +11,31 @@ export default function RecipeCard({ recipe, onSelect }: Props) {
   
   const { t } = useTranslation();
   const hasCookTime = parseInt(recipe.cookTime) > 0;
+
+  // ⚠️ Correctif accessibilité : avant, toute la carte était un <div onClick>.
+  // Un <div> n'est ni focusable ni activable au clavier par défaut (aucun
+  // "tabindex" implicite, aucune gestion de Entrée/Espace) : une personne qui
+  // navigue sans souris (clavier, switch, certains lecteurs d'écran en mode
+  // "parcours") ne pouvait tout simplement PAS ouvrir une recette.
+  // On ajoute le trio minimal attendu par les ARIA Authoring Practices pour
+  // un "bouton personnalisé" : role="button" + tabIndex={0} + gestion
+  // clavier (Entrée ET Espace, comme un vrai <button>). On ne passe pas à un
+  // vrai <button> ici car son modèle de contenu HTML n'autorise pas des
+  // <div> enfants (seulement du "phrasing content") — on resterait un <div>
+  // avec du contenu bloc à l'intérieur, mais qui SE COMPORTE comme un bouton.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault(); // évite que "Espace" fasse défiler la page
+      onSelect();
+    }
+  };
+
   return (
     <div
       onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
       style={{
         textAlign: "left",
         width: "100%",

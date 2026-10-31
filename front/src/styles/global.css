@@ -58,3 +58,27 @@ button { cursor: pointer; border: none; background: none; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* spinner de chargement */
+
+.a11y-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border, #2e2924);
+  border-top-color: var(--color-primary, #e09a5a);
+  border-radius: 50%;
+  animation: a11y-spin 0.8s linear infinite;
+}
+@keyframes a11y-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .a11y-spinner {
+    animation: none;
+    /* On garde un indice visuel statique plutôt que de faire
+        disparaître complètement le spinner : une personne qui a
+        désactivé les animations doit quand même voir "quelque
+        chose" se passe, juste sans mouvement. */
+    opacity: 0.6;
+  }
+}

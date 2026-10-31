@@ -5,7 +5,7 @@ import { CheckIcon, ChevronLeft, ClockIcon, FlameIcon, PlusIcon, GripIcon, Trash
 import { createRecipe, fetchIngredients, uploadRecipePhotos } from "../../api";
 import {
   MAX_PHOTOS, MAX_PHOTO_SIZE, ALLOWED_PHOTO_TYPES, MAX_STEP_LENGTH,
-  inputStyle, FormSection, StepBadge, IngredientInput, PhotoGrid, extractMessages,
+  inputStyle, visuallyHiddenStyle, FormSection, StepBadge, IngredientInput, PhotoGrid, extractMessages,
   validateRecipeForm, buildStepsPayload, buildIngredientsPayload,
 } from "./RecipeFormShared";
 import type { SelectedIngredient, LocalPhoto } from "./RecipeFormShared";
@@ -37,6 +37,15 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
   const [tips,        setTips]        = useState("");
   const [errors,      setErrors]      = useState<string[]>([]);
   const [status,      setStatus]      = useState<SubmitStatus>("idle");
+  const successHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  // Gestion du focus au changement d'écran (cf. commentaire sur le h1
+  // ci-dessous) : on ne le fait qu'à l'entrée dans l'état "submitted".
+  useEffect(() => {
+    if (status === "submitted") {
+      successHeadingRef.current?.focus();
+    }
+  }, [status]);
   const [photoWarning, setPhotoWarning] = useState("");
 
   // Catalogue d'ingrédients (API)
@@ -96,9 +105,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
   };
 
   const handleSubmit = async () => {
-    // Validation ET construction du payload sont désormais partagées avec
-    // UpdateRecipePage.tsx (voir RecipeFormShared.tsx) : ce sont les mêmes
-    // règles des deux côtés, pas de raison de les maintenir en double.
+    // Validation ET construction du payload
     const errs = validateRecipeForm({ title, prepTime, cookTime, ingredientsCount: ingredients.length, steps }, t);
     if (errs.length) { setErrors(errs); return; }
     setErrors([]);
@@ -155,7 +162,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
         padding: "0 32px", textAlign: "center",
         backgroundColor: "var(--color-background)",
       }}>
-        <div style={{
+        <div aria-hidden="true" style={{
           width: 72, height: 72, borderRadius: "50%", marginBottom: 20,
           display: "flex", alignItems: "center", justifyContent: "center",
           backgroundColor: "rgba(224,154,90,0.15)",
@@ -164,16 +171,24 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
             <CheckIcon />
           </span>
         </div>
-        <h2 style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
+        {/* h1 (et non h2) : cet écran REMPLACE entièrement le formulaire, ce
+            n'est pas une sous-section de "Nouvelle recette" mais un écran à
+            part entière — il doit donc porter son propre titre de plus haut
+            niveau. tabIndex={-1} + ref + focus() au montage : le bouton sur
+            lequel le focus clavier se trouvait vient de disparaître du DOM
+            (le formulaire entier a été démonté), le focus retombe sinon sur
+            <body> sans qu'aucune technologie d'assistance n'annonce ce
+            nouvel écran de confirmation. */}
+        <h1 ref={successHeadingRef} tabIndex={-1} style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
           {t("recipe.add.success_title")}
-        </h2>
+        </h1>
         <p style={{ fontSize: 14, color: "var(--color-text-muted)", marginBottom: photoWarning ? 12 : 28 }}>
           {t("recipe.add.success_message", { title })}
         </p>
         {photoWarning && (
-          <p style={{ fontSize: 13, color: "#e0b070", marginBottom: 28 }}>{photoWarning}</p>
+          <p role="alert" style={{ fontSize: 13, color: "#e0b070", marginBottom: 28 }}>{photoWarning}</p>
         )}
-        <button
+        <button type="button"
           onClick={onCancel}
           style={{
             padding: "14px 32px", borderRadius: 16,
@@ -194,9 +209,10 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
 
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "52px 20px 20px" }}>
-        <button
+        <button type="button"
           onClick={onCancel}
           disabled={submitting}
+          aria-label={t("common.buttons.cancel")}
           style={{
             width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -211,12 +227,17 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
         </h1>
       </div>
 
-      <div style={{ padding: "0 20px" }}>
+      <main style={{ padding: "0 20px" }}>
 
-        {/* ── Titre ── */}
-        <FormSection title={t("recipe.form.title_label")}>
+        {/* ── Titre ──
+            titleId + aria-labelledby : le champ titre n'avait AUCUN nom
+            accessible (le "label" visuel de FormSection est un simple <p>,
+            jamais lié à l'input). Un lecteur d'écran annonçait juste
+            "Édition, texte" en y arrivant au clavier. */}
+        <FormSection title={t("recipe.form.title_label")} titleId="recipe-title-label">
           <input
             type="text"
+            aria-labelledby="recipe-title-label"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={255}
@@ -227,39 +248,61 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
 
         {/* ── Personnes + Catégorie (2 colonnes) ── */}
         <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
-          {/* Personnes */}
+          {/* Personnes — compteur +/- : role="group" relie visuellement et
+              sémantiquement les deux boutons et le nombre à l'intitulé
+              "Personnes" (sinon trois éléments sans aucun rapport exposé).
+              Les boutons − / + n'avaient pour seul nom accessible que le
+              caractère "−"/"+" lui-même, que certains lecteurs d'écran
+              prononcent mal ou passent sous silence ; aria-label explicite
+              le rend sans ambiguïté, et aria-live sur le compteur annonce
+              la nouvelle valeur après chaque clic (le focus reste sur le
+              bouton, jamais sur le chiffre, qui ne serait donc jamais relu
+              sans ce live region). */}
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
+            <p id="people-label" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
               {t("recipe.form.people_label")}
             </p>
-            <div style={{
-              display: "flex", alignItems: "center",
-              backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 14, overflow: "hidden",
-            }}>
-              <button
+            <div
+              role="group"
+              aria-labelledby="people-label"
+              style={{
+                display: "flex", alignItems: "center",
+                backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 14, overflow: "hidden",
+              }}
+            >
+              <button type="button"
                 onClick={() => setPeople((p) => Math.max(1, p - 1))}
+                aria-label={t("common.aria.decrease") + " — " + t("recipe.form.people_label")}
                 style={{ width: 44, height: 48, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 300, color: "var(--color-primary)", flexShrink: 0, cursor: "pointer" }}
               >−</button>
-              <span style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>{people}</span>
-              <button
+              <span aria-live="polite" style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>{people}</span>
+              <button type="button"
                 onClick={() => setPeople((p) => p + 1)}
+                aria-label={t("common.aria.increase") + " — " + t("recipe.form.people_label")}
                 style={{ width: 44, height: 48, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 300, color: "var(--color-primary)", flexShrink: 0, cursor: "pointer" }}
               >+</button>
             </div>
           </div>
 
-          {/* Catégorie */}
+          {/* Catégorie — role="radiogroup"/"radio" serait le choix "parfait"
+              puisqu'un SEUL choix est possible parmi plusieurs options
+              mutuellement exclusives, mais cela exigerait la navigation au
+              clavier par flèches (comme pour les tabs plus haut). On reste
+              cohérent avec le reste de l'app (HomePage, PaginationControls) :
+              role="group" + aria-pressed, plus simple et honnête sur ce que
+              le clavier permet réellement ici (Tab + Entrée/Espace). */}
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
+            <p id="category-label" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
               {t("recipe.form.category_label")}
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div role="group" aria-labelledby="category-label" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {RECIPE_CATEGORIES.map((c) => {
                 const isActive = category === c;
                 return (
-                  <button
+                  <button type="button"
                     key={c}
                     onClick={() => setCategory(c)}
+                    aria-pressed={isActive}
                     style={{
                       padding: "10px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
                       cursor: "pointer", transition: "all 0.15s",
@@ -276,17 +319,21 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           </div>
         </div>
 
-        {/* ── Préparation + Cuisson (2 colonnes, en minutes) ── */}
+        {/* ── Préparation + Cuisson (2 colonnes, en minutes) ──
+            id stable (recipe_prep_time / recipe_cook_time), PAS dérivé du
+            texte traduit — même raisonnement que pour AuthPage : un id
+            construit à partir d'un libellé qui peut contenir des espaces en
+            anglais casserait l'id ET l'association label/input. */}
         <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
           {[
-            { label: t("recipe.form.prep_label"), badge: undefined,                      icon: <ClockIcon size={15} />, value: prepTime, set: setPrepTime, placeholder: "15", min: 1 },
-            { label: t("recipe.form.cook_label"), badge: t("common.badges.optional"),     icon: <FlameIcon />,           value: cookTime, set: setCookTime, placeholder: "30", min: 0 },
-          ].map(({ label, badge, icon, value, set, placeholder, min }) => (
-            <div key={label} style={{ flex: 1 }}>
+            { id: "recipe_prep_time", label: t("recipe.form.prep_label"), badge: undefined,                      icon: <ClockIcon size={15} />, value: prepTime, set: setPrepTime, placeholder: "15", min: 1 },
+            { id: "recipe_cook_time", label: t("recipe.form.cook_label"), badge: t("common.badges.optional"),     icon: <FlameIcon />,           value: cookTime, set: setCookTime, placeholder: "30", min: 0 },
+          ].map(({ id, label, badge, icon, value, set, placeholder, min }) => (
+            <div key={id} style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
+                <label htmlFor={id} style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
                   {label}
-                </p>
+                </label>
                 {badge && (
                   <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, backgroundColor: "var(--color-tag)", color: "var(--color-text-dim)", border: "1px solid var(--color-border)" }}>
                     {badge}
@@ -298,8 +345,9 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
                 padding: "0 14px", height: 48, borderRadius: 14,
                 backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)",
               }}>
-                <span style={{ color: "var(--color-text-dim)", flexShrink: 0 }}>{icon}</span>
+                <span aria-hidden="true" style={{ color: "var(--color-text-dim)", flexShrink: 0 }}>{icon}</span>
                 <input
+                  id={id}
                   type="number"
                   inputMode="numeric"
                   min={min}
@@ -307,9 +355,10 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
                   value={value}
                   onChange={(e) => set(e.target.value)}
                   placeholder={placeholder}
+                  aria-describedby={`${id}-unit`}
                   style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)", fontFamily: "inherit" }}
                 />
-                <span style={{ fontSize: 12, color: "var(--color-text-dim)", flexShrink: 0 }}>min</span>
+                <span id={`${id}-unit`} style={{ fontSize: 12, color: "var(--color-text-dim)", flexShrink: 0 }}>min</span>
               </div>
             </div>
           ))}
@@ -336,7 +385,12 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
                   <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)" }}>
                     {ing.amount} {ing.unit ?? ""}
                   </span>
-                  <button onClick={() => removeIngredient(i)} style={{ color: "var(--color-text-dim)", cursor: "pointer", marginLeft: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => removeIngredient(i)}
+                    aria-label={`${t("common.buttons.delete")} — ${ing.label}`}
+                    style={{ color: "var(--color-text-dim)", cursor: "pointer", marginLeft: 4 }}
+                  >
                     <TrashIcon />
                   </button>
                 </li>
@@ -352,12 +406,19 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           />
         </FormSection>
 
-        {/* ── Étapes ── */}
+        {/* ── Étapes ──
+            <ol> plutôt que des <div> empilées : des étapes de recette sont
+            INTRINSÈQUEMENT une liste ordonnée. Un lecteur d'écran annonce
+            alors "liste de N éléments" puis "élément 3 sur 5" en se
+            déplaçant — information précieuse ici, totalement absente avec de
+            simples <div>. listStyle:"none" + margin/padding:0 : on retire
+            juste les puces/numéros natifs du navigateur (déjà affichés via
+            le badge rond stylé), le rendu visuel ne change pas. */}
         <FormSection title={t("recipe.form.steps_label")}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <ol style={{ display: "flex", flexDirection: "column", gap: 12, listStyle: "none", margin: 0, padding: 0 }}>
             {steps.map((step, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <span style={{
+              <li key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <span aria-hidden="true" style={{
                   width: 28, height: 28, borderRadius: "50%", flexShrink: 0, marginTop: 10,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 12, fontWeight: 700,
@@ -366,29 +427,39 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
                   {i + 1}
                 </span>
                 <div style={{ flex: 1 }}>
+                  <label htmlFor={`step-${i}`} style={visuallyHiddenStyle}>
+                    {t("recipe.form.step_placeholder", { n: i + 1 })}
+                  </label>
                   <textarea
+                    id={`step-${i}`}
                     value={step}
                     onChange={(e) => updateStep(i, e.target.value)}
                     placeholder={t("recipe.form.step_placeholder", { n: i + 1 })}
                     rows={2}
                     maxLength={MAX_STEP_LENGTH}
+                    aria-describedby={step.length > MAX_STEP_LENGTH * 0.8 ? `step-${i}-counter` : undefined}
                     style={{ ...inputStyle, resize: "none", lineHeight: 1.55, padding: "10px 14px" }}
                   />
                   {step.length > MAX_STEP_LENGTH * 0.8 && (
-                    <p style={{ fontSize: 11, color: "var(--color-text-dim)", textAlign: "right", marginTop: 4 }}>
+                    <p id={`step-${i}-counter`} style={{ fontSize: 11, color: "var(--color-text-dim)", textAlign: "right", marginTop: 4 }}>
                       {step.length} / {MAX_STEP_LENGTH}
                     </p>
                   )}
                 </div>
                 {steps.length > 1 && (
-                  <button onClick={() => removeStep(i)} style={{ color: "var(--color-text-dim)", marginTop: 12, flexShrink: 0, cursor: "pointer" }}>
+                  <button
+                    type="button"
+                    onClick={() => removeStep(i)}
+                    aria-label={`${t("common.buttons.delete")} — ${t("recipe.form.step_placeholder", { n: i + 1 })}`}
+                    style={{ color: "var(--color-text-dim)", marginTop: 12, flexShrink: 0, cursor: "pointer" }}
+                  >
                     <TrashIcon />
                   </button>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
-          <button
+          </ol>
+          <button type="button"
             onClick={addStep}
             style={{
               marginTop: 12, width: "100%", padding: "11px 0",
@@ -404,8 +475,9 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
         </FormSection>
 
         {/* ── Astuces : un seul champ texte, sans limite ── */}
-        <FormSection title={t("recipe.form.tips_label")} badge={t("common.badges.optional")}>
+        <FormSection title={t("recipe.form.tips_label")} titleId="recipe-tips-label" badge={t("common.badges.optional")}>
           <textarea
+            aria-labelledby="recipe-tips-label"
             value={tips}
             onChange={(e) => setTips(e.target.value)}
             placeholder={t("recipe.form.tips_placeholder")}
@@ -414,15 +486,23 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           />
         </FormSection>
 
-        {/* ── Erreurs de validation ── */}
+        {/* ── Erreurs de validation ──
+            role="alert" : la liste apparaît après un clic sur "Confirmer" qui
+            échoue — sans ce live region, rien n'annonce que la soumission a
+            été bloquée (le focus reste sur le bouton, plus bas dans le DOM).
+            <ul>/<li> plutôt que des "• " en dur : un caractère "•" tapé dans
+            le texte est parfois lu à voix haute ("puce") par certains
+            lecteurs d'écran — la sémantique de liste native évite ce bruit. */}
         {errors.length > 0 && (
-          <div style={{
+          <div role="alert" style={{
             marginBottom: 20, padding: "12px 16px", borderRadius: 12,
             backgroundColor: "rgba(224,90,90,0.1)", border: "1px solid rgba(224,90,90,0.25)",
           }}>
-            {errors.map((e, i) => (
-              <p key={i} style={{ fontSize: 13, color: "#e07070" }}>• {e}</p>
-            ))}
+            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {errors.map((e, i) => (
+                <li key={i} style={{ fontSize: 13, color: "#e07070" }}>{e}</li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -430,7 +510,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
             Le bouton "Brouillon" est retiré : le back n'a pas de champ `status`.
             Le remettre quand l'API le gèrera. */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 16 }}>
-          <button
+          <button type="button"
             onClick={handleSubmit}
             disabled={submitting}
             style={{
@@ -443,7 +523,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           >
             <CheckIcon /> {submitting ? t("recipe.add.submitting") : t("recipe.add.submit_button")}
           </button>
-          <button
+          <button type="button"
             onClick={onCancel}
             disabled={submitting}
             style={{
@@ -457,7 +537,7 @@ export default function AddRecipePage({ onCancel }: { onCancel: () => void }) {
           </button>
         </div>
 
-      </div>
+      </main>
     </div>
   );
 }

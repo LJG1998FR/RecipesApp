@@ -11,7 +11,7 @@ import {
 import type { UpdateRecipePayload } from "../../api";
 import {
   MAX_PHOTOS, MAX_PHOTO_SIZE, ALLOWED_PHOTO_TYPES, MAX_STEP_LENGTH,
-  inputStyle, FormSection, StepBadge, IngredientInput, PhotoGrid, extractMessages,
+  inputStyle, visuallyHiddenStyle, FormSection, StepBadge, IngredientInput, PhotoGrid, extractMessages,
   validateRecipeForm, buildStepsPayload, buildIngredientsPayload,
 } from "./RecipeFormShared";
 import type { SelectedIngredient, LocalPhoto } from "./RecipeFormShared";
@@ -71,9 +71,10 @@ function ExistingPhotoGrid({
               alt={t("recipe.form.existing_photo_alt")}
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
-            <button
+            <button type="button"
               onClick={() => onRemove(photo)}
               disabled={isDeleting}
+              aria-label={t("recipe.form.remove_photo_button")}
               style={{
                 position: "absolute", top: 4, right: 4,
                 width: 22, height: 22, borderRadius: "50%",
@@ -82,7 +83,7 @@ function ExistingPhotoGrid({
                 cursor: isDeleting ? "wait" : "pointer",
               }}
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <svg aria-hidden="true" focusable="false" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
@@ -127,6 +128,15 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingRecipe, setDeletingRecipe] = useState(false);
   const [deleteError,  setDeleteError]  = useState("");
+  const deleteConfirmHeadingRef = useRef<HTMLParagraphElement>(null);
+
+  // Déplace le focus clavier vers l'avertissement dès qu'il apparaît (voir
+  // commentaire sur le JSX plus bas).
+  useEffect(() => {
+    if (showDeleteConfirm) {
+      deleteConfirmHeadingRef.current?.focus();
+    }
+  }, [showDeleteConfirm]);
 
   // ── Chargement de la recette à éditer ───────────────────────────────────────
   useEffect(() => {
@@ -141,7 +151,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
         setCategory(recipe.type);
         setPrepTime(String(recipe.prepTime));
         setCookTime(recipe.cookingTime !== null ? String(recipe.cookingTime) : "");
-        setTips(recipe.tips);
+        setTips(recipe.tips.toString());
         setSteps(recipe.steps.length > 0 ? recipe.steps.map((s) => s.description) : [""]);
         setIngredients(recipe.ingredients.map((i) => ({
           ingredientId: i.ingredientId,
@@ -326,7 +336,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
       }}>
         <p style={{ fontSize: 40 }}>🍽️</p>
         <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>{messages[loadStatus]}</p>
-        <button
+        <button type="button"
           onClick={onCancel}
           style={{ fontSize: 14, fontWeight: 600, color: "var(--color-primary)", marginTop: 8 }}
         >
@@ -342,9 +352,10 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
 
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "52px 20px 20px" }}>
-        <button
+        <button type="button"
           onClick={onCancel}
           disabled={submitting}
+          aria-label={t("common.buttons.cancel")}
           style={{
             width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -359,24 +370,28 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
         </h1>
       </div>
 
-      <div style={{ padding: "0 20px" }}>
+      <main style={{ padding: "0 20px" }}>
 
-        {/* ── Bandeau de succès ── */}
+        {/* ── Bandeau de succès ── role="status" : "Modifications enregistrées"
+            disparaît tout seul après 3s (setTimeout plus haut) — sans ce rôle,
+            rien n'annonce ce message à un lecteur d'écran dont le focus est
+            resté sur le bouton "Enregistrer", loin de ce bandeau. ── */}
         {savedMessage && (
-          <div style={{
+          <div role="status" style={{
             marginBottom: 20, padding: "12px 16px", borderRadius: 12,
             backgroundColor: "rgba(168,200,122,0.12)", border: "1px solid rgba(168,200,122,0.3)",
             display: "flex", alignItems: "center", gap: 10,
           }}>
-            <span style={{ color: "#a8c87a" }}><CheckIcon /></span>
+            <span aria-hidden="true" style={{ color: "#a8c87a" }}><CheckIcon /></span>
             <p style={{ fontSize: 13, color: "#a8c87a", margin: 0 }}>{savedMessage}</p>
           </div>
         )}
 
         {/* ── Titre ── */}
-        <FormSection title={t("recipe.form.title_label")}>
+        <FormSection title={t("recipe.form.title_label")} titleId="recipe-title-label">
           <input
             type="text"
+            aria-labelledby="recipe-title-label"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={255}
@@ -387,37 +402,46 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
 
         {/* ── Personnes + Catégorie (2 colonnes) ── */}
         <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
-          {/* Personnes */}
+          {/* Personnes — voir AddRecipePage.tsx pour le détail du raisonnement
+              (role="group", aria-label sur +/-, aria-live sur le compteur). */}
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
+            <p id="people-label" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
               {t("recipe.form.people_label")}
             </p>
-            <div style={{
-              display: "flex", alignItems: "center",
-              backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 14, overflow: "hidden",
-            }}>
-              <button
+            <div
+              role="group"
+              aria-labelledby="people-label"
+              style={{
+                display: "flex", alignItems: "center",
+                backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 14, overflow: "hidden",
+              }}
+            >
+              <button type="button"
                 onClick={() => setPeople((p) => Math.max(1, p - 1))}
+                aria-label={t("common.aria.decrease") + " — " + t("recipe.form.people_label")}
                 style={{ width: 44, height: 48, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 300, color: "var(--color-primary)", flexShrink: 0, cursor: "pointer" }}
               >−</button>
-              <span style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>{people}</span>
-              <button
+              <span aria-live="polite" style={{ flex: 1, textAlign: "center", fontSize: 16, fontWeight: 700, color: "var(--color-text)" }}>{people}</span>
+              <button type="button"
                 onClick={() => setPeople((p) => p + 1)}
+                aria-label={t("common.aria.increase") + " — " + t("recipe.form.people_label")}
                 style={{ width: 44, height: 48, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 300, color: "var(--color-primary)", flexShrink: 0, cursor: "pointer" }}
               >+</button>
             </div>
           </div>
 
-          {/* Catégorie */}
+          {/* Catégorie — role="group" + aria-pressed, même raisonnement que
+              AddRecipePage.tsx et HomePage.tsx. */}
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
+            <p id="category-label" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)", marginBottom: 10 }}>
               {t("recipe.form.category_label")}
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div role="group" aria-labelledby="category-label" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {RECIPE_CATEGORIES.map((c) => {
                 const isActive = category === c;
                 return (
-                  <button
+                  <button type="button"
+                    aria-pressed={isActive}
                     key={c}
                     onClick={() => setCategory(c)}
                     style={{
@@ -436,17 +460,18 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           </div>
         </div>
 
-        {/* ── Préparation + Cuisson (2 colonnes, en minutes) ── */}
+        {/* ── Préparation + Cuisson (2 colonnes, en minutes) ──
+            id stable (pas dérivé du texte traduit, cf. AuthPage.tsx). ── */}
         <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
           {[
-            { label: t("recipe.form.prep_label"), badge: undefined,                  icon: <ClockIcon size={15} />, value: prepTime, set: setPrepTime, placeholder: "15", min: 1 },
-            { label: t("recipe.form.cook_label"), badge: t("common.badges.optional"), icon: <FlameIcon />,           value: cookTime, set: setCookTime, placeholder: "30", min: 0 },
-          ].map(({ label, badge, icon, value, set, placeholder, min }) => (
-            <div key={label} style={{ flex: 1 }}>
+            { id: "recipe_prep_time", label: t("recipe.form.prep_label"), badge: undefined,                  icon: <ClockIcon size={15} />, value: prepTime, set: setPrepTime, placeholder: "15", min: 1 },
+            { id: "recipe_cook_time", label: t("recipe.form.cook_label"), badge: t("common.badges.optional"), icon: <FlameIcon />,           value: cookTime, set: setCookTime, placeholder: "30", min: 0 },
+          ].map(({ id, label, badge, icon, value, set, placeholder, min }) => (
+            <div key={id} style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
+                <label htmlFor={id} style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
                   {label}
-                </p>
+                </label>
                 {badge && (
                   <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, backgroundColor: "var(--color-tag)", color: "var(--color-text-dim)", border: "1px solid var(--color-border)" }}>
                     {badge}
@@ -458,8 +483,9 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                 padding: "0 14px", height: 48, borderRadius: 14,
                 backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)",
               }}>
-                <span style={{ color: "var(--color-text-dim)", flexShrink: 0 }}>{icon}</span>
+                <span aria-hidden="true" style={{ color: "var(--color-text-dim)", flexShrink: 0 }}>{icon}</span>
                 <input
+                  id={id}
                   type="number"
                   inputMode="numeric"
                   min={min}
@@ -467,9 +493,10 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                   value={value}
                   onChange={(e) => set(e.target.value)}
                   placeholder={placeholder}
+                  aria-describedby={`${id}-unit`}
                   style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)", fontFamily: "inherit" }}
                 />
-                <span style={{ fontSize: 12, color: "var(--color-text-dim)", flexShrink: 0 }}>min</span>
+                <span id={`${id}-unit`} style={{ fontSize: 12, color: "var(--color-text-dim)", flexShrink: 0 }}>min</span>
               </div>
             </div>
           ))}
@@ -503,7 +530,12 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                   <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)" }}>
                     {ing.amount} {ing.unit ?? ""}
                   </span>
-                  <button onClick={() => removeIngredient(i)} style={{ color: "var(--color-text-dim)", cursor: "pointer", marginLeft: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => removeIngredient(i)}
+                    aria-label={`${t("common.buttons.delete")} — ${ing.label}`}
+                    style={{ color: "var(--color-text-dim)", cursor: "pointer", marginLeft: 4 }}
+                  >
                     <TrashIcon />
                   </button>
                 </li>
@@ -519,12 +551,12 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           />
         </FormSection>
 
-        {/* ── Étapes ── */}
+        {/* ── Étapes — <ol>, cf. AddRecipePage.tsx pour le raisonnement complet ── */}
         <FormSection title={t("recipe.form.steps_label")}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <ol style={{ display: "flex", flexDirection: "column", gap: 12, listStyle: "none", margin: 0, padding: 0 }}>
             {steps.map((step, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <span style={{
+              <li key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <span aria-hidden="true" style={{
                   width: 28, height: 28, borderRadius: "50%", flexShrink: 0, marginTop: 10,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 12, fontWeight: 700,
@@ -533,29 +565,39 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                   {i + 1}
                 </span>
                 <div style={{ flex: 1 }}>
+                  <label htmlFor={`step-${i}`} style={visuallyHiddenStyle}>
+                    {t("recipe.form.step_placeholder", { n: i + 1 })}
+                  </label>
                   <textarea
+                    id={`step-${i}`}
                     value={step}
                     onChange={(e) => updateStep(i, e.target.value)}
                     placeholder={t("recipe.form.step_placeholder", { n: i + 1 })}
                     rows={2}
                     maxLength={MAX_STEP_LENGTH}
+                    aria-describedby={step.length > MAX_STEP_LENGTH * 0.8 ? `step-${i}-counter` : undefined}
                     style={{ ...inputStyle, resize: "none", lineHeight: 1.55, padding: "10px 14px" }}
                   />
                   {step.length > MAX_STEP_LENGTH * 0.8 && (
-                    <p style={{ fontSize: 11, color: "var(--color-text-dim)", textAlign: "right", marginTop: 4 }}>
+                    <p id={`step-${i}-counter`} style={{ fontSize: 11, color: "var(--color-text-dim)", textAlign: "right", marginTop: 4 }}>
                       {step.length} / {MAX_STEP_LENGTH}
                     </p>
                   )}
                 </div>
                 {steps.length > 1 && (
-                  <button onClick={() => removeStep(i)} style={{ color: "var(--color-text-dim)", marginTop: 12, flexShrink: 0, cursor: "pointer" }}>
+                  <button
+                    type="button"
+                    onClick={() => removeStep(i)}
+                    aria-label={`${t("common.buttons.delete")} — ${t("recipe.form.step_placeholder", { n: i + 1 })}`}
+                    style={{ color: "var(--color-text-dim)", marginTop: 12, flexShrink: 0, cursor: "pointer" }}
+                  >
                     <TrashIcon />
                   </button>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
-          <button
+          </ol>
+          <button type="button"
             onClick={addStep}
             style={{
               marginTop: 12, width: "100%", padding: "11px 0",
@@ -571,8 +613,9 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
         </FormSection>
 
         {/* ── Astuces ── */}
-        <FormSection title={t("recipe.form.tips_label")} badge={t("common.badges.optional")}>
+        <FormSection title={t("recipe.form.tips_label")} titleId="recipe-tips-label" badge={t("common.badges.optional")}>
           <textarea
+            aria-labelledby="recipe-tips-label"
             value={tips}
             onChange={(e) => setTips(e.target.value)}
             placeholder={t("recipe.form.tips_placeholder")}
@@ -581,21 +624,23 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           />
         </FormSection>
 
-        {/* ── Erreurs ── */}
+        {/* ── Erreurs ── (cf. AddRecipePage.tsx pour le détail) */}
         {errors.length > 0 && (
-          <div style={{
+          <div role="alert" style={{
             marginBottom: 20, padding: "12px 16px", borderRadius: 12,
             backgroundColor: "rgba(224,90,90,0.1)", border: "1px solid rgba(224,90,90,0.25)",
           }}>
-            {errors.map((e, i) => (
-              <p key={i} style={{ fontSize: 13, color: "#e07070" }}>• {e}</p>
-            ))}
+            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {errors.map((e, i) => (
+                <li key={i} style={{ fontSize: 13, color: "#e07070" }}>{e}</li>
+              ))}
+            </ul>
           </div>
         )}
 
         {/* ── Boutons d'action : enregistrer / annuler ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
-          <button
+          <button type="button"
             onClick={handleSubmit}
             disabled={submitting}
             style={{
@@ -608,7 +653,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           >
             <CheckIcon /> {submitting ? t("recipe.update.submitting") : t("recipe.update.submit_button")}
           </button>
-          <button
+          <button type="button"
             onClick={onCancel}
             disabled={submitting}
             style={{
@@ -629,7 +674,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           borderTop: "1px solid var(--color-border)", paddingTop: 20, paddingBottom: 16,
         }}>
           {!showDeleteConfirm ? (
-            <button
+            <button type="button"
               onClick={() => setShowDeleteConfirm(true)}
               style={{
                 width: "100%", padding: "13px 0", borderRadius: 16,
@@ -641,21 +686,39 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
               <TrashIcon /> {t("recipe.update.delete_button")}
             </button>
           ) : (
-            <div style={{
-              padding: 16, borderRadius: 16,
-              backgroundColor: "rgba(180,50,50,0.08)", border: "1px solid rgba(180,50,50,0.2)",
-            }}>
-              <p style={{ fontSize: 13, color: "var(--color-text)", marginBottom: 4, fontWeight: 600 }}>
+            // role="group" + aria-labelledby : ce panneau de confirmation
+            // n'est PAS une vraie modale (pas d'overlay, le reste de la page
+            // reste accessible), donc pas de role="dialog"/focus trap — mais
+            // c'est bien un groupe de contrôles logiquement lié à un message
+            // d'avertissement précis, qu'il faut annoncer explicitement.
+            // tabIndex={-1} + ref + focus() : le focus était sur le bouton
+            // "Supprimer cette recette" qui vient de disparaître (remplacé
+            // par ce panneau) — sans geste explicite, le focus retomberait
+            // sur <body> et l'avertissement ne serait jamais lu.
+            <div
+              role="group"
+              aria-labelledby="delete-confirm-title"
+              style={{
+                padding: 16, borderRadius: 16,
+                backgroundColor: "rgba(180,50,50,0.08)", border: "1px solid rgba(180,50,50,0.2)",
+              }}
+            >
+              <p
+                id="delete-confirm-title"
+                ref={deleteConfirmHeadingRef}
+                tabIndex={-1}
+                style={{ fontSize: 13, color: "var(--color-text)", marginBottom: 4, fontWeight: 600 }}
+              >
                 {t("recipe.update.delete_confirm_title", { title })}
               </p>
               <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 14 }}>
                 {t("recipe.update.delete_confirm_warning")}
               </p>
               {deleteError && (
-                <p style={{ fontSize: 12, color: "#e07070", marginBottom: 10 }}>{deleteError}</p>
+                <p role="alert" style={{ fontSize: 12, color: "#e07070", marginBottom: 10 }}>{deleteError}</p>
               )}
               <div style={{ display: "flex", gap: 10 }}>
-                <button
+                <button type="button"
                   onClick={() => setShowDeleteConfirm(false)}
                   disabled={deletingRecipe}
                   style={{
@@ -667,7 +730,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
                 >
                   {t("common.buttons.cancel")}
                 </button>
-                <button
+                <button type="button"
                   onClick={handleDelete}
                   disabled={deletingRecipe}
                   style={{
@@ -685,7 +748,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           )}
         </div>
 
-      </div>
+      </main>
     </div>
   );
 }

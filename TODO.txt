@@ -1,6 +1,5 @@
 FRONT-OFFICE:
 - Web accessibility
-- Choose language
 - Legal mentions
 
 BACK-OFFICE:

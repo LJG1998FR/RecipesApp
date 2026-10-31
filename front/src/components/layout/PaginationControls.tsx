@@ -28,6 +28,10 @@ interface PaginationControlsProps {
     page: string;         // ex: "Page" (suivi de "X / Y")
     previous: string;     // ex: "Précédent"
     next: string;         // ex: "Suivant"
+    /** Nom accessible de la zone de pagination (balise <nav>). Optionnel :
+     *  on retombe sur `labels.page` si absent, pour rester compatible avec
+     *  un éventuel appelant qui ne le fournirait pas encore. */
+    region?: string;
   };
 }
 
@@ -65,8 +69,13 @@ export default function PaginationControls({
   });
 
   return (
-    <div style={{ padding: "4px 20px 0" }}>
-      {/* ── Sélecteur du nombre d'éléments par page ── */}
+    // <nav> : c'est une navigation à part entière (changer de page/densité de
+    // résultats), pas un simple bloc décoratif.
+    <nav aria-label={labels.region ?? labels.page} style={{ padding: "4px 20px 0" }}>
+      {/* ── Sélecteur du nombre d'éléments par page ──
+          role="group" + aria-pressed : même raisonnement que les filtres de
+          catégorie de HomePage — un seul réglage logique, dont l'état actif
+          doit être lisible autrement que par une couleur de fond. */}
       <div
         style={{
           display: "flex",
@@ -75,17 +84,18 @@ export default function PaginationControls({
           marginBottom: 14,
         }}
       >
-        <span style={{ fontSize: 12, color: "var(--color-text-dim)", flexShrink: 0 }}>
+        <span id="per-page-label" style={{ fontSize: 12, color: "var(--color-text-dim)", flexShrink: 0 }}>
           {labels.perPage}
         </span>
-        <div style={{ display: "flex", gap: 6 }}>
+        <div role="group" aria-labelledby="per-page-label" style={{ display: "flex", gap: 6 }}>
           {PAGE_SIZE_OPTIONS.map((size) => {
             const isActive = limit === size;
             return (
-              <button
+              <button type="button"
                 key={size}
                 onClick={() => onLimitChange(size)}
                 disabled={disabled}
+                aria-pressed={isActive}
                 style={{
                   padding: "6px 14px",
                   borderRadius: 99,
@@ -113,26 +123,30 @@ export default function PaginationControls({
           gap: 10,
         }}
       >
-        <button
+        <button type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={!canGoPrev}
           style={navButtonStyle(canGoPrev)}
         >
-          ‹ {labels.previous}
+          <span aria-hidden="true">‹</span> {labels.previous}
         </button>
 
-        <span style={{ fontSize: 13, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+        {/* aria-live="polite" : annonce la nouvelle page sans déplacer le
+            focus — utile ici car après un clic Précédent/Suivant, le focus
+            clavier reste sur le bouton (loin de ce texte), qui ne serait donc
+            jamais relu sans ce live region. */}
+        <span aria-live="polite" style={{ fontSize: 13, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
           {labels.page} {page} / {totalPages}
         </span>
 
-        <button
+        <button type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={!canGoNext}
           style={navButtonStyle(canGoNext)}
         >
-          {labels.next} ›
+          {labels.next} <span aria-hidden="true">›</span>
         </button>
       </div>
-    </div>
+    </nav>
   );
 }

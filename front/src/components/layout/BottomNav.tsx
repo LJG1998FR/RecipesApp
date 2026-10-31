@@ -21,7 +21,13 @@ const NAV_ITEMS: { key: NavTab; icon: (active: boolean) => JSX.Element; labelKey
 export default function BottomNav({ active, onChange }: Props) {
   const { t } = useTranslation();
 return (
-    <div
+    // <nav> plutôt que <div> : c'est un bloc de navigation, pas un simple
+    // conteneur visuel — les lecteurs d'écran exposent un raccourci dédié
+    // "aller aux zones de navigation" qui ne fonctionne que sur cette balise
+    // (ou un role="navigation" équivalent). aria-label la distingue d'une
+    // éventuelle autre <nav> de la page (ex: fil d'ariane).
+    <nav
+      aria-label={t("common.nav.main_label")}
       style={{
         position: "fixed",
         bottom: 0,
@@ -46,9 +52,10 @@ return (
         {NAV_ITEMS.map(({ key, icon, labelKey }) => {
           const isActive = active === key;
           return (
-            <button
+            <button type="button"
               key={key}
               onClick={() => onChange(key)}
+              aria-current={isActive ? "page" : undefined}
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -81,6 +88,6 @@ return (
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 }

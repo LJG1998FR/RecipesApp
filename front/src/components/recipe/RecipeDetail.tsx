@@ -100,11 +100,25 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
       }}
     >
       <div style={{ position: "relative", height: "clamp(260px, 42vh, 340px)", flexShrink: 0, backgroundColor: "var(--color-card)" }}>
-        <img
-          src={photos[photoIndex] ? toPhotoUrl(photos[photoIndex].url) : ""}
-          alt={`${recipe.title} (${photoIndex + 1}/${photos.length})`}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        />
+        {/* ⚠️ Correctif : avec 0 photo, l'ancien code posait src="" — un <img>
+            à src vide pointe vers l'URL de la page courante dans plusieurs
+            navigateurs (risque de rechargement en boucle), et de toute façon
+            une image cassée n'apporte rien à personne, lecteur d'écran compris.
+            On retombe sur le même placeholder emoji que RecipeCard. */}
+        {photos[photoIndex] ? (
+          <img
+            src={toPhotoUrl(photos[photoIndex].url)}
+            alt={hasMultiplePhotos ? `${recipe.title} (${photoIndex + 1}/${photos.length})` : recipe.title}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48 }}
+          >
+            🍽️
+          </div>
+        )}
         {/* Dégradé : sombre en haut (boutons) et en bas (badge catégorie) */}
         <div
           style={{
@@ -117,9 +131,9 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
         {/* ── Flèches du carousel — uniquement si plusieurs photos ── */}
         {hasMultiplePhotos && (
           <>
-            <button
+            <button type="button"
               onClick={goToPrevPhoto}
-              aria-label="Photo précédente"
+              aria-label={t("recipe.detail.prev_photo")}
               style={{
                 position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
                 width: 34, height: 34, borderRadius: "50%",
@@ -131,9 +145,9 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
             >
               <ChevronLeft />
             </button>
-            <button
+            <button type="button"
               onClick={goToNextPhoto}
-              aria-label="Photo suivante"
+              aria-label={t("recipe.detail.next_photo")}
               style={{
                 position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
                 width: 34, height: 34, borderRadius: "50%",
@@ -146,8 +160,13 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
               <ChevronRight />
             </button>
 
-            {/* ── Points indicateurs — au-dessus du badge catégorie pour ne pas le chevaucher ── */}
+            {/* ── Points indicateurs — au-dessus du badge catégorie pour ne pas le chevaucher ──
+                Purement visuel : la position dans le carousel est déjà donnée par le
+                texte alternatif de la photo ("Titre (2/4)") et par les boutons
+                précédent/suivant nommés. On masque donc ces points décoratifs pour
+                ne pas doubler l'information à l'oral. */}
             <div
+              aria-hidden="true"
               style={{
                 position: "absolute", bottom: 48, left: 0, right: 0,
                 display: "flex", justifyContent: "center", gap: 6,
@@ -177,8 +196,9 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
             padding: "48px 20px 0",
           }}
         >
-          <button
+          <button type="button"
             onClick={onBack}
+            aria-label={t("common.buttons.back")}
             style={{
               width: 38, height: 38, borderRadius: "50%",
               display: "flex", alignItems: "center", justifyContent: "center",
@@ -193,7 +213,7 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
           {/* Groupe de droite : modifier (conditionnel) + like, côte à côte */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {showEditButton && (
-              <button
+              <button type="button"
                 onClick={onEdit}
                 aria-label={t('recipe.update.title')}
                 style={{
@@ -207,9 +227,9 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
                 <PencilIcon size={16} />
               </button>
             )}
-            <button
+            <button type="button"
               onClick={() => setLiked((l) => !l)}
-              aria-label="Ajouter aux favoris"
+              aria-label={liked ? t("recipe.detail.unlike") : t("recipe.detail.like")}
               style={{
                 width: 38, height: 38, borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center",
@@ -239,7 +259,7 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
       </div>
 
       {/* ── Contenu scrollable ── */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 100px" }}>
+      <main style={{ flex: 1, overflowY: "auto", padding: "20px 20px 100px" }}>
 
         {/* Titre + sous-titre */}
         <h1
@@ -287,8 +307,10 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
         {recipe.tips && recipe.tips.length > 0 && (
           <div style={{ ...S.card, marginBottom: 20, overflow: "hidden" }}>
             {/* Header accordion */}
-            <button
+            <button type="button"
               onClick={() => setTipsOpen((o) => !o)}
+              aria-expanded={tipsOpen}
+              aria-controls="recipe-tips-panel"
               style={{
                 width: "100%",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -308,9 +330,9 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
               </span>
             </button>
 
-            {/* Contenu accordion */}
+            {/* Contenu accordion — id référencé par aria-controls ci-dessus */}
             {tipsOpen && (
-              <div style={{ padding: "0 16px 16px", backgroundColor: "var(--color-card)" }}>
+              <div id="recipe-tips-panel" style={{ padding: "0 16px 16px", backgroundColor: "var(--color-card)" }}>
                 <div style={{ height: 1, backgroundColor: "var(--color-border)", marginBottom: 14 }} />
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
                   {recipe.tips.map((tip, i) => (
@@ -329,8 +351,18 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
           </div>
         )}
 
-        {/* ── Tabs Ingrédients / Étapes ── */}
+        {/* ── Tabs Ingrédients / Étapes ──
+            On reste volontairement sur role="group" + aria-pressed plutôt que
+            role="tablist"/"tab" : la spécification ARIA des "vrais" tabs exige
+            en contrepartie une navigation au clavier par flèches gauche/droite
+            (et non Tab). Mettre role="tab" SANS cette navigation serait pire
+            qu'un bouton classique — le lecteur d'écran annoncerait un
+            comportement que le clavier ne permet pas. Un groupe de boutons à
+            bascule, avec leur état exposé, est honnête vis-à-vis de ce que le
+            composant sait réellement faire. */}
         <div
+          role="group"
+          aria-label={t("recipe.detail.tab_ingredients") + " / " + t("recipe.detail.tab_steps")}
           style={{
             display: "flex",
             backgroundColor: "var(--color-card)",
@@ -341,9 +373,10 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
           }}
         >
           {(["ingredients", "steps"] as const).map((tab) => (
-            <button
+            <button type="button"
               key={tab}
               onClick={() => setActiveTab(tab)}
+              aria-pressed={activeTab === tab}
               style={{
                 flex: 1,
                 padding: "10px 0",
@@ -406,7 +439,7 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
             ))}
           </ol>
         )}
-      </div>
+      </main>
     </div>
   );
 }

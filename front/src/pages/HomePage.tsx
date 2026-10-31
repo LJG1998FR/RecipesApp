@@ -88,7 +88,10 @@ export default function HomePage({ onSelectRecipe }: Props) {
   }
 
   return (
-    <div style={{ fontFamily: "var(--font-body)" }}>
+    // <main> : BottomNav est rendue par le routeur, en dehors de ce composant
+    // (voir AppRouter) — tout ce que HomePage affiche EST donc le contenu
+    // principal de la vue "Accueil".
+    <main style={{ fontFamily: "var(--font-body)" }}>
 
       {/* ── Navbar supérieure ─────────────────────────────────────────────── */}
       <div
@@ -99,9 +102,14 @@ export default function HomePage({ onSelectRecipe }: Props) {
           padding: "52px 20px 16px",
         }}
       >
-        <p style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text)" }}>
+        {/* h1 : la page n'avait AUCUN titre de niveau 1 — le <h2> "Toutes les
+            recettes" plus bas apparaissait donc comme un titre orphelin, sans
+            h1 parent (hiérarchie cassée, cf. "Heading levels should only
+            increase by one" — règle axe-core/W3C). La salutation fait un très
+            bon h1 : elle est déjà le premier contenu significatif de la page. */}
+        <h1 style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text)" }}>
           {t("home.greeting", { name: user.firstName })}
-        </p>
+        </h1>
 
         {/* Groupe : sélecteur de langue + avatar */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -120,8 +128,13 @@ export default function HomePage({ onSelectRecipe }: Props) {
         </div>
       </div>
 
-      {/* ── Barre de recherche ────────────────────────────────────────────── */}
-      <div style={{ padding: "0 20px 20px" }}>
+      {/* ── Barre de recherche ──────────────────────────────────────────────
+          role="search" : landmark dédié, au même titre que <nav>/<main>. Un
+          lecteur d'écran peut sauter directement "à la recherche" sans avoir
+          à parcourir toute la page. Le placeholder NE remplace PAS un nom
+          accessible (il disparaît dès la saisie et n'est pas garanti d'être
+          exposé par tous les lecteurs d'écran) : on ajoute donc aria-label. */}
+      <div role="search" style={{ padding: "0 20px 20px" }}>
         <div
           style={{
             display: "flex",
@@ -139,6 +152,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
           </span>
           <input
             type="text"
+            aria-label={t("home.search_label")}
             placeholder={t("home.search_placeholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -155,8 +169,16 @@ export default function HomePage({ onSelectRecipe }: Props) {
         </div>
       </div>
 
-      {/* ── Filtres catégories ────────────────────────────────────────────── */}
+      {/* ── Filtres catégories ──────────────────────────────────────────────
+          role="group" : signale que ces boutons forment un seul contrôle
+          logique ("filtrer par catégorie"), pas une liste de boutons isolés
+          sans rapport entre eux. aria-pressed sur chaque bouton expose
+          lequel est actuellement sélectionné (sinon, seule la couleur de
+          fond le montrait — invisible pour un lecteur d'écran, et limite
+          aussi pour un utilisateur malvoyant à fort contraste personnalisé). */}
       <div
+        role="group"
+        aria-label={t("common.aria.category_filter_group")}
         style={{
           display: "flex",
           gap: 10,
@@ -170,9 +192,10 @@ export default function HomePage({ onSelectRecipe }: Props) {
         {CATEGORIES.map((cat) => {
           const isActive = activeCategory === cat;
           return (
-            <button
+            <button type="button"
               key={cat}
               onClick={() => setActiveCategory(cat)}
+              aria-pressed={isActive}
               style={{
                 flexShrink: 0,
                 padding: "9px 18px",
@@ -223,12 +246,17 @@ export default function HomePage({ onSelectRecipe }: Props) {
       {/* ── Erreur de chargement ── */}
       {listError && (
         <div style={{ padding: "0 20px 14px" }}>
-          <p style={{ fontSize: 13, color: "#e07070" }}>{listError}</p>
+          <p role="alert" style={{ fontSize: 13, color: "#e07070" }}>{listError}</p>
         </div>
       )}
 
-      {/* ── Liste des recettes ────────────────────────────────────────────── */}
+      {/* ── Liste des recettes ──────────────────────────────────────────────
+          aria-busy indique aux technologies d'assistance qu'une mise à jour
+          de la zone est en cours (changement de page/filtre) — sans lui,
+          seule l'opacité CSS signalait visuellement ce "chargement en
+          douceur", invisible pour qui n'utilise pas d'écran. */}
       <div
+        aria-busy={isLoadingList}
         style={{
           padding: "0 20px",
           opacity: isLoadingList ? 0.6 : 1,
@@ -237,7 +265,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
       >
         {items.length === 0 && !isLoadingList ? (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
-            <p style={{ fontSize: 36, marginBottom: 12 }}>🍽️</p>
+            <p style={{ fontSize: 36, marginBottom: 12 }} aria-hidden="true">🍽️</p>
             <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>{t("home.empty_state")}</p>
           </div>
         ) : (
@@ -259,6 +287,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
         onLimitChange={setLimit}
         disabled={isLoadingList}
         labels={{
+          region: t("home.pagination.region"),
           perPage: t("home.pagination.per_page"),
           page: t("home.pagination.page"),
           previous: t("home.pagination.previous"),
@@ -267,7 +296,7 @@ export default function HomePage({ onSelectRecipe }: Props) {
       />
 
       {/* Espace pour la BottomNav fixe */}
-      <div style={{ height: 90 }} />
-    </div>
+      <div style={{ height: 90 }} aria-hidden="true" />
+    </main>
   );
 }

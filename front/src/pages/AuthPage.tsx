@@ -120,7 +120,7 @@ const handleSubmit = async () => {
       </div>
 
       {/* ── Formulaire ── */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "109px 24px 48px" }}>
+      <main style={{ flex: 1, overflowY: "auto", padding: "109px 24px 48px" }}>
 
         {/* Toggle */}
         <div
@@ -136,7 +136,9 @@ const handleSubmit = async () => {
           {(["login", "signup"] as const).map((m) => (
             <button
               key={m}
+              type="button"
               onClick={() => { setMode(m); setError(""); }}
+              aria-pressed={mode === m}
               style={{
                 flex: 1,
                 padding: "10px 0",
@@ -157,16 +159,17 @@ const handleSubmit = async () => {
         {mode === "signup" && (
           <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
             {[
-              { label: t("auth.register.firstname_label"), value: firstName, set: setFirstName, placeholder: t("auth.register.firstname_placeholder") },
-              { label: t("auth.register.lastname_label"),    value: lastName,  set: setLastName,  placeholder:t("auth.register.lastname_placeholder") },
-            ].map(({ label, value, set, placeholder }) => (
-              <div key={label} style={{ flex: 1 }}>
-                <label htmlFor={"signup_label_"+label} style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
+              { id: "signup_firstname", label: t("auth.register.firstname_label"), value: firstName, set: setFirstName, placeholder: t("auth.register.firstname_placeholder") },
+              { id: "signup_lastname",  label: t("auth.register.lastname_label"),    value: lastName,  set: setLastName,  placeholder:t("auth.register.lastname_placeholder") },
+            ].map(({ id, label, value, set, placeholder }) => (
+              <div key={id} style={{ flex: 1 }}>
+                <label htmlFor={id} style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
                   {label}
                 </label>
                 <input
-                  id={"signup_label_"+label}
+                  id={id}
                   type="text"
+                  autoComplete={id === "signup_firstname" ? "given-name" : "family-name"}
                   value={value}
                   onChange={(e) => set(e.target.value)}
                   placeholder={placeholder}
@@ -205,6 +208,7 @@ const handleSubmit = async () => {
             <input
               id="label_email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t("auth.login.email_placeholder")}
@@ -234,6 +238,7 @@ const handleSubmit = async () => {
             <input
               id="label_password"
               type={showPwd ? "text" : "password"}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t("auth.login.password_placeholder")}
@@ -242,7 +247,13 @@ const handleSubmit = async () => {
                 fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
               }}
             />
-            <button onClick={() => setShowPwd((s) => !s)} style={{ color: "var(--color-text-dim)", flexShrink: 0, marginLeft: 8 }}>
+            <button
+              type="button"
+              onClick={() => setShowPwd((s) => !s)}
+              aria-label={showPwd ? t("common.aria.hide_password") : t("common.aria.show_password")}
+              aria-pressed={showPwd}
+              style={{ color: "var(--color-text-dim)", flexShrink: 0, marginLeft: 8 }}
+            >
               <EyeIcon off={!showPwd} />
             </button>
           </div>
@@ -251,17 +262,17 @@ const handleSubmit = async () => {
 
         {mode === "login" && (
           <div style={{ textAlign: "right", marginBottom: 8 }}>
-            <button onClick={() => navigate("/mot-de-passe-oublie")} style={{ fontSize: 12, color: "var(--color-primary)" }}>
+            <button type="button" onClick={() => navigate("/mot-de-passe-oublie")} style={{ fontSize: 12, color: "var(--color-primary)" }}>
               {t("auth.login.forgot_password")}
             </button>
           </div>
         )}
 
         {error && (
-          <p style={{ fontSize: 12, color: "#e07070", marginTop: 12, marginBottom: 4 }}>{error}</p>
+          <p role="alert" style={{ fontSize: 12, color: "#e07070", marginTop: 12, marginBottom: 4 }}>{error}</p>
         )}
 
-        <button
+        <button type="button"
           onClick={handleSubmit}
           style={{
             width: "100%", marginTop: 24, padding: "16px 0",
@@ -290,7 +301,7 @@ const handleSubmit = async () => {
             {mode === "login" ? t("auth.login.switch_to_signup_link") : t("auth.register.switch_to_login_link")}
           </button>
         </p>
-      </div>
+      </main>
     </div>
   );
 }

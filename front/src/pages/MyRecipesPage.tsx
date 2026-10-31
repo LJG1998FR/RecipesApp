@@ -114,8 +114,9 @@ export default function MyRecipesPage({ onBack, onEditRecipe, onViewRecipe }: Pr
     >
       {/* ── Header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "52px 20px 20px" }}>
-        <button
+        <button type="button"
           onClick={onBack}
+          aria-label={t("common.buttons.back")}
           style={{
             width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -130,17 +131,17 @@ export default function MyRecipesPage({ onBack, onEditRecipe, onViewRecipe }: Pr
         </h1>
       </div>
 
-      <div style={{ padding: "0 20px" }}>
+      <main style={{ padding: "0 20px" }}>
 
         {loadError && (
-          <p style={{ fontSize: 14, color: "#e07070", marginBottom: 20 }}>
+          <p role="alert" style={{ fontSize: 14, color: "#e07070", marginBottom: 20 }}>
             {t("profile.my_recipes.load_error")}
           </p>
         )}
 
         {!loadError && isEmpty && (
           <div style={{ textAlign: "center", padding: "48px 0" }}>
-            <p style={{ fontSize: 36, marginBottom: 12 }}>🍳</p>
+            <p style={{ fontSize: 36, marginBottom: 12 }} aria-hidden="true">🍳</p>
             <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
               {t("profile.my_recipes.empty_all")}
             </p>
@@ -148,7 +149,7 @@ export default function MyRecipesPage({ onBack, onEditRecipe, onViewRecipe }: Pr
         )}
 
         {deleteError && (
-          <p style={{ fontSize: 13, color: "#e07070", marginBottom: 16 }}>{deleteError}</p>
+          <p role="alert" style={{ fontSize: 13, color: "#e07070", marginBottom: 16 }}>{deleteError}</p>
         )}
 
         {/* ── Section 1 : Publiées ── */}
@@ -210,7 +211,7 @@ export default function MyRecipesPage({ onBack, onEditRecipe, onViewRecipe }: Pr
             </div>
           </FormSection>
         )}
-      </div>
+      </main>
     </div>
   );
 }
@@ -229,9 +230,27 @@ function PublishedRow({
 }) {
   const typeLabelKey = CATEGORY_LABEL_KEYS[recipe.type as keyof typeof CATEGORY_LABEL_KEYS];
 
+  // Même correctif que RecipeCard.tsx : un <div onClick> n'est pas activable
+  // au clavier. Ici onClick est OPTIONNEL (la ligne n'est pas toujours
+  // cliquable, cf. commentaire du composant parent) — role/tabIndex/onKeyDown
+  // ne sont donc appliqués QUE quand onClick existe réellement : sinon on
+  // rendrait "focusable" un élément qui ne fait rien au clavier non plus,
+  // ce qui serait un piège inverse (un arrêt de tabulation inutile).
+  const handleKeyDown = onClick
+    ? (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }
+    : undefined;
+
   return (
     <div
       onClick={onClick}
+      onKeyDown={handleKeyDown}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       style={{
         display: "flex", alignItems: "center", gap: 12,
         padding: "10px 12px", borderRadius: 14,
@@ -317,14 +336,14 @@ function PendingRow({
           <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
             {t("profile.my_recipes.delete_confirm")}
           </span>
-          <button
+          <button type="button"
             onClick={onCancelDelete}
             disabled={isDeleting}
             style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)", cursor: "pointer" }}
           >
             {t("profile.my_recipes.delete_cancel")}
           </button>
-          <button
+          <button type="button"
             onClick={onConfirmDelete}
             disabled={isDeleting}
             style={{ fontSize: 12, fontWeight: 700, color: "#e07070", cursor: isDeleting ? "wait" : "pointer" }}
@@ -334,7 +353,7 @@ function PendingRow({
         </div>
       ) : (
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          <button
+          <button type="button"
             onClick={onEdit}
             aria-label={t("profile.my_recipes.edit_button")}
             style={{
@@ -346,7 +365,7 @@ function PendingRow({
           >
             <PencilIcon size={14} />
           </button>
-          <button
+          <button type="button"
             onClick={onAskDelete}
             aria-label={t("profile.my_recipes.delete_button")}
             style={{

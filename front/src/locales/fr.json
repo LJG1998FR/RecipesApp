@@ -28,6 +28,7 @@
             }
         },
         "nav": {
+            "main_label": "Navigation principale",
             "home": "Accueil",
             "saved": "Sauvegardés",
             "add_recipe": "Ajouter une recette",
@@ -41,6 +42,15 @@
         },
         "badges": {
             "optional": "optionnel"
+        },
+        "aria": {
+            "show_password": "Afficher le mot de passe",
+            "hide_password": "Masquer le mot de passe",
+            "category_filter_group": "Filtrer par catégorie",
+            "decrease": "Diminuer",
+            "increase": "Augmenter",
+            "requirement_met": "(condition remplie)",
+            "requirement_unmet": "(condition non remplie)"
         }
     },
     "auth": {
@@ -107,12 +117,14 @@
     "home": {
         "greeting": "Bonjour, {name} 👋",
         "search_placeholder": "Rechercher une recette…",
+        "search_label": "Rechercher une recette",
         "section_title_all": "Toutes les recettes",
         "recipe_count_singular": "{count} recette",
         "recipe_count_plural": "{count} recettes",
         "empty_state": "Aucune recette trouvée",
         "load_error": "Impossible de charger les recettes.",
         "pagination": {
+            "region": "Pagination des résultats",
             "per_page": "Par page",
             "page": "Page",
             "previous": "Précédent",
@@ -133,7 +145,11 @@
             "stat_cook": "Cuisson",
             "tips_title": "Astuces du chef",
             "tab_ingredients": "Ingrédients",
-            "tab_steps": "Étapes"
+            "tab_steps": "Étapes",
+            "prev_photo": "Photo précédente",
+            "next_photo": "Photo suivante",
+            "like": "Ajouter aux favoris",
+            "unlike": "Retirer des favoris"
         },
         "not_found": {
             "message": "Recette introuvable.",
@@ -164,6 +180,9 @@
             "add_ingredient_button": "Ajouter l'ingrédient",
             "error_choose_ingredient": "Choisissez un ingrédient dans la liste.",
             "error_quantity_min": "La quantité doit être un nombre ≥ {min}.",
+            "add_photo_button": "Ajouter une photo",
+            "remove_photo_button": "Supprimer cette photo",
+            "people_group_label": "Nombre de personnes",
             "photo_alt": "Photo {n}",
             "existing_photo_alt": "Photo de la recette",
             "photo_count_singular": "{count} / {max} photo · 5 Mo max chacune",
@@ -209,6 +228,7 @@
         }
     },
     "profile": {
+        "title": "Profil",
         "section_informations": "Informations",
         "field_firstname": "Prénom",
         "field_lastname": "Nom",

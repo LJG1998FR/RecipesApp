@@ -47,11 +47,11 @@ export default function RecipeDetailPage({ recipeId, onBack, onEdit }: Props) {
           minHeight: "100dvh", gap: 12,
         }}
       >
-        <p style={{ fontSize: 40 }}>🍽️</p>
-        <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
+        <p style={{ fontSize: 40 }} aria-hidden="true">🍽️</p>
+        <p role="alert" style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
           {t("recipe.not_found.message")}
         </p>
-        <button
+        <button type="button"
           onClick={onBack}
           style={{ fontSize: 14, fontWeight: 600, color: "var(--color-primary)" }}
         >

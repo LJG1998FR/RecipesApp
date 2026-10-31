@@ -25,6 +25,22 @@ export const MIN_AMOUNT = 1;                         // RecipeController::MIN_AM
 
 // ── Styles partagés ────────────────────────────────────────────────────────────
 
+// Style "sr-only" standard : le contenu reste dans le DOM et donc lisible
+// par un lecteur d'écran, mais est retiré du rendu visuel (taille 1px,
+// clip, overflow caché) SANS utiliser display:none ou visibility:hidden,
+// qui eux masquent aussi le contenu aux technologies d'assistance.
+export const visuallyHiddenStyle: React.CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: "hidden",
+  clip: "rect(0, 0, 0, 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+};
+
 export const inputStyle: React.CSSProperties = {
   backgroundColor: "var(--color-surface)",
   border: "1px solid var(--color-border)",
@@ -43,11 +59,14 @@ export const inputStyle: React.CSSProperties = {
 // pages appelantes (via t()). FormSection reste un composant "bête", agnostique
 // de la langue — c'est aux pages de décider QUOI afficher.
 
-export function FormSection({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
+export function FormSection({ title, titleId, badge, children }: { title: string; titleId?: string; badge?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
+        {/* titleId (optionnel) : permet à l'appelant de relier un champ unique
+            de la section à cet intitulé via aria-labelledby, quand FormSection
+            enveloppe un seul input/textarea plutôt qu'une liste/un groupe. */}
+        <p id={titleId} style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
           {title}
         </p>
         {badge && (
@@ -112,6 +131,8 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
   const [showSugg, setShowSugg] = useState(false);
   const [localError, setLocalError] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  // -1 = aucune suggestion survolée/sélectionnée au clavier.
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
   // Suggestions DÉRIVÉES de l'état (query + catalogue) : pas besoin de useState/useEffect
   // pour ça. Règle d'or React : si une valeur peut être calculée, ne la stocke pas.
@@ -134,7 +155,33 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
     setSelected(ing);
     setQuery(ing.label);
     setShowSugg(false);
+    setHighlightedIndex(-1);
     setLocalError("");
+  };
+
+  // ⚠️ Correctif bloquant : avant, la liste de suggestions ne se choisissait
+  // QU'à la souris (onMouseDown). Une personne au clavier tapait un nom,
+  // voyait les suggestions s'afficher... et n'avait aucun moyen de les
+  // valider. On ajoute la navigation flèches haut/bas + Entrée + Échap,
+  // conforme au pattern "combobox" des ARIA Authoring Practices.
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSugg || suggestions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i + 1) % suggestions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+    } else if (e.key === "Enter") {
+      if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
+        e.preventDefault();
+        choose(suggestions[highlightedIndex]);
+      }
+    } else if (e.key === "Escape") {
+      setShowSugg(false);
+      setHighlightedIndex(-1);
+    }
   };
 
   const handleAdd = () => {
@@ -154,40 +201,61 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
 
       {/* ── Étape 1 : Nom (autocomplétion depuis l'API) ── */}
       <div style={{ padding: "16px 16px 14px", position: "relative" }}>
-        <p style={{ fontSize: 12, color: "var(--color-text-dim)", marginBottom: 8 }}>
+        {/* <label htmlFor> plutôt qu'un <p> à côté : sans ce lien, un lecteur
+            d'écran annonce juste "Édition, texte" en arrivant sur le champ,
+            sans jamais dire "Ingrédient". */}
+        <label htmlFor="ingredient-name-input" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 8 }}>
           <StepBadge n={1} />{t("recipe.form.ingredient_singular_label")}
-        </p>
+        </label>
         <input
+          id="ingredient-name-input"
           type="text"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={showSugg && suggestions.length > 0}
+          aria-controls="ingredient-suggestions-list"
+          aria-activedescendant={highlightedIndex >= 0 ? `ingredient-option-${highlightedIndex}` : undefined}
+          autoComplete="off"
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setSelected(null); setShowSugg(true); }}
+          onChange={(e) => { setQuery(e.target.value); setSelected(null); setShowSugg(true); setHighlightedIndex(-1); }}
           onFocus={() => setShowSugg(true)}
+          onKeyDown={handleNameKeyDown}
           placeholder={loading ? t("recipe.form.ingredient_loading") : t("recipe.form.ingredient_search_placeholder")}
           disabled={loading || loadError}
           style={inputStyle}
         />
         {loadError && (
-          <p style={{ fontSize: 12, color: "#e07070", marginTop: 8 }}>
+          <p role="alert" style={{ fontSize: 12, color: "#e07070", marginTop: 8 }}>
             {t("recipe.form.ingredient_load_error")}
           </p>
         )}
         {showSugg && suggestions.length > 0 && (
-          <div style={{
-            position: "absolute", left: 16, right: 16, top: "100%",
-            backgroundColor: "#2a2420", border: "1px solid var(--color-border)",
-            borderRadius: 12, overflow: "hidden", zIndex: 50,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.4)", marginTop: 4,
-          }}>
-            {suggestions.map((s) => (
-              <button
+          <div
+            id="ingredient-suggestions-list"
+            role="listbox"
+            aria-label={t("recipe.form.ingredient_singular_label")}
+            style={{
+              position: "absolute", left: 16, right: 16, top: "100%",
+              backgroundColor: "#2a2420", border: "1px solid var(--color-border)",
+              borderRadius: 12, overflow: "hidden", zIndex: 50,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.4)", marginTop: 4,
+            }}
+          >
+            {suggestions.map((s, idx) => (
+              <button type="button"
                 key={s.id}
+                id={`ingredient-option-${idx}`}
+                role="option"
+                aria-selected={highlightedIndex === idx}
                 // onMouseDown (et non onClick) : se déclenche AVANT le blur de l'input
                 onMouseDown={() => choose(s)}
+                onMouseEnter={() => setHighlightedIndex(idx)}
                 style={{
                   width: "100%", textAlign: "left", padding: "11px 16px",
                   fontSize: 14, color: "var(--color-text)",
                   borderBottom: "1px solid var(--color-border)",
-                  backgroundColor: "transparent", cursor: "pointer",
+                  backgroundColor: highlightedIndex === idx ? "rgba(224,154,90,0.15)" : "transparent",
+                  cursor: "pointer",
                   display: "flex", justifyContent: "space-between",
                 }}
               >
@@ -198,7 +266,7 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
           </div>
         )}
         {showSugg && query.trim() !== "" && !selected && suggestions.length === 0 && !loading && !loadError && (
-          <p style={{ fontSize: 12, color: "var(--color-text-dim)", marginTop: 8 }}>
+          <p role="status" style={{ fontSize: 12, color: "var(--color-text-dim)", marginTop: 8 }}>
             {t("recipe.form.ingredient_no_match")}
           </p>
         )}
@@ -208,11 +276,12 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
 
       {/* ── Étape 2 : Quantité (+ unité en LECTURE SEULE) ── */}
       <div style={{ padding: "14px 16px" }}>
-        <p style={{ fontSize: 12, color: "var(--color-text-dim)", marginBottom: 8 }}>
+        <label htmlFor="ingredient-qty-input" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 8 }}>
           <StepBadge n={2} />{t("recipe.form.quantity_label")}
-        </p>
+        </label>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <input
+            id="ingredient-qty-input"
             type="number"
             inputMode="decimal"
             value={qty}
@@ -220,27 +289,34 @@ export function IngredientInput({ available, alreadyUsedIds, loading, loadError,
             placeholder={t("recipe.form.quantity_placeholder")}
             min={MIN_AMOUNT}
             step="any"
+            aria-describedby="ingredient-qty-unit"
             style={{ ...inputStyle, flex: 1, width: undefined }}
           />
           {/* L'unité appartient à l'ingrédient (table ingredients), pas à la recette :
               on l'affiche, on ne la choisit plus. */}
-          <span style={{
-            minWidth: 64, textAlign: "center", fontSize: 13, padding: "12px 10px", borderRadius: 12,
-            color: "var(--color-text-muted)", border: "1px solid var(--color-border)",
-            backgroundColor: "var(--color-surface)",
-          }}>
+          {/* aria-describedby sur le champ quantité ci-dessus : l'unité
+              n'est pas éditable mais fait partie du sens de la valeur saisie
+              ("250" tout court n'a aucun sens sans son unité). */}
+          <span
+            id="ingredient-qty-unit"
+            style={{
+              minWidth: 64, textAlign: "center", fontSize: 13, padding: "12px 10px", borderRadius: 12,
+              color: "var(--color-text-muted)", border: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-surface)",
+            }}
+          >
             {selected ? (selected.unit ?? "—") : t("recipe.form.unit_placeholder")}
           </span>
         </div>
       </div>
 
       {localError && (
-        <p style={{ fontSize: 12, color: "#e07070", padding: "0 16px 10px" }}>{localError}</p>
+        <p role="alert" style={{ fontSize: 12, color: "#e07070", padding: "0 16px 10px" }}>{localError}</p>
       )}
 
       {/* ── Bouton Ajouter ── */}
       <div style={{ padding: "0 16px 16px" }}>
-        <button
+        <button type="button"
           onClick={handleAdd}
           disabled={!canAdd}
           style={{
@@ -300,8 +376,9 @@ export function PhotoGrid({
               alt={t("recipe.form.photo_alt", { n: i + 1 })}
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
-            <button
+            <button type="button"
               onClick={() => onRemove(i)}
+              aria-label={t("recipe.form.remove_photo_button")}
               style={{
                 position: "absolute", top: 4, right: 4,
                 width: 22, height: 22, borderRadius: "50%",
@@ -309,7 +386,7 @@ export function PhotoGrid({
                 backgroundColor: "rgba(23,18,16,0.75)", color: "#fff", cursor: "pointer",
               }}
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <svg aria-hidden="true" focusable="false" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
@@ -326,8 +403,12 @@ export function PhotoGrid({
             }}
           >
             <PlusIcon size={20} />
+            {/* Le <label> n'a pas de texte visible (juste une icône) : son nom
+                accessible serait donc vide pour l'input qu'il enveloppe.
+                aria-label le répare sans changer le rendu visuel. */}
             <input
               type="file"
+              aria-label={t("recipe.form.add_photo_button")}
               accept={ALLOWED_PHOTO_TYPES.join(",")}
               multiple
               style={{ display: "none" }}

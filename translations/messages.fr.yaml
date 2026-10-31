@@ -38,6 +38,7 @@ common:
             missing_digit: 'Au moins un chiffre'
             invalid: 'Le mot de passe ne respecte pas les critères requis.'
     nav:
+        main_label: 'Navigation principale'
         home: 'Accueil'
         saved: 'Sauvegardés'
         add_recipe: 'Ajouter une recette'
@@ -53,6 +54,14 @@ common:
         mocktails: 'Mocktails'
     badges:
         optional: 'optionnel'
+    aria:
+        show_password: 'Afficher le mot de passe'
+        hide_password: 'Masquer le mot de passe'
+        category_filter_group: 'Filtrer par catégorie'
+        decrease: 'Diminuer'
+        increase: 'Augmenter'
+        requirement_met: '(condition remplie)'
+        requirement_unmet: '(condition non remplie)'
 
 auth:
     login:
@@ -113,6 +122,7 @@ auth:
 home:
     greeting: 'Bonjour, {name} 👋'
     search_placeholder: 'Rechercher une recette…'
+    search_label: 'Rechercher une recette'
     section_title_all: 'Toutes les recettes'
     # Pas de moteur de pluriel en mode fait-maison : on choisit la clé
     # singulier/pluriel dans le composant. Rappel : en français "0 recette"
@@ -122,10 +132,11 @@ home:
     empty_state: 'Aucune recette trouvée'
     load_error: 'Impossible de charger les recettes.'
     pagination: 
-        "per_page": 'Par page'
-        "page": 'Page'
-        "previous": 'Précédent'
-        "next": 'Suivant'
+        region: 'Pagination des résultats'
+        per_page: 'Par page'
+        page: 'Page'
+        previous: 'Précédent'
+        next: 'Suivant'
 language_switcher:
     label: 'Changer de langue'
     current: 'Langue actuelle : {lang}'
@@ -141,6 +152,10 @@ recipe:
         tips_title: 'Astuces du chef'
         tab_ingredients: 'Ingrédients'
         tab_steps: 'Étapes'
+        prev_photo: 'Photo précédente'
+        next_photo: 'Photo suivante'
+        like: 'Ajouter aux favoris'
+        unlike: 'Retirer des favoris'
     not_found:
         message: 'Recette introuvable.'
         back_button: '← Retour'
@@ -175,6 +190,9 @@ recipe:
         add_ingredient_button: "Ajouter l'ingrédient"
         error_choose_ingredient: 'Choisissez un ingrédient dans la liste.'
         error_quantity_min: 'La quantité doit être un nombre ≥ {min}.'
+        add_photo_button: 'Ajouter une photo'
+        remove_photo_button: 'Supprimer cette photo'
+        people_group_label: 'Nombre de personnes'
         photo_alt: 'Photo {n}'
         # Spécifique à ExistingPhotoGrid (UpdateRecipePage) : les photos déjà
         # en base n'ont pas de numéro d'ordre affiché, contrairement aux
@@ -227,6 +245,7 @@ recipe:
         photo_upload_partial_error: "Les modifications ont été enregistrées, mais l'envoi des nouvelles photos a échoué ({error})."
 
 profile:
+    title: 'Profil'
     section_informations: 'Informations'
     field_firstname: 'Prénom'
     field_lastname: 'Nom'
