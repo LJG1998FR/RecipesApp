@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PlusIcon } from "../icons";
+import { ClockIcon, FlameIcon, PlusIcon } from "../icons";
 import type { IngredientOption } from "../../admin/types";
 import { normalizeForSearch } from "../../types/utils";
 import { useTranslation } from "../../context/LocaleContext";
@@ -96,6 +96,95 @@ export function StepBadge({ n }: { n: number }) {
     }}>
       {n}
     </span>
+  );
+}
+
+// ── TimeFields ─────────────────────────────────────────────────────────────────
+// Partagé entre AddRecipePage et UpdateRecipePage : les deux champs "Préparation"
+// et "Cuisson" (en minutes), affichés côte à côte.
+//
+// ⚠️ Piège CSS corrigé ici : chaque colonne est un enfant flex (`flex: 1`), mais
+// un enfant flex a par défaut `min-width: auto`, c'est-à-dire qu'il refuse de
+// rétrécir en dessous de la largeur de son propre contenu. Comme la colonne
+// "Cuisson" contient un badge "optionnel" en plus de son label, son contenu
+// minimal est plus large que celui de "Préparation" — elle refusait donc de
+// rétrécir et débordait du conteneur. `minWidth: 0` lève cette contrainte.
+// En le mettant ICI, dans le composant partagé, ce bug ne peut plus jamais
+// revenir se glisser silencieusement dans une seule des deux pages.
+
+export interface TimeFieldsProps {
+  prepTime: string;
+  onPrepTimeChange: (value: string) => void;
+  cookTime: string;
+  onCookTimeChange: (value: string) => void;
+}
+
+export function TimeFields({ prepTime, onPrepTimeChange, cookTime, onCookTimeChange }: TimeFieldsProps) {
+  const { t } = useTranslation();
+
+  // id stable (recipe_prep_time / recipe_cook_time), PAS dérivé du texte
+  // traduit — un id construit à partir d'un libellé qui peut contenir des
+  // espaces en anglais casserait l'id ET l'association label/input.
+  const fields = [
+    {
+      id: "recipe_prep_time",
+      label: t("recipe.form.prep_label"),
+      badge: undefined as string | undefined,
+      icon: <ClockIcon size={15} />,
+      value: prepTime,
+      onChange: onPrepTimeChange,
+      placeholder: "15",
+      min: 1,
+    },
+    {
+      id: "recipe_cook_time",
+      label: t("recipe.form.cook_label"),
+      badge: t("common.badges.optional"),
+      icon: <FlameIcon />,
+      value: cookTime,
+      onChange: onCookTimeChange,
+      placeholder: "30",
+      min: 0,
+    },
+  ];
+
+  return (
+    <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
+      {fields.map(({ id, label, badge, icon, value, onChange, placeholder, min }) => (
+        <div key={id} style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <label htmlFor={id} style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
+              {label}
+            </label>
+            {badge && (
+              <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, backgroundColor: "var(--color-tag)", color: "var(--color-text-dim)", border: "1px solid var(--color-border)" }}>
+                {badge}
+              </span>
+            )}
+          </div>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "0 14px", height: 48, borderRadius: 14,
+            backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)",
+          }}>
+            <span aria-hidden="true" style={{ color: "var(--color-text-dim)", flexShrink: 0 }}>{icon}</span>
+            <input
+              id={id}
+              type="number"
+              inputMode="numeric"
+              min={min}
+              step={1}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              aria-describedby={`${id}-unit`}
+              style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)", fontFamily: "inherit" }}
+            />
+            <span id={`${id}-unit`} style={{ fontSize: 12, color: "var(--color-text-dim)", flexShrink: 0 }}>min</span>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -362,6 +451,7 @@ export function PhotoGrid({
 }) {
   const { t } = useTranslation();
   const remaining = MAX_PHOTOS - photos.length;
+  const [inputFocused, setInputFocused] = useState(false);
 
   return (
     <div>
@@ -400,6 +490,10 @@ export function PhotoGrid({
               display: "flex", alignItems: "center", justifyContent: "center",
               border: "2px dashed var(--color-border)", backgroundColor: "var(--color-card)",
               color: "var(--color-text-dim)",
+              // Le focus est sur l'<input>, invisible lui-même — on simule
+              // l'anneau de focus sur le label qui l'enveloppe.
+              outline: inputFocused ? "2px solid var(--color-primary)" : "none",
+              outlineOffset: 2,
             }}
           >
             <PlusIcon size={20} />
@@ -411,7 +505,9 @@ export function PhotoGrid({
               aria-label={t("recipe.form.add_photo_button")}
               accept={ALLOWED_PHOTO_TYPES.join(",")}
               multiple
-              style={{ display: "none" }}
+              style={visuallyHiddenStyle}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
               onChange={(e) => {
                 if (e.target.files && e.target.files.length > 0) onAdd(e.target.files);
                 e.target.value = ""; // permet de resélectionner le même fichier plus tard

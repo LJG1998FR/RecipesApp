@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { RECIPE_CATEGORIES, CATEGORY_LABEL_KEYS } from "../../types";
 import type { Category, IngredientOption, RecipePhoto } from "../../types";
-import { CheckIcon, ChevronLeft, ClockIcon, FlameIcon, PlusIcon, GripIcon, TrashIcon } from "../icons";
+import { CheckIcon, ChevronLeft, PlusIcon, GripIcon, TrashIcon } from "../icons";
 import {
   updateRecipe, deleteRecipe, fetchIngredients,
   uploadRecipePhotos, deleteRecipePhoto, ApiError,
@@ -11,7 +11,7 @@ import {
 import type { UpdateRecipePayload } from "../../api";
 import {
   MAX_PHOTOS, MAX_PHOTO_SIZE, ALLOWED_PHOTO_TYPES, MAX_STEP_LENGTH,
-  inputStyle, visuallyHiddenStyle, FormSection, StepBadge, IngredientInput, PhotoGrid, extractMessages,
+  inputStyle, visuallyHiddenStyle, FormSection, StepBadge, TimeFields, IngredientInput, PhotoGrid, extractMessages,
   validateRecipeForm, buildStepsPayload, buildIngredientsPayload,
 } from "./RecipeFormShared";
 import type { SelectedIngredient, LocalPhoto } from "./RecipeFormShared";
@@ -460,47 +460,13 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           </div>
         </div>
 
-        {/* ── Préparation + Cuisson (2 colonnes, en minutes) ──
-            id stable (pas dérivé du texte traduit, cf. AuthPage.tsx). ── */}
-        <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
-          {[
-            { id: "recipe_prep_time", label: t("recipe.form.prep_label"), badge: undefined,                  icon: <ClockIcon size={15} />, value: prepTime, set: setPrepTime, placeholder: "15", min: 1 },
-            { id: "recipe_cook_time", label: t("recipe.form.cook_label"), badge: t("common.badges.optional"), icon: <FlameIcon />,           value: cookTime, set: setCookTime, placeholder: "30", min: 0 },
-          ].map(({ id, label, badge, icon, value, set, placeholder, min }) => (
-            <div key={id} style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                <label htmlFor={id} style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
-                  {label}
-                </label>
-                {badge && (
-                  <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, backgroundColor: "var(--color-tag)", color: "var(--color-text-dim)", border: "1px solid var(--color-border)" }}>
-                    {badge}
-                  </span>
-                )}
-              </div>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "0 14px", height: 48, borderRadius: 14,
-                backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)",
-              }}>
-                <span aria-hidden="true" style={{ color: "var(--color-text-dim)", flexShrink: 0 }}>{icon}</span>
-                <input
-                  id={id}
-                  type="number"
-                  inputMode="numeric"
-                  min={min}
-                  step={1}
-                  value={value}
-                  onChange={(e) => set(e.target.value)}
-                  placeholder={placeholder}
-                  aria-describedby={`${id}-unit`}
-                  style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)", fontFamily: "inherit" }}
-                />
-                <span id={`${id}-unit`} style={{ fontSize: 12, color: "var(--color-text-dim)", flexShrink: 0 }}>min</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* ── Temps de préparation + cuisson ── */}
+        <TimeFields
+          prepTime={prepTime}
+          onPrepTimeChange={setPrepTime}
+          cookTime={cookTime}
+          onCookTimeChange={setCookTime}
+        />
 
         {/* ── Photos : existantes (suppression immédiate) + nouvelles (upload au save) ── */}
         <FormSection title={t("recipe.form.photos_label")} badge={t("common.badges.optional")}>
@@ -678,6 +644,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
               onClick={() => setShowDeleteConfirm(true)}
               style={{
                 width: "100%", padding: "13px 0", borderRadius: 16,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 fontSize: 14, fontWeight: 600,
                 backgroundColor: "rgba(180,50,50,0.1)", color: "#e07070",
                 border: "1px solid rgba(180,50,50,0.2)", cursor: "pointer",
