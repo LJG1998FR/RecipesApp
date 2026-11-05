@@ -128,6 +128,60 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
           }}
         />
 
+        {/* Boutons retour + [modifier] + like */}
+        <div
+          style={{
+            position: "absolute", top: 0, left: 0, right: 0,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "48px 20px 0",
+          }}
+        >
+          <button type="button"
+            onClick={onBack}
+            aria-label={t("common.buttons.back")}
+            style={{
+              width: 38, height: 38, borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              backgroundColor: "rgba(23,18,16,0.6)",
+              color: "var(--color-text)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <ChevronLeft />
+          </button>
+
+          {/* Groupe de droite : modifier (conditionnel) + like, côte à côte */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {showEditButton && (
+              <button type="button"
+                onClick={onEdit}
+                aria-label={t('recipe.update.title')}
+                style={{
+                  width: 38, height: 38, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  backgroundColor: "rgba(23,18,16,0.6)",
+                  color: "var(--color-text)",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                <PencilIcon size={16} />
+              </button>
+            )}
+            <button type="button"
+              onClick={() => setLiked((l) => !l)}
+              aria-label={liked ? t("recipe.detail.unlike") : t("recipe.detail.like")}
+              style={{
+                width: 38, height: 38, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                backgroundColor: "rgba(23,18,16,0.6)",
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              <HeartIcon filled={liked} />
+            </button>
+          </div>
+        </div>
+
         {/* ── Flèches du carousel — uniquement si plusieurs photos ── */}
         {hasMultiplePhotos && (
           <>
@@ -187,60 +241,6 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
             </div>
           </>
         )}
-
-        {/* Boutons retour + [modifier] + like */}
-        <div
-          style={{
-            position: "absolute", top: 0, left: 0, right: 0,
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            padding: "48px 20px 0",
-          }}
-        >
-          <button type="button"
-            onClick={onBack}
-            aria-label={t("common.buttons.back")}
-            style={{
-              width: 38, height: 38, borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              backgroundColor: "rgba(23,18,16,0.6)",
-              color: "var(--color-text)",
-              backdropFilter: "blur(4px)",
-            }}
-          >
-            <ChevronLeft />
-          </button>
-
-          {/* Groupe de droite : modifier (conditionnel) + like, côte à côte */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {showEditButton && (
-              <button type="button"
-                onClick={onEdit}
-                aria-label={t('recipe.update.title')}
-                style={{
-                  width: 38, height: 38, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  backgroundColor: "rgba(23,18,16,0.6)",
-                  color: "var(--color-text)",
-                  backdropFilter: "blur(4px)",
-                }}
-              >
-                <PencilIcon size={16} />
-              </button>
-            )}
-            <button type="button"
-              onClick={() => setLiked((l) => !l)}
-              aria-label={liked ? t("recipe.detail.unlike") : t("recipe.detail.like")}
-              style={{
-                width: 38, height: 38, borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                backgroundColor: "rgba(23,18,16,0.6)",
-                backdropFilter: "blur(4px)",
-              }}
-            >
-              <HeartIcon filled={liked} />
-            </button>
-          </div>
-        </div>
 
         {/* Badge catégorie — bas du hero */}
         <div style={{ position: "absolute", bottom: 16, left: 20 }}>

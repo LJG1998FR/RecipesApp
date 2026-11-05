@@ -53,18 +53,20 @@ RecipesApp/
 │   ├── Mail/AppMailer.php  # Point d'entrée unique pour l'envoi des emails
 │   ├── Form/                # ⚠️ Non utilisé actuellement, voir "Limitations"
 │   └── DataFixtures/       # Jeux de données de démo (users, recipes, ingredients)
-├── templates/emails/       # 6 gabarits Twig d'emails transactionnels
-├── translations/           # messages.fr.yaml + emails.fr.yaml / emails.en.yaml
+├── templates/emails/       # 7 gabarits Twig d'emails transactionnels
+├── translations/           # messages.{fr,en}.yaml + emails.{fr,en}.yaml
 ├── migrations/             # Historique du schéma de BDD
 ├── tests/                  # Unitaires + fonctionnels (PHPUnit)
 └── front/
     └── src/
-        ├── pages/           # Accueil, Auth, Profil, Détail recette, Mes recettes
+        ├── pages/           # Accueil, Auth, Profil, Détail recette, Mes recettes,
+        │                    # Mot de passe oublié / Réinitialisation
         ├── components/recipe/  # Ajout / édition de recette
+        ├── components/layout/LanguageSwitcher.tsx  # Sélecteur FR/EN (accessible)
         ├── admin/           # Back-office (/admin) : overview, users, recipes, ingredients
         ├── context/         # UserContext (session), LocaleContext (i18n)
         ├── api/             # Couche HTTP (axios + refresh token automatique)
-        └── locales/fr.json  # Traductions de l'interface
+        └── locales/         # fr.json + en.json — traductions de l'interface
 ```
 
 ---
@@ -86,8 +88,13 @@ RecipesApp/
 composer install
 ```
 
-**Configuration de l'environnement** — créez un fichier `.env.local` à la
-racine (jamais commité, cf. `.gitignore`) avec, au minimum, ces variables :
+**Configuration de l'environnement** — copiez `.env.example` vers
+`.env.local` à la racine (jamais commité, cf. `.gitignore`) puis complétez
+les valeurs :
+
+```bash
+cp .env.example .env.local
+```
 
 ```dotenv
 APP_SECRET=                  # chaîne aléatoire (ex: openssl rand -hex 16)
@@ -100,12 +107,15 @@ JWT_TTL=3600                 # durée de vie du token JWT en secondes
 REFRESH_TOKEN_TTL=2592000    # durée de vie du refresh token en secondes
 CORS_ALLOW_ORIGIN=^http://localhost:5173$   # URL du front en dev
 MAILER_DSN=                  # ex: smtp://... (voir section "Les emails")
+MAILER_FROM_ADDRESS=         # adresse "expéditeur" affichée sur les emails
+MAILER_FROM_NAME=            # nom "expéditeur" affiché sur les emails
 DEFAULT_URI=http://localhost:8000
+FRONTEND_URL=http://localhost:5173   # sert à construire le lien de reset mdp
 ```
 
-> 💡 Aucune valeur sensible n'est fournie ici volontairement — à toi de les
-> générer. Je te recommande de committer un `.env.example` (valeurs vides)
-> pour que ce tableau n'ait pas à être recopié à la main à chaque clone.
+> 💡 Détail de chaque variable, exemples de valeurs et commentaires :
+> voir le fichier [`.env.example`](./.env.example) fourni à la racine du
+> dépôt — plus la peine de recopier ce tableau à la main à chaque clone.
 
 Ensuite :
 
@@ -142,7 +152,11 @@ cd front
 npm install
 ```
 
-Créez `front/.env.local` :
+Copiez `front/.env.example` vers `front/.env.local` :
+
+```bash
+cp .env.example .env.local
+```
 
 ```dotenv
 VITE_API_URL=http://localhost:8000
@@ -163,14 +177,13 @@ disponibles :
 
 | Email | Mot de passe | Rôle |
 |---|---|---|
-| `admin@exemple.dev` *(remplace l'email réel défini dans `UserFixture.php`)* | `test1234` | `ROLE_SUPER_ADMIN` |
+| `firstuser@test.dev` | `test1234` | `ROLE_SUPER_ADMIN` |
 | `test@test.dev` | `test1235` | `ROLE_USER` |
-| `lucas.grey@test.dev` | `test1236` | `ROLE_USER` |
+| `lucas.grey@test.dev` | `test1236` | `ROLE_ADMIN` |
 
-> 🔒 **Note perso** : l'email du premier compte dans `UserFixture.php` est
-> actuellement une vraie adresse personnelle en clair dans le code source.
-> À remplacer par une adresse `@test.dev` ou `@example.com` avant de rendre
-> le dépôt public, pour éviter le spam et la confusion avec un vrai compte.
+> ✅ L'email personnel qui traînait auparavant en clair dans
+> `UserFixture.php` a été remplacé par une adresse `@test.dev` — c'est
+> réglé, plus besoin de le masquer ici.
 
 ---
 
@@ -180,10 +193,14 @@ disponibles :
 - **Authentification** : inscription, connexion (JWT + refresh token à
   usage unique, rotation automatique côté front via un intercepteur Axios),
   déconnexion.
-- **Recettes** : consultation, recherche, filtre par catégorie (`Plats`,
-  `Desserts`, `Mocktails`), création et **édition** d'une recette avec
-  ingrédients (quantité + unité), étapes ordonnées, astuces, et **upload de
-  plusieurs photos réordonnables**.
+- **Mot de passe oublié** : demande d'un lien de réinitialisation par email,
+  valable **15 minutes, à usage unique**. Implémentation particulièrement
+  soignée côté sécurité — voir le détail dans la section
+  [Les emails](#-les-emails).
+- **Recettes** : consultation paginée, recherche, filtre par catégorie
+  (`Plats`, `Desserts`, `Mocktails`), création et **édition** d'une recette
+  avec ingrédients (quantité + unité), étapes ordonnées, astuces, et
+  **upload de plusieurs photos réordonnables**.
 - **Mes recettes** : liste des recettes créées par l'utilisateur connecté,
   avec leur statut de modération.
 - **Modération des recettes** : toute recette créée part avec le statut
@@ -192,8 +209,11 @@ disponibles :
   optionnel transmis à l'auteur.
 - **Profil** : modification du mot de passe (avec règles de robustesse
   côté front ET back), déconnexion.
-- **Internationalisation** : l'interface est actuellement **en français
-  uniquement** (`front/src/locales/fr.json`) — voir limitations.
+- **Internationalisation** : interface disponible en **français et
+  anglais** (`front/src/locales/{fr,en}.json`), via un sélecteur de langue
+  accessible (`role="listbox"`, navigation clavier, fermeture à `Échap`) —
+  cohérent avec les emails et les messages de validation du back, également
+  bilingues.
 
 ### Côté admin (`/admin`)
 - **Vue d'ensemble** : statistiques globales.
@@ -231,6 +251,14 @@ taille, voir le commentaire en tête de `AppRouter.tsx`) :
 - **"Mes recettes"** (ouvert depuis le Profil), qui permet elle-même
   d'ouvrir le détail ou l'édition d'une recette.
 
+Deux écrans, en revanche, sont de **vraies routes URL** plutôt que de la
+navigation par état : c'est indispensable puisqu'on doit pouvoir y arriver
+depuis un **lien cliqué dans un email**, potentiellement sans session active :
+- `/mot-de-passe-oublie` — accessible depuis l'écran de connexion,
+- `/reinitialiser-mot-de-passe?token=...` — lien reçu par email, token en
+  paramètre d'URL (jamais stocké en clair côté serveur, voir
+  [Les emails](#-les-emails)).
+
 ### Back-office admin (`/admin`)
 
 Accessible uniquement aux comptes `ROLE_ADMIN` / `ROLE_SUPER_ADMIN` (sinon
@@ -257,12 +285,30 @@ langue par défaut globale.
 | Recette en attente | Création d'une recette | L'auteur |
 | Recette acceptée | Modération admin → `accept` | L'auteur |
 | Recette refusée | Modération admin → `decline` | L'auteur (avec motif libre si fourni) |
-| Mot de passe modifié | Changement de mot de passe | L'utilisateur |
+| Mot de passe modifié | Changement de mot de passe (profil **ou** reset) | L'utilisateur |
+| Réinitialisation de mot de passe | Demande sur `/mot-de-passe-oublie` | L'utilisateur (si le compte existe) |
 | Alerte nouvelle recette | Création d'une recette | Chaque admin, dans **sa propre** langue |
 
 **Les emails sont asynchrones** (routés via Symfony Messenger, cf. section
 Installation) — sans worker `messenger:consume` actif, ils restent en file
 d'attente et ne partent jamais.
+
+#### Zoom sécurité : réinitialisation de mot de passe
+
+C'est la partie du projet où j'ai été le plus rigoureux, donc ça vaut le
+coup de le documenter explicitement (`PasswordResetController` +
+`PasswordResetToken`) :
+- Le token envoyé par email n'est **jamais stocké en clair** en base — seul
+  son hash SHA-256 l'est (même logique qu'un mot de passe).
+- Expiration **15 minutes**, **usage unique** (`usedAt` posé à la
+  consommation), et toute demande d'un nouveau lien **invalide
+  automatiquement** les précédents pour cet utilisateur.
+- La réponse de `/api/password/forgot` est **strictement identique** que
+  l'email corresponde à un compte ou non (`{"message": "If an account
+  exists, an email has been sent."}`), pour empêcher l'énumération de
+  comptes.
+- Le message d'erreur d'un token invalide/expiré ne distingue pas les deux
+  cas, pour la même raison.
 
 ### Prévisualiser un email sans rien envoyer
 
@@ -309,9 +355,6 @@ en env `test`...) est documenté dans `tests/README_tests.md`.
 Section tenue à jour honnêtement plutôt que cachée — utile pour moi comme
 pour un lecteur de portfolio :
 
-- **Interface front en français uniquement** : le back et les templates
-  d'emails sont prêts pour le FR/EN (`translations/emails.en.yaml` existe),
-  mais `front/src/locales/` ne contient qu'un `fr.json`.
 - **Onglet "Sauvegardés"** : présent dans la navigation mais pas encore
   implémenté (état vide statique).
 - **`src/Form/*Type.php`** (`UserType`, `RecipeType`, `IngredientType`...)
@@ -320,8 +363,17 @@ pour un lecteur de portfolio :
   depuis le JSON reçu. Ce sont donc du code mort. `UserType.php` contient en
   plus un bug de précédence d'opérateurs (`||` avant `&&`) qui désactiverait
   toujours le choix `ROLE_USER` s'il était un jour réellement utilisé — sans
-  impact aujourd'hui puisque le formulaire n'est jamais rendu.
-- **Adresse email réelle dans les fixtures** : voir l'avertissement dans
-  la section Installation.
+  impact aujourd'hui puisque le formulaire n'est jamais rendu. Toujours
+  présent dans cette version, pas de changement depuis le dernier point.
+- La durée de vie du lien de réinitialisation de mot de passe (15 min) est
+  codée en dur dans `PasswordResetController` plutôt que pilotable par
+  variable d'environnement — un choix défendable pour une valeur de
+  sécurité qui ne devrait pas varier entre environnements, mais qui mérite
+  d'être su.
 - Pas de Docker / docker-compose pour l'instant — installation manuelle
   uniquement (documentée ci-dessus).
+
+### ✅ Résolu depuis la dernière version
+- ~~Interface front en français uniquement~~ → FR/EN disponibles.
+- ~~Adresse email personnelle en clair dans les fixtures~~ → remplacée par
+  une adresse `@test.dev`.
