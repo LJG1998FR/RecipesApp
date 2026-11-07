@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Config PHPUnit du projet — ce fichier manquait jusqu'ici.
+    Sans lui, "php bin/phpunit" (ou "vendor/bin/phpunit") ne sait pas :
+      - où se trouve tests/bootstrap.php (qui charge les variables .env.test)
+      - quels dossiers contiennent des tests
+      - quelles variables d'environnement forcer pour l'env de test
+    C'est la toute première chose à committer pour qu'une suite de tests
+    Symfony fonctionne, même avant d'écrire le moindre test.
+
+    Doc officielle : https://docs.phpunit.de/en/11.5/configuration.html
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         failOnWarning="true"
+         failOnDeprecation="false"
+         cacheDirectory=".phpunit.cache"
+         beStrictAboutOutputDuringTests="true">
+
+    <php>
+        <ini name="display_errors" value="1" />
+        <ini name="error_reporting" value="-1" />
+        <!-- Force l'environnement Symfony "test", quoi que vaille APP_ENV
+             ailleurs (.env.local, variables shell...). Sans ça, on pourrait
+             exécuter des tests sur la base de DEV par erreur. -->
+        <server name="APP_ENV" value="test" force="true" />
+        <server name="SHELL_VERBOSITY" value="-1" />
+    </php>
+
+    <!--
+        Deux suites séparées plutôt qu'une seule "tests/" :
+        ça permet de lancer UNIQUEMENT les unitaires (rapides, aucun
+        prérequis) pendant qu'on code, et de garder les fonctionnels
+        (base de données + kernel complet) pour la CI ou avant un commit.
+        Voir tests/README_tests.md pour les commandes exactes.
+    -->
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="functional">
+            <directory>tests/Functional</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+
+    <!--
+        ⚠️ Remarque (esprit critique) : le composer.json de ce projet
+        n'installe PAS symfony/phpunit-bridge. C'est ce paquet qui fournit
+        normalement <extensions><bootstrap class="Symfony\Bridge\PhpUnit\SymfonyExtension" />
+        (gestion fine des dépréciations, mock de temps, etc.). Je ne
+        l'ajoute pas ici : le déclarer sans l'installer ferait planter
+        TOUTE la suite au démarrage (classe introuvable), pour un confort
+        qu'on n'a pas encore. Si vous l'installez un jour
+        ("composer require --dev symfony/phpunit-bridge"), c'est la
+        première chose à réactiver ici.
+    -->
+</phpunit>

@@ -133,7 +133,14 @@
             "stat_cook": "Cook time",
             "tips_title": "Chef's tips",
             "tab_ingredients": "Ingredients",
-            "tab_steps": "Steps"
+            "tab_steps": "Steps",
+            "prev_photo": "Previous photo",
+            "next_photo": "Next photo",
+            "like": "Add to favorites",
+            "unlike": "Remove from favorites",
+            "saved_announcement": "Recipe added to your favorites.",
+            "unsaved_announcement": "Recipe removed from your favorites.",
+            "save_error": "Couldn't update your favorites. Please try again."
         },
         "not_found": {
             "message": "Recipe not found.",
@@ -250,6 +257,8 @@
         "delete_account_warning": "This action is irreversible. All your data will be lost."
     },
     "saved": {
-        "empty_state": "Your saved recipes will appear here."
+        "title": "My favorites",
+        "empty_state": "Your saved recipes will appear here.",
+        "error": "Couldn't load your favorites. Please try again later."
     }
 }

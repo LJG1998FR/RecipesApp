@@ -13,6 +13,7 @@ use App\Enums\RecipeType;
 use App\Mail\AppMailer;
 use App\Repository\IngredientRepository;
 use App\Repository\RecipeRepository;
+use App\Repository\SavedRecipeRepository;
 use App\Repository\UserRepository;
 use App\Service\PhotoUploader;
 use Doctrine\ORM\EntityManagerInterface;
@@ -43,7 +44,8 @@ class RecipeController extends AbstractController
         private readonly IngredientRepository $ingredientRepository,
         private readonly EntityManagerInterface $em,
         private readonly Security $security,
-        private readonly PhotoUploader $photoUploader
+        private readonly PhotoUploader $photoUploader,
+        private readonly SavedRecipeRepository $savedRecipeRepository,
     ) {}
 
     // ── GET /api/recipes ───────────────────────────────────────────────────────
@@ -63,7 +65,12 @@ class RecipeController extends AbstractController
                 ? $this->recipeRepository->findAll()
                 : $this->recipeRepository->findBy(['status' => RecipeStatus::PUBLISHED]);
 
-            $data = array_map(fn(Recipe $r) => $this->serialize($r), $recipes);
+            [$savedCounts, $savedByMe] = $this->buildSavedMaps($recipes, $isAdmin);
+
+            $data = array_map(
+                fn(Recipe $r) => $this->serialize($r, $savedCounts[$r->getId()] ?? null, $savedByMe[$r->getId()] ?? false),
+                $recipes,
+            );
 
             return $this->json($data, Response::HTTP_OK);
         }
@@ -111,7 +118,12 @@ class RecipeController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        $data = array_map(fn(Recipe $r) => $this->serialize($r), $recipes);
+        [$savedCounts, $savedByMe] = $this->buildSavedMaps($recipes, $isAdmin);
+
+        $data = array_map(
+            fn(Recipe $r) => $this->serialize($r, $savedCounts[$r->getId()] ?? null, $savedByMe[$r->getId()] ?? false),
+            $recipes,
+        );
 
         return $this->json([
             'items' => $data,
@@ -161,8 +173,42 @@ class RecipeController extends AbstractController
             // 404 et pas 403 : on ne révèle même pas que la recette existe
             return $this->json(['error' => "Recipe with id $id not found."], Response::HTTP_NOT_FOUND);
         }
- 
-        return $this->json($this->serialize($recipe));
+
+        // Une seule recette ici → une seule requête de comptage, pas de N+1
+        // à craindre (contrairement à list(), voir buildSavedMaps()).
+        $savedCount = $this->savedRecipeRepository->countByRecipe($recipe);
+        $isSavedByMe = $currentUser !== null
+            && $this->savedRecipeRepository->findOneByUserAndRecipe($currentUser, $recipe) !== null;
+
+        return $this->json($this->serialize($recipe, $savedCount, $isSavedByMe));
+    }
+
+    // ── GET /api/recipes/saved ─────────────────────────────────────────────────
+    // Les recettes que l'utilisateur connecté a mises en favori, les plus
+    // récemment sauvegardées en premier (pas les plus récemment créées —
+    // c'est bien l'action "sauvegarder" qu'on trie, pas la recette elle-même).
+    #[Route('/saved', name: 'saved', methods: ['GET'])]
+    public function saved(): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Unauthorized'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $savedRows = $this->savedRecipeRepository->findByUserOrderedByRecent($user);
+        $recipes = array_map(fn($sr) => $sr->getRecipe(), $savedRows);
+
+        $recipeIds = array_map(fn(Recipe $r) => $r->getId(), $recipes);
+        $savedCounts = $this->savedRecipeRepository->countByRecipeIds($recipeIds);
+
+        $data = array_map(
+            // isSavedByMe est toujours true ici par construction (c'est la
+            // liste de SES favoris), donc pas besoin d'une requête de plus.
+            fn(Recipe $r) => $this->serialize($r, $savedCounts[$r->getId()] ?? null, true),
+            $recipes,
+        );
+
+        return $this->json($data, Response::HTTP_OK);
     }
 
     // ── POST /api/recipes ──────────────────────────────────────────────────────
@@ -660,8 +706,19 @@ class RecipeController extends AbstractController
 
     /**
      * Serializes a Recipe entity to a plain array for JSON output.
+     *
+     * @param int|null $savedCount Nombre de fois où la recette a été mise en
+     *                             favori. null = non calculé par l'appelant
+     *                             (ex: réponse create/update où ce chiffre n'a
+     *                             pas d'intérêt) → absent du champ `savedCount`
+     *                             en ne renvoyant PAS une fausse valeur 0, qui
+     *                             serait indiscernable d'un vrai zéro favori.
+     * @param bool $isSavedByMe Vrai si l'utilisateur AUTHENTIFIÉ courant a
+     *                          sauvegardé cette recette. Toujours false pour
+     *                          un visiteur non connecté (pas de notion de
+     *                          "moi" côté serveur dans ce cas).
      */
-    private function serialize(Recipe $recipe): array
+    private function serialize(Recipe $recipe, ?int $savedCount = null, bool $isSavedByMe = false): array
     {
         return [
             'id'          => $recipe->getId(),
@@ -683,7 +740,40 @@ class RecipeController extends AbstractController
                 'unit'         => $ri->getIngredient()?->getUnit(),
                 'amount'       => $ri->getAmount(),
             ])->toArray(),
+            'savedCount'   => $savedCount,
+            'isSavedByMe'  => $isSavedByMe,
         ];
+    }
+
+    /**
+     * Calcule, en au plus DEUX requêtes au total (jamais une par recette),
+     * les compteurs de favoris et le "mes favoris à moi" pour une liste de
+     * recettes.
+     *
+     * `$savedCounts` n'est calculé que pour l'admin : c'est une donnée de
+     * modération/statistiques, pas quelque chose qu'un visiteur public a
+     * besoin de voir sur chaque carte recette — ça évite une requête
+     * d'agrégation inutile sur l'endpoint le plus consulté de l'appli.
+     *
+     * @param list<Recipe> $recipes
+     * @return array{0: array<int,int>, 1: array<int,bool>} [savedCounts, savedByMe]
+     */
+    private function buildSavedMaps(array $recipes, bool $isAdmin): array
+    {
+        if (empty($recipes)) {
+            return [[], []];
+        }
+
+        $recipeIds = array_map(fn(Recipe $r) => $r->getId(), $recipes);
+
+        $savedCounts = $isAdmin ? $this->savedRecipeRepository->countByRecipeIds($recipeIds) : [];
+
+        $currentUser = $this->security->getUser();
+        $savedByMe = $currentUser
+            ? $this->savedRecipeRepository->findSavedRecipeIdsForUser($currentUser, $recipeIds)
+            : [];
+
+        return [$savedCounts, $savedByMe];
     }
 
     /**

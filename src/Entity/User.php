@@ -49,12 +49,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Recipe::class, mappedBy: 'user')]
     private Collection $recipes;
 
+    /**
+     * Favoris de ce user. orphanRemoval: true → si on retire une SavedRecipe
+     * de cette collection (ex: removeSavedRecipe()), Doctrine la supprime en
+     * base au flush(), sans avoir à appeler $em->remove() à la main.
+     *
+     * @var Collection<int, SavedRecipe>
+     */
+    #[ORM\OneToMany(targetEntity: SavedRecipe::class, mappedBy: 'user', orphanRemoval: true)]
+    private Collection $savedRecipes;
+
     #[ORM\Column]
     private ?int $created_at = null;
 
     public function __construct()
     {
         $this->recipes = new ArrayCollection();
+        $this->savedRecipes = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -190,6 +201,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         }
 
         return $this;
+    }
+
+    /**
+     * @return Collection<int, SavedRecipe>
+     */
+    public function getSavedRecipes(): Collection
+    {
+        return $this->savedRecipes;
     }
 
     public function getCreatedAt(): ?int

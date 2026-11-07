@@ -59,6 +59,23 @@ class Recipe
     #[ORM\ManyToOne(inversedBy: 'recipes')]
     private ?User $user = null;
 
+    /**
+     * Lignes "favori" pointant vers cette recette (une par user qui l'a
+     * sauvegardée). orphanRemoval: true → si la recette est supprimée,
+     * Doctrine supprime ces lignes avec elle plutôt que de les laisser
+     * orphelines en base (ce que ferait aussi, en complément, le
+     * ON DELETE CASCADE côté SGBD déclaré dans la migration).
+     *
+     * ⚠️ Ne PAS utiliser $recipe->getSavedBy()->count() pour afficher un
+     * nombre de sauvegardes dans une liste : ça chargerait toute la
+     * collection en mémoire. Pour un compte, toujours passer par
+     * SavedRecipeRepository::countByRecipe() / countByRecipeIds().
+     *
+     * @var Collection<int, SavedRecipe>
+     */
+    #[ORM\OneToMany(targetEntity: SavedRecipe::class, mappedBy: 'recipe', orphanRemoval: true)]
+    private Collection $savedBy;
+
     #[ORM\OneToOne(targetEntity: PhotoCollection::class, cascade: ['persist', 'remove'])]
     #[ORM\JoinColumn(nullable: true)]
     private ?PhotoCollection $photoCollection = null;
@@ -67,6 +84,7 @@ class Recipe
     {
         $this->steps = new ArrayCollection();
         $this->recipeIngredients = new ArrayCollection();
+        $this->savedBy = new ArrayCollection();
         $this->status = RecipeStatus::PENDING;
     }
 
@@ -228,6 +246,14 @@ class Recipe
         }
  
         return $this;
+    }
+
+    /**
+     * @return Collection<int, SavedRecipe>
+     */
+    public function getSavedBy(): Collection
+    {
+        return $this->savedBy;
     }
 
     public function getUser(): ?User

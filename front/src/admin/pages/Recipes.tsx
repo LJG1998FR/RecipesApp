@@ -752,6 +752,29 @@ export default function Recipes({ recipes, currentRole, onAdd, onUpdate, onDelet
       ),
     },
     {
+      // Volontairement UN SEUL chiffre déjà calculé par le back
+      // (RecipeController::buildSavedMaps(), un GROUP BY agrégé) et pas un
+      // r.savedBy.length ou équivalent recalculé ici : ça éviterait de
+      // charger toute la relation juste pour en afficher la taille.
+      header: "Favoris",
+      width: "90px",
+      render: (r) => (
+        // sr-only en plus du chiffre nu : un lecteur d'écran qui lit la
+        // cellule entend "12 fois sauvegardée" plutôt qu'un "12" sans
+        // contexte (qui pourrait se confondre avec n'importe quelle autre
+        // colonne numérique du tableau, ex. "Prépa.").
+        <span style={{ color: "#94a3b8" }}>
+          {r.savedCount ?? 0}
+          <span style={{
+            position: "absolute", width: 1, height: 1, padding: 0, margin: -1,
+            overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0,
+          }}>
+            {" "}fois sauvegardée{(r.savedCount ?? 0) > 1 ? "s" : ""}
+          </span>
+        </span>
+      ),
+    },
+    {
       header: "Créée le",
       width: "130px",
       render: (r) => (

@@ -1,5 +1,4 @@
 FRONT-OFFICE:
-- Favoris
 - Legal mentions
 
 BACK-OFFICE:

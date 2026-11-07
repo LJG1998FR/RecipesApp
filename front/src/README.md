@@ -3,7 +3,8 @@
 ```
 src/
 ├── api/
-│   └── index.ts          ← toutes les fonctions fetch vers Symfony (login, recettes…)
+│   └── index.ts          ← toutes les fonctions fetch vers Symfony (login, recettes,
+│                            favoris : saveRecipe/unsaveRecipe/fetchSavedRecipes…)
 │
 ├── components/
 │   ├── icons/
@@ -20,6 +21,8 @@ src/
 ├── pages/
 │   ├── AuthPage.tsx         ← connexion / inscription
 │   ├── HomePage.tsx         ← liste + recherche + filtres catégories
+│   ├── MyRecipesPage.tsx    ← recettes publiées/en attente de l'utilisateur connecté
+│   ├── SavedRecipesPage.tsx ← favoris de l'utilisateur connecté (onglet "saved" de BottomNav)
 │   ├── ProfilePage.tsx      ← profil utilisateur + changement de mot de passe
 │   └── RecipeDetailPage.tsx ← page détail (wrapper qui cherche la recette par id)
 │
@@ -56,3 +59,18 @@ src/
 2. Dans chaque page, remplacer les imports depuis `../data/recipes`
    par des appels aux fonctions de `../api` (ex: `fetchRecipes()`).
 3. Supprimer `src/data/recipes.ts` une fois les données servies par l'API.
+
+## Favoris
+
+`SavedRecipesPage.tsx` affiche les recettes sauvegardées par l'utilisateur
+connecté (`GET /api/recipes/saved`, back-end requis). Le bouton cœur dans
+`RecipeDetail.tsx` appelle `saveRecipe()` / `unsaveRecipe()` — en UI
+optimiste (l'affichage change avant la réponse réseau, avec rollback si
+l'appel échoue). Ces deux endpoints exigent d'être authentifié : comme tout
+le reste de `/api/` dans ce projet (voir `config/packages/security.yaml`),
+pas de notion de favoris "anonyme" côté serveur.
+
+> Note au passage : ce README n'était déjà plus à jour avant l'ajout des
+> favoris (`MyRecipesPage.tsx` et `src/locales/` n'y figuraient pas). Si tu
+> ajoutes un fichier dans `pages/`, pense à l'ajouter ici aussi — sinon ce
+> doc continue de dériver silencieusement de la vraie arborescence.

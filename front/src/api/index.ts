@@ -305,6 +305,38 @@ export async function fetchUserRecipes(): Promise<{
   return data;
 }
 
+// ── Favoris ────────────────────────────────────────────────────────────────────
+//
+// Les deux fonctions ci-dessous tapent SavedRecipeController côté back, pas
+// RecipeController : voir la note dans ce contrôleur sur pourquoi c'est un
+// fichier séparé (même convention que les photos, PhotoController).
+//
+// Volontairement, saveRecipe()/unsaveRecipe() ne renvoient PAS la recette
+// entière : juste { saved, savedCount }. Un composant qui affiche la recette
+// complète (RecipeDetail) doit mettre à jour localement son propre état
+// `liked`/`savedCount` à partir de cette réponse, pas re-fetch toute la
+// recette à chaque clic sur le cœur.
+export interface FavoriteResponse {
+  saved: boolean;
+  savedCount: number;
+}
+
+export async function saveRecipe(recipeId: number): Promise<FavoriteResponse> {
+  const { data } = await apiClient.post(`/api/recipes/${recipeId}/favorite`);
+  return data;
+}
+
+export async function unsaveRecipe(recipeId: number): Promise<FavoriteResponse> {
+  const { data } = await apiClient.delete(`/api/recipes/${recipeId}/favorite`);
+  return data;
+}
+
+/** Recettes mises en favori par l'utilisateur connecté — onglet "Favoris". */
+export async function fetchSavedRecipes(): Promise<Recipe[]> {
+  const { data } = await apiClient.get("/api/recipes/saved");
+  return data;
+}
+
 // ── Ingrédients ────────────────────────────────────────────────────────────────
 
 /**

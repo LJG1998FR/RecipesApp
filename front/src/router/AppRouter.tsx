@@ -44,16 +44,15 @@ import HomePage         from "../pages/HomePage";
 import RecipeDetailPage from "../pages/RecipeDetailPage";
 import ProfilePage      from "../pages/ProfilePage";
 import MyRecipesPage     from "../pages/MyRecipesPage";
+import SavedRecipesPage  from "../pages/SavedRecipesPage";
 import BottomNav        from "../components/layout/BottomNav";
 import AddRecipePage    from "../components/recipe/AddRecipePage";
 import UpdateRecipePage from "../components/recipe/UpdateRecipePage";
 import { isAuthenticated } from "../api";
 import { UserProvider } from "../context/UserContext";
-import { useTranslation } from "@/context/LocaleContext";
 
 export default function AppRouter() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
 
   const [authed, setAuthed] = useState<boolean>(isAuthenticated());
   const [view,       setView]       = useState<AppView>("home");
@@ -107,20 +106,10 @@ export default function AppRouter() {
         />
       );
     }
-    if (activeNav === "saved") return (
-      <div
-        style={{
-          display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          minHeight: "60vh", gap: 12,
-        }}
-      >
-        <p style={{ fontSize: 40 }}>🔖</p>
-        <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-          {t("saved.empty_state")}
-        </p>
-      </div>
-    );
+    // ⚠️ Avant : un bloc statique (icône 🔖 + texte figé), qui n'appelait
+    // aucune API — un favori sauvegardé n'apparaissait donc jamais ici.
+    // SavedRecipesPage appelle GET /api/recipes/saved (voir api/index.ts).
+    if (activeNav === "saved") return <SavedRecipesPage onSelectRecipe={openRecipe} />;
     return <HomePage onSelectRecipe={openRecipe} />;
   };
 

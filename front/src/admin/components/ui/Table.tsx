@@ -47,6 +47,13 @@ export default function Table<T>({
                 key={col.header}
                 className="table-th"
                 style={{ width: col.width }}
+                // Sans scope="col", un lecteur d'écran ne peut pas annoncer
+                // de façon fiable "colonne Favoris" quand on navigue dans une
+                // cellule du corps du tableau — il ne sait pas que ce <th>
+                // décrit une colonne plutôt qu'une ligne. Correction W3C
+                // valable pour TOUS les tableaux admin (Users, Recipes,
+                // Ingredients...), pas seulement la nouvelle colonne Favoris.
+                scope="col"
               >
                 {col.header}
               </th>

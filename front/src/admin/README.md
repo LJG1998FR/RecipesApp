@@ -63,7 +63,7 @@ export async function fetchUsers() {
   });
   return res.json();
 }
-// … fetchRecipes, createUser, updateUser, deleteUser …
+
 ```
 
 **Étape 2** — Dans `AdminApp.tsx`, remplacer `useState(initialUsers)` par :
@@ -75,7 +75,19 @@ useEffect(() => {
 }, []);
 ```
 
-**Étape 3** — Supprimer `data/store.ts` une fois tout branché.
+## Favoris : colonne "Favoris" dans Recipes.tsx
+
+Chaque recette admin (`admin/types/index.ts → Recipe.savedCount`) porte
+désormais un `savedCount: number | null`, calculé côté back par
+`RecipeController::buildSavedMaps()` **une seule requête SQL agrégée**
+pour toute la page affichée (jamais une requête par ligne de tableau —
+voir les commentaires dans `SavedRecipeRepository::countByRecipeIds()`).
+
+`savedCount` peut valoir `null` sur certains endpoints qui ne le calculent
+pas (c'est volontaire, voir le commentaire au-dessus de `serialize()` côté
+back) : le tableau affiche alors `0`, mais garde bien `?? 0` uniquement à
+l'affichage — ne pas confondre "jamais calculé" et "vraiment zéro favori"
+si tu réutilises cette donnée ailleurs.
 
 ---
 

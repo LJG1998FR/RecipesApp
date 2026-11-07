@@ -85,6 +85,19 @@ export interface Recipe {
   photos: RecipePhoto[];
   steps: RecipeStep[];
   ingredients: RecipeIngredientItem[];
+  // Nombre de fois où la recette a été mise en favori — calculé pour
+  // l'admin uniquement (voir RecipeController::buildSavedMaps() côté back,
+  // qui ne fait tourner la requête d'agrégation que pour ROLE_ADMIN).
+  // null plutôt que 0 par défaut : voir même remarque dans front/src/types.
+  savedCount: number | null;
+  // ⚠️ Ce type Recipe (admin/types) est aussi celui importé par
+  // RecipeDetail.tsx, qui est la page de détail PUBLIQUE (front
+  // utilisateur), pas une page admin — voir la remarque dans la réponse
+  // qui a accompagné ce patch sur cette incohérence de nommage de dossier
+  // préexistante. isSavedByMe doit donc vivre ici, pas seulement dans
+  // front/src/types/index.ts, sinon RecipeDetail.tsx ne pourrait jamais
+  // lire ce champ renvoyé par le back.
+  isSavedByMe?: boolean;
   // image, description — champs présents dans le type front utilisateur mais pas
   // encore gérés côté admin dans cette itération.
   image?: string;

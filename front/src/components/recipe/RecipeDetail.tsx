@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, HeartIcon,
   BulbIcon, CheckIcon, PencilIcon,
 } from "../icons";
-import { toPhotoUrl } from "../../api";
+import { toPhotoUrl, saveRecipe, unsaveRecipe } from "../../api";
 import { useTranslation } from "@/context/LocaleContext";
 import { CATEGORY_LABEL_KEYS } from "@/types";
 
@@ -42,10 +42,58 @@ const S = {
 };
 
 export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }: Props) {
-  const [liked,     setLiked]     = useState(false);
+  // ⚠️ Avant : useState(false) sans lien avec le serveur — le cœur "oubliait"
+  // systématiquement qu'une recette était en favori au moindre refresh.
+  // La vraie source de vérité est recipe.isSavedByMe, renvoyée par
+  // GET /api/recipes/{id} (voir RecipeController::serialize()).
+  const [liked,     setLiked]     = useState(recipe.isSavedByMe ?? false);
+  // Empêche un double-clic de déclencher deux requêtes concurrentes
+  // (ex: save puis unsave avant que la première réponse soit revenue).
+  const [favoritePending, setFavoritePending] = useState(false);
+  // Annoncé aux lecteurs d'écran via aria-live plus bas : un changement
+  // d'état silencieux (pas de rechargement de page) a besoin de ça pour
+  // être perçu par quelqu'un qui n'utilise pas d'affichage visuel.
+  const [favoriteAnnouncement, setFavoriteAnnouncement] = useState("");
   const [activeTab, setActiveTab] = useState<"ingredients" | "steps">("ingredients");
   const [tipsOpen,  setTipsOpen]  = useState(false);
   const { t } = useTranslation();
+
+  // Si ce composant est réutilisé pour une AUTRE recette sans être démonté
+  // (même piège que photoIndex plus bas), on resynchronise `liked` avec la
+  // nouvelle recette plutôt que de garder l'état de la précédente affichée.
+  useEffect(() => {
+    setLiked(recipe.isSavedByMe ?? false);
+  }, [recipe.id, recipe.isSavedByMe]);
+
+  const handleToggleLike = async () => {
+    if (favoritePending) return;
+
+    const nextLiked = !liked;
+    // UI optimiste : on bascule l'affichage immédiatement, sans attendre la
+    // réponse réseau. Si l'appel échoue, on annule juste en dessous — mais
+    // dans l'immense majorité des cas l'utilisateur a déjà son retour visuel.
+    setLiked(nextLiked);
+    setFavoritePending(true);
+
+    try {
+      if (nextLiked) {
+        await saveRecipe(recipe.id);
+      } else {
+        await unsaveRecipe(recipe.id);
+      }
+      setFavoriteAnnouncement(
+        t(nextLiked ? "recipe.detail.saved_announcement" : "recipe.detail.unsaved_announcement")
+      );
+    } catch {
+      // Le serveur n'a PAS confirmé le changement : on annule l'optimisme
+      // plutôt que de laisser l'utilisateur croire que c'est sauvegardé en
+      // base alors que ce n'est pas le cas.
+      setLiked(!nextLiked);
+      setFavoriteAnnouncement(t("recipe.detail.save_error"));
+    } finally {
+      setFavoritePending(false);
+    }
+  };
 
   // ── Carousel photos ──────────────────────────────────────────────────────
   // `recipe.photos` peut être undefined (ancienne recette sans collection,
@@ -99,6 +147,19 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
         flexDirection: "column",
       }}
     >
+      {/* Visuellement masqué mais lu par les lecteurs d'écran : annonce le
+          résultat du clic sur le cœur, puisque rien d'autre ne change à
+          l'écran qui l'indiquerait à l'oral (pas de navigation de page). */}
+      <p
+        aria-live="polite"
+        style={{
+          position: "absolute", width: 1, height: 1, padding: 0, margin: -1,
+          overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0,
+        }}
+      >
+        {favoriteAnnouncement}
+      </p>
+
       <div style={{ position: "relative", height: "clamp(260px, 42vh, 340px)", flexShrink: 0, backgroundColor: "var(--color-card)" }}>
         {/* ⚠️ Correctif : avec 0 photo, l'ancien code posait src="" — un <img>
             à src vide pointe vers l'URL de la page courante dans plusieurs
@@ -127,60 +188,6 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
               "linear-gradient(to bottom, rgba(23,18,16,0.7) 0%, rgba(23,18,16,0) 35%, rgba(23,18,16,0) 55%, rgba(23,18,16,0.92) 100%)",
           }}
         />
-
-        {/* Boutons retour + [modifier] + like */}
-        <div
-          style={{
-            position: "absolute", top: 0, left: 0, right: 0,
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            padding: "48px 20px 0",
-          }}
-        >
-          <button type="button"
-            onClick={onBack}
-            aria-label={t("common.buttons.back")}
-            style={{
-              width: 38, height: 38, borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              backgroundColor: "rgba(23,18,16,0.6)",
-              color: "var(--color-text)",
-              backdropFilter: "blur(4px)",
-            }}
-          >
-            <ChevronLeft />
-          </button>
-
-          {/* Groupe de droite : modifier (conditionnel) + like, côte à côte */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {showEditButton && (
-              <button type="button"
-                onClick={onEdit}
-                aria-label={t('recipe.update.title')}
-                style={{
-                  width: 38, height: 38, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  backgroundColor: "rgba(23,18,16,0.6)",
-                  color: "var(--color-text)",
-                  backdropFilter: "blur(4px)",
-                }}
-              >
-                <PencilIcon size={16} />
-              </button>
-            )}
-            <button type="button"
-              onClick={() => setLiked((l) => !l)}
-              aria-label={liked ? t("recipe.detail.unlike") : t("recipe.detail.like")}
-              style={{
-                width: 38, height: 38, borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                backgroundColor: "rgba(23,18,16,0.6)",
-                backdropFilter: "blur(4px)",
-              }}
-            >
-              <HeartIcon filled={liked} />
-            </button>
-          </div>
-        </div>
 
         {/* ── Flèches du carousel — uniquement si plusieurs photos ── */}
         {hasMultiplePhotos && (
@@ -241,6 +248,69 @@ export default function RecipeDetail({ recipe, onBack, canEdit = false, onEdit }
             </div>
           </>
         )}
+
+        {/* Boutons retour + [modifier] + like */}
+        <div
+          style={{
+            position: "absolute", top: 0, left: 0, right: 0,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "48px 20px 0",
+          }}
+        >
+          <button type="button"
+            onClick={onBack}
+            aria-label={t("common.buttons.back")}
+            style={{
+              width: 38, height: 38, borderRadius: "50%",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              backgroundColor: "rgba(23,18,16,0.6)",
+              color: "var(--color-text)",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <ChevronLeft />
+          </button>
+
+          {/* Groupe de droite : modifier (conditionnel) + like, côte à côte */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {showEditButton && (
+              <button type="button"
+                onClick={onEdit}
+                aria-label={t('recipe.update.title')}
+                style={{
+                  width: 38, height: 38, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  backgroundColor: "rgba(23,18,16,0.6)",
+                  color: "var(--color-text)",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                <PencilIcon size={16} />
+              </button>
+            )}
+            <button type="button"
+              onClick={handleToggleLike}
+              disabled={favoritePending}
+              // aria-pressed, en plus de l'aria-label : pour un bouton à état
+              // bascule (toggle), c'est ce qui permet à un lecteur d'écran
+              // d'annoncer explicitement "enfoncé"/"non enfoncé", ce qu'un
+              // simple aria-label qui change de texte ne garantit pas de
+              // façon fiable selon les lecteurs d'écran.
+              aria-pressed={liked}
+              aria-label={liked ? t("recipe.detail.unlike") : t("recipe.detail.like")}
+              style={{
+                width: 38, height: 38, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                backgroundColor: "rgba(23,18,16,0.6)",
+                backdropFilter: "blur(4px)",
+                opacity: favoritePending ? 0.6 : 1,
+                cursor: favoritePending ? "default" : "pointer",
+              }}
+            >
+              <HeartIcon filled={liked} />
+            </button>
+          </div>
+        </div>
 
         {/* Badge catégorie — bas du hero */}
         <div style={{ position: "absolute", bottom: 16, left: 20 }}>

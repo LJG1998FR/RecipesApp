@@ -22,6 +22,14 @@ export interface Recipe {
   steps: string[];
   photos: RecipePhoto[];
   userId?: number | null;
+  // Favoris — reflète RecipeController::serialize() côté back.
+  // Présents (non undefined) sur GET /api/recipes/{id} et GET /api/recipes/saved.
+  // `savedCount` reste `null` sur les endpoints qui ne le calculent pas pour
+  // un visiteur non-admin (voir le commentaire de serialize() côté back) :
+  // c'est volontairement DIFFÉRENT d'un vrai 0, donc ne pas l'afficher comme
+  // "0 favori" si la valeur est null.
+  isSavedByMe?: boolean;
+  savedCount?: number | null;
 }
 
 // Données user
