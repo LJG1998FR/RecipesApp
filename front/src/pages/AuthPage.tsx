@@ -32,7 +32,10 @@ export default function AuthPage({ onAuth }: Props) {
   const { t, locale } = useTranslation();
   const navigate = useNavigate();
 
-const handleSubmit = async () => {
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  // Un <form> recharge la page par défaut au submit : on bloque ce comportement
+  // natif puisqu'on gère l'envoi nous-mêmes en JS (fetch via register/login).
+  e.preventDefault();
   setError("");
   if (mode === "signup" && (!firstName.trim() || !lastName.trim()))
     return setError("Veuillez renseigner votre prénom et nom.");
@@ -122,169 +125,178 @@ const handleSubmit = async () => {
       {/* ── Formulaire ── */}
       <main style={{ flex: 1, overflowY: "auto", padding: "109px 24px 48px" }}>
 
-        {/* Toggle */}
-        <div
-          style={{
-            display: "flex",
-            backgroundColor: "var(--color-card)",
-            border: "1px solid var(--color-border)",
-            borderRadius: 14,
-            padding: 4,
-            marginBottom: 24,
-          }}
-        >
-          {(["login", "signup"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => { setMode(m); setError(""); }}
-              aria-pressed={mode === m}
-              style={{
-                flex: 1,
-                padding: "10px 0",
-                fontSize: 14,
-                fontWeight: 500,
-                borderRadius: 10,
-                transition: "background-color 0.2s, color 0.2s",
-                backgroundColor: mode === m ? "var(--color-primary)" : "transparent",
-                color: mode === m ? "#171210" : "var(--color-text-muted)",
-              }}
-            >
-              {m === "login" ? t("auth.login.button_title") : t("auth.register.button_title")}
-            </button>
-          ))}
-        </div>
+        {/* noValidate : on garde notre validation JS personnalisée (isPasswordValid, etc.)
+            plutôt que les bulles natives du navigateur, pour rester cohérent avec
+            les messages i18n déjà gérés dans handleSubmit. */}
+        <form onSubmit={handleSubmit} noValidate>
 
-        {/* Prénom + Nom (inscription) */}
-        {mode === "signup" && (
-          <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-            {[
-              { id: "signup_firstname", label: t("auth.register.firstname_label"), value: firstName, set: setFirstName, placeholder: t("auth.register.firstname_placeholder") },
-              { id: "signup_lastname",  label: t("auth.register.lastname_label"),    value: lastName,  set: setLastName,  placeholder:t("auth.register.lastname_placeholder") },
-            ].map(({ id, label, value, set, placeholder }) => (
-              <div key={id} style={{ flex: 1 }}>
-                <label htmlFor={id} style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
-                  {label}
-                </label>
-                <input
-                  id={id}
-                  type="text"
-                  autoComplete={id === "signup_firstname" ? "given-name" : "family-name"}
-                  value={value}
-                  onChange={(e) => set(e.target.value)}
-                  placeholder={placeholder}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: 12,
-                    fontSize: 14,
-                    backgroundColor: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    color: "var(--color-text)",
-                    caretColor: "var(--color-primary)",
-                    outline: "none",
-                  }}
-                />
-              </div>
+        {/* Toggle */}
+          <div
+            style={{
+              display: "flex",
+              backgroundColor: "var(--color-card)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 14,
+              padding: 4,
+              marginBottom: 24,
+            }}
+          >
+            {(["login", "signup"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => { setMode(m); setError(""); }}
+                aria-pressed={mode === m}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  borderRadius: 10,
+                  transition: "background-color 0.2s, color 0.2s",
+                  backgroundColor: mode === m ? "var(--color-primary)" : "transparent",
+                  color: mode === m ? "#171210" : "var(--color-text-muted)",
+                }}
+              >
+                {m === "login" ? t("auth.login.button_title") : t("auth.register.button_title")}
+              </button>
             ))}
           </div>
-        )}
 
-        {/* E-mail */}
-        <div style={{ marginBottom: 16 }}>
-          <label htmlFor="label_email" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
-            {t("auth.login.email_label")}
-          </label>
-          <div
-            style={{
-              display: "flex", alignItems: "center",
-              padding: "0 16px", height: 52,
-              borderRadius: 12,
-              backgroundColor: "var(--color-card)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}><MailIcon /></span>
-            <input
-              id="label_email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("auth.login.email_placeholder")}
-              style={{
-                flex: 1, background: "transparent", border: "none", outline: "none",
-                fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
-              }}
-            />
-          </div>
-        </div>
+          {/* Prénom + Nom (inscription) */}
+          {mode === "signup" && (
+            <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+              {[
+                { id: "signup_firstname", label: t("auth.register.firstname_label"), value: firstName, set: setFirstName, placeholder: t("auth.register.firstname_placeholder") },
+                { id: "signup_lastname",  label: t("auth.register.lastname_label"),    value: lastName,  set: setLastName,  placeholder:t("auth.register.lastname_placeholder") },
+              ].map(({ id, label, value, set, placeholder }) => (
+                <div key={id} style={{ flex: 1 }}>
+                  <label htmlFor={id} style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
+                    {label}
+                  </label>
+                  <input
+                    id={id}
+                    type="text"
+                    required
+                    autoComplete={id === "signup_firstname" ? "given-name" : "family-name"}
+                    value={value}
+                    onChange={(e) => set(e.target.value)}
+                    placeholder={placeholder}
+                    style={{
+                      width: "100%",
+                      padding: "12px 16px",
+                      borderRadius: 12,
+                      fontSize: 14,
+                      backgroundColor: "var(--color-card)",
+                      border: "1px solid var(--color-border)",
+                      color: "var(--color-text)",
+                      caretColor: "var(--color-primary)",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
-        {/* Mot de passe */}
-        <div style={{ marginBottom: 8 }}>
-          <label htmlFor="label_password" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
-            {t("auth.login.password_label")}
-          </label>
-          <div
-            style={{
-              display: "flex", alignItems: "center",
-              padding: "0 16px", height: 52,
-              borderRadius: 12,
-              backgroundColor: "var(--color-card)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}><LockIcon /></span>
-            <input
-              id="label_password"
-              type={showPwd ? "text" : "password"}
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t("auth.login.password_placeholder")}
+          {/* E-mail */}
+          <div style={{ marginBottom: 16 }}>
+            <label htmlFor="label_email" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
+              {t("auth.login.email_label")}
+            </label>
+            <div
               style={{
-                flex: 1, background: "transparent", border: "none", outline: "none",
-                fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
+                display: "flex", alignItems: "center",
+                padding: "0 16px", height: 52,
+                borderRadius: 12,
+                backgroundColor: "var(--color-card)",
+                border: "1px solid var(--color-border)",
               }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPwd((s) => !s)}
-              aria-label={showPwd ? t("common.aria.hide_password") : t("common.aria.show_password")}
-              aria-pressed={showPwd}
-              style={{ color: "var(--color-text-dim)", flexShrink: 0, marginLeft: 8 }}
             >
-              <EyeIcon off={!showPwd} />
-            </button>
+              <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}><MailIcon /></span>
+              <input
+                id="label_email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t("auth.login.email_placeholder")}
+                style={{
+                  flex: 1, background: "transparent", border: "none", outline: "none",
+                  fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
+                }}
+              />
+            </div>
           </div>
-          {mode === "signup" && <PasswordRequirements password={password} />}
-        </div>
 
-        {mode === "login" && (
-          <div style={{ textAlign: "right", marginBottom: 8 }}>
-            <button type="button" onClick={() => navigate("/mot-de-passe-oublie")} style={{ fontSize: 12, color: "var(--color-primary)" }}>
-              {t("auth.login.forgot_password")}
-            </button>
+          {/* Mot de passe */}
+          <div style={{ marginBottom: 8 }}>
+            <label htmlFor="label_password" style={{ display: "block", fontSize: 12, color: "var(--color-text-dim)", marginBottom: 6 }}>
+              {t("auth.login.password_label")}
+            </label>
+            <div
+              style={{
+                display: "flex", alignItems: "center",
+                padding: "0 16px", height: 52,
+                borderRadius: 12,
+                backgroundColor: "var(--color-card)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <span style={{ color: "var(--color-text-dim)", marginRight: 10, flexShrink: 0 }}><LockIcon /></span>
+              <input
+                id="label_password"
+                type={showPwd ? "text" : "password"}
+                required
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t("auth.login.password_placeholder")}
+                style={{
+                  flex: 1, background: "transparent", border: "none", outline: "none",
+                  fontSize: 14, color: "var(--color-text)", caretColor: "var(--color-primary)",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd((s) => !s)}
+                aria-label={showPwd ? t("common.aria.hide_password") : t("common.aria.show_password")}
+                aria-pressed={showPwd}
+                style={{ color: "var(--color-text-dim)", flexShrink: 0, marginLeft: 8 }}
+              >
+                <EyeIcon off={!showPwd} />
+              </button>
+            </div>
+            {mode === "signup" && <PasswordRequirements password={password} />}
           </div>
-        )}
 
-        {error && (
-          <p role="alert" style={{ fontSize: 12, color: "#e07070", marginTop: 12, marginBottom: 4 }}>{error}</p>
-        )}
+          {mode === "login" && (
+            <div style={{ textAlign: "right", marginBottom: 8 }}>
+              <button type="button" onClick={() => navigate("/mot-de-passe-oublie")} style={{ fontSize: 12, color: "var(--color-primary)" }}>
+                {t("auth.login.forgot_password")}
+              </button>
+            </div>
+          )}
 
-        <button type="button"
-          onClick={handleSubmit}
-          style={{
-            width: "100%", marginTop: 24, padding: "16px 0",
-            borderRadius: 16, fontSize: 15, fontWeight: 600,
-            backgroundColor: "var(--color-primary)", color: "#171210",
-            transition: "opacity 0.2s",
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.opacity = "0.88")}
-          onMouseOut={(e)  => (e.currentTarget.style.opacity = "1")}
-        >
-          {mode === "login" ? t("auth.login.button_submit") : t("auth.register.button_submit")}
-        </button>
+          {error && (
+            <p role="alert" style={{ fontSize: 12, color: "#e07070", marginTop: 12, marginBottom: 4 }}>{error}</p>
+          )}
+
+          <button type="submit"
+            style={{
+              width: "100%", marginTop: 24, padding: "16px 0",
+              borderRadius: 16, fontSize: 15, fontWeight: 600,
+              backgroundColor: "var(--color-primary)", color: "#171210",
+              transition: "opacity 0.2s",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.opacity = "0.88")}
+            onMouseOut={(e)  => (e.currentTarget.style.opacity = "1")}
+          >
+            {mode === "login" ? t("auth.login.button_submit") : t("auth.register.button_submit")}
+          </button>
+
+        </form>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0" }}>
           <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border)" }} />
@@ -294,7 +306,7 @@ const handleSubmit = async () => {
 
         <p style={{ fontSize: 12, textAlign: "center", color: "var(--color-text-dim)" }}>
           {mode === "login" ? t("auth.login.switch_to_signup_text") : t("auth.register.switch_to_login_text")}
-          <button type="submit"
+          <button type="button"
             onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
             style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)" }}
           >
