@@ -1,5 +1,5 @@
 FRONT-OFFICE:
-- Legal mentions
+
 
 BACK-OFFICE:
 - rate limiter
