@@ -58,6 +58,21 @@ Dashboard Scalingo → ton app → **Environment**. À minima :
 Ces variables **écrasent toujours** ce qui est défini dans les fichiers
 `.env*` du repo — voir section suivante.
 
+> ℹ️ **Un 404 sur `GET /` est normal.** Ce backend est une API pure : toutes
+> les routes vivent sous `/api/...` (voir `config/routes.yaml`), il n'y a
+> volontairement aucune route pour `/`. Ne pas confondre avec une panne —
+> teste plutôt une vraie route (`/api/recipes`, `/api/login`...) pour
+> vérifier que l'app tourne. Si un outil de monitoring/healthcheck externe
+> tape sur `/` et s'alarme du 404, ajoute une route dédiée plutôt que de
+> désactiver l'alerte :
+> ```php
+> #[Route('/', name: 'health_check', methods: ['GET'])]
+> public function health(): JsonResponse
+> {
+>     return $this->json(['status' => 'ok']);
+> }
+> ```
+
 ### 3. Le fichier `.env` à la racine est obligatoire
 
 Symfony a besoin d'un fichier `.env` **committé sur Git** (avec des valeurs
@@ -94,7 +109,42 @@ build échoue avec `npm error Missing script: "build"`.
 Laisse **"Include files outside of the Root Directory"** désactivé — pas
 besoin que Vercel touche au code Symfony.
 
-### 3. Variables d'environnement
+### 3. SPA fallback — indispensable pour les routes internes (`/admin`, etc.)
+
+Le routing (`/`, `/admin`, ...) est géré **côté client** par
+`react-router-dom` (voir `front/src/App.tsx`). Ça ne fonctionne que si le
+JS de l'app est déjà chargé dans le navigateur :
+
+- Navigation **interne** (clic sur un lien depuis l'app déjà ouverte) → OK,
+  React Router intercepte et change de vue sans recharger la page.
+- Accès **direct** à une URL interne (taper `/admin` dans la barre
+  d'adresse, rafraîchir la page, partager un lien) → le navigateur envoie
+  une vraie requête HTTP au serveur Vercel, qui cherche un fichier
+  `admin.html` dans le build, ne le trouve pas → **404**.
+
+C'est pour ça que les appels API continuent de fonctionner pendant qu'une
+route interne est en 404 : un `fetch()` vers Scalingo est une requête
+indépendante qui ne passe jamais par le routeur de fichiers de Vercel —
+les deux mécanismes sont complètement découplés.
+
+> ⚠️ `historyApiFallback: true` dans `front/vite.config.ts` ne concerne que
+> le serveur de dev (`npm run dev`). Il n'a aucun effet sur le build
+> déployé sur Vercel.
+
+**Solution** : un fichier `vercel.json` à la racine du **dossier front**
+(là où se trouve `package.json`), pour dire à Vercel de servir
+`index.html` pour toute route inconnue et laisser React Router prendre le
+relais :
+
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+### 4. Variables d'environnement
 
 **Settings → Environment Variables** :
 
@@ -164,6 +214,22 @@ dépendances), commit `composer.json` **et** `composer.lock`, push.
 
 Vercel exécute les commandes à la racine du repo au lieu de `front/`. Voir
 section **Root Directory** ci-dessus.
+
+### `404 "GET /"` dans les logs Scalingo
+
+Comportement normal, pas une panne — voir l'encadré ℹ️ dans la section
+**Configuration Scalingo** ci-dessus. Vérifie plutôt une vraie route API.
+
+> 💡 Dans les logs Scalingo, un message `"channel":"deprecation"` avec
+> `"level_name":"INFO"` (ex. dépréciations Doctrine) n'est que du bruit,
+> pas une erreur. Seuls les `level_name` type `ERROR`/`CRITICAL` indiquent
+> un vrai problème.
+
+### `404` sur une route interne du front (`/admin`, etc.) en accès direct
+
+Les appels API fonctionnent mais l'URL donne 404 au chargement ou au
+rafraîchissement → il manque le SPA fallback. Voir section **SPA
+fallback** ci-dessus (`vercel.json` avec `rewrites`).
 
 ### `Unable to read the ".env" environment file` (Scalingo, post-install)
 

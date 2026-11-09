@@ -1,5 +1,5 @@
 FRONT-OFFICE:
-
+- Dynamic tab title
 
 BACK-OFFICE:
 - rate limiter

@@ -41,8 +41,9 @@ export default function LanguageSwitcher() {
     setOpen(false);
   }
 
+  // temp: on masque le composant en attendant de mieux gérer la traduction des données dynamiques (recettes)
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    <div ref={containerRef} style={{ display:"none", position: "relative" }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
