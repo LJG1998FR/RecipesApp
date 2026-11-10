@@ -149,14 +149,12 @@
             "prev_photo": "Photo précédente",
             "next_photo": "Photo suivante",
             "like": "Ajouter aux favoris",
-            "unlike": "Retirer des favoris",
-            "saved_announcement": "Recette ajoutée à vos favoris.",
-            "unsaved_announcement": "Recette retirée de vos favoris.",
-            "save_error": "Impossible de mettre à jour vos favoris. Réessayez."
+            "unlike": "Retirer des favoris"
         },
         "not_found": {
             "message": "Recette introuvable.",
-            "back_button": "← Retour"
+            "back_button": "← Retour",
+            "page_title": "Page introuvable"
         },
         "form": {
             "title_label": "Titre",
@@ -273,8 +271,7 @@
         "delete_account_warning": "Cette action est irréversible. Toutes vos données seront perdues."
     },
     "saved": {
-        "title": "Mes favoris",
-        "empty_state": "Vos recettes sauvegardées apparaîtront ici.",
-        "error": "Impossible de charger vos favoris. Réessayez plus tard."
+        "title": "Recettes sauvegardées",
+        "empty_state": "Vos recettes sauvegardées apparaîtront ici."
     }
 }

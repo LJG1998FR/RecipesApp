@@ -5,6 +5,7 @@ import Loading from "../components/layout/Loading";
 import { useEffect, useState } from "react";
 import { useUser } from "../context/UserContext";
 import { useTranslation } from "@/context/LocaleContext";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 interface Props {
   recipeId: number;
@@ -24,6 +25,15 @@ export default function RecipeDetailPage({ recipeId, onBack, onEdit }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [error,     setError]     = useState(false);
   const { t } = useTranslation();
+
+  // ⚠️ Appelé AVANT les `return` ci-dessous (Rules of Hooks), même si
+  // `recipe` est encore `null` au premier rendu.
+  // - Pendant le chargement / en cas d'erreur : recipe?.title est undefined
+  //   → le hook retombe sur "Saveurs" tout court (voir useDocumentTitle.ts).
+  // - Une fois la recette chargée : "Saveurs - Tiramisu", par exemple.
+  // Ce comportement évite qu'un lecteur d'écran annonce encore l'ancien
+  // titre ("Saveurs - Salade") pendant que l'écran affiche déjà "Chargement…".
+  useDocumentTitle(recipe?.title);
 
   // ✅ Fetch une seule fois au montage du composant
   useEffect(() => {

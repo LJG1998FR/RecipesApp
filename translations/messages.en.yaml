@@ -148,6 +148,7 @@ recipe:
     not_found:
         message: 'Recipe not found.'
         back_button: '← Back'
+        page_title: 'Page not found'
 
     # ── Shared between AddRecipePage and UpdateRecipePage (RecipeFormShared.tsx) ──
     # Deliberately DISTINCT from "recipe.detail.*" despite similar wording
@@ -270,4 +271,5 @@ profile:
     delete_account_warning: 'This action is irreversible. All your data will be lost.'
 
 saved:
+    title: 'Saved recipes'
     empty_state: 'Your saved recipes will appear here.'

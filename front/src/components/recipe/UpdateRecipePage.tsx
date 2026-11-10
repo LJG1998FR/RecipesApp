@@ -17,6 +17,7 @@ import {
 import type { SelectedIngredient, LocalPhoto } from "./RecipeFormShared";
 import Loading from "../layout/Loading";
 import { useTranslation } from "../../context/LocaleContext";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 // NOTE : la grande majorité de l'UI (champs, autocomplétion d'ingrédients,
 // grille de nouvelles photos…) vient de RecipeFormShared.tsx — exactement ce
@@ -129,6 +130,15 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
   const [deletingRecipe, setDeletingRecipe] = useState(false);
   const [deleteError,  setDeleteError]  = useState("");
   const deleteConfirmHeadingRef = useRef<HTMLParagraphElement>(null);
+
+  // ⚠️ Appelé AVANT les `return` ci-dessous (Rules of Hooks), même si
+  // `recipe` est encore `null` au premier rendu.
+  // - Pendant le chargement / en cas d'erreur : recipe?.title est undefined
+  //   → le hook retombe sur "Saveurs" tout court (voir useDocumentTitle.ts).
+  // - Une fois la recette chargée : "Saveurs - Tiramisu", par exemple.
+  // Ce comportement évite qu'un lecteur d'écran annonce encore l'ancien
+  // titre ("Saveurs - Salade") pendant que l'écran affiche déjà "Chargement…".
+  useDocumentTitle(`${t("recipe.update.title")} : ${title}`);
 
   // Déplace le focus clavier vers l'avertissement dès qu'il apparaît (voir
   // commentaire sur le JSX plus bas).

@@ -50,9 +50,13 @@ import AddRecipePage    from "../components/recipe/AddRecipePage";
 import UpdateRecipePage from "../components/recipe/UpdateRecipePage";
 import { isAuthenticated } from "../api";
 import { UserProvider } from "../context/UserContext";
+import { useTranslation } from "../context/LocaleContext";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { TAB_TITLE_KEYS, VIEW_TITLE_KEYS } from "./pageTitles";
 
 export default function AppRouter() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [authed, setAuthed] = useState<boolean>(isAuthenticated());
   const [view,       setView]       = useState<AppView>("home");
@@ -63,6 +67,17 @@ export default function AppRouter() {
   // théorie porter sur des recettes différentes selon le parcours, mieux
   // vaut ne pas les confondre dans un seul state partagé.
   const [editingRecipeId, setEditingRecipeId] = useState<number | null>(null);
+
+  // Calcule la clé de titre selon l'écran réellement affiché.
+  // Attention à l'ORDRE : "view" plein écran prime sur "activeNav",
+  // exactement comme dans votre renderPage() / JSX de retour plus bas —
+  // sinon le titre et le contenu affiché divergent.
+  const titleKey =
+    view === "detail"    ? undefined /* cas dynamique, voir note plus bas */ :
+    view === "myrecipes" ? VIEW_TITLE_KEYS.myrecipes :
+    TAB_TITLE_KEYS[activeNav];
+
+  useDocumentTitle(titleKey ? t(titleKey) : undefined);
 
   // ── Non connecté ────────────────────────────────────────────────────────────
   if (!authed) {

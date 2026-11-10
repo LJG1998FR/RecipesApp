@@ -1,5 +1,5 @@
 FRONT-OFFICE:
-- Dynamic tab title
+- AddRecipePage: add <label htmlFor>
 
 BACK-OFFICE:
 - rate limiter

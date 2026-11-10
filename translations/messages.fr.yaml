@@ -159,6 +159,7 @@ recipe:
     not_found:
         message: 'Recette introuvable.'
         back_button: '← Retour'
+        page_title: 'Page introuvable'
 
     # ── Partagé entre AddRecipePage et UpdateRecipePage (RecipeFormShared.tsx) ──
     # Volontairement DISTINCT de "recipe.detail.*" malgré des mots identiques
@@ -286,4 +287,5 @@ profile:
     delete_account_warning: 'Cette action est irréversible. Toutes vos données seront perdues.'
 
 saved:
+    title: 'Recettes sauvegardées'
     empty_state: 'Vos recettes sauvegardées apparaîtront ici.'
