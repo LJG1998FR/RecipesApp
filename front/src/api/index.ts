@@ -175,6 +175,11 @@ export interface RecipesQuery extends PaginationQuery {
   search?: string;
 }
 
+// On ajoute un second paramètre séparé pour les options "transport".
+export interface FetchOptions {
+  signal?: AbortSignal;
+}
+
 /**
  * Liste paginée des recettes — GET /api/recipes?page=&limit=&type=&status=&search=
  *
@@ -193,7 +198,7 @@ export interface RecipesQuery extends PaginationQuery {
  * page courante, pas sur l'ensemble des recettes.
  */
 export async function fetchRecipesPaginated<T = AdminRecipe>(
-  query: RecipesQuery = {}
+  query: RecipesQuery = {}, options: FetchOptions = {}
 ): Promise<PaginatedResponse<T>> {
   const params = buildPaginationParams(query);
   if (query.type) params.set("type", query.type);
@@ -202,6 +207,7 @@ export async function fetchRecipesPaginated<T = AdminRecipe>(
 
   const res = await fetch(`${BASE_URL}/api/recipes?${params.toString()}`, {
     headers: authHeaders(),
+    signal: options.signal,
   });
   return handleResponse<PaginatedResponse<T>>(res);
 }

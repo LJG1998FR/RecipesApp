@@ -78,8 +78,45 @@ export default function HomePage({ onSelectRecipe }: Props) {
 
   // Rechargement serveur à chaque changement de page/catégorie/recherche/limite
   useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadRecipes() {
+      setIsLoadingList(true);
+      setListError("");
+      try {
+        const res = await fetchRecipesPaginated<Recipe>(
+          {
+            page,
+            limit,
+            type: activeCategory !== "Tout" ? activeCategory : undefined,
+            search: debouncedSearch || undefined
+          },
+          {
+            signal: controller.signal
+          } // ⚠️ à transmettre jusqu'au fetch() réel dans api/index.ts
+        );
+        setItems(res.items);
+        setTotal(res.pagination.total);
+        setTotalPages(res.pagination.totalPages);
+      } catch (err) {
+        // Une requête annulée lève une AbortError : ce n'est PAS une vraie
+        // erreur à afficher à l'utilisateur, juste le signe qu'une requête
+        // plus récente a pris le relais.
+        if (err instanceof Error && err.name === "AbortError") return;
+        setListError(t("home.load_error"));
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+          setIsLoadingList(false);
+        }
+      }
+    }
+
     loadRecipes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // Cleanup : à chaque nouveau rendu (nouvelle dépendance) OU au démontage,
+    // React annule automatiquement la requête précédente avant d'en lancer une nouvelle.
+    return () => controller.abort();
   }, [page, limit, activeCategory, debouncedSearch]);
 
   // ✅ Garde-fous : user non chargé OU recettes en cours de fetch

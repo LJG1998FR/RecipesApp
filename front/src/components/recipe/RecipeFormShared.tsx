@@ -59,16 +59,17 @@ export const inputStyle: React.CSSProperties = {
 // pages appelantes (via t()). FormSection reste un composant "bête", agnostique
 // de la langue — c'est aux pages de décider QUOI afficher.
 
-export function FormSection({ title, titleId, badge, children }: { title: string; titleId?: string; badge?: string; children: React.ReactNode }) {
+export function FormSection({ title, titleId, htmlFor, badge, children }: { title: string; titleId?: string; htmlFor?: string; badge?: string; children: React.ReactNode }) {
+  const TitleTag = htmlFor ? "label" : "p";
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         {/* titleId (optionnel) : permet à l'appelant de relier un champ unique
             de la section à cet intitulé via aria-labelledby, quand FormSection
             enveloppe un seul input/textarea plutôt qu'une liste/un groupe. */}
-        <p id={titleId} style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
+        <TitleTag id={titleId} htmlFor={htmlFor} style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-dim)" }}>
           {title}
-        </p>
+        </TitleTag>
         {badge && (
           <span style={{
             fontSize: 11, padding: "2px 8px", borderRadius: 99,

@@ -398,8 +398,9 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
         )}
 
         {/* ── Titre ── */}
-        <FormSection title={t("recipe.form.title_label")} titleId="recipe-title-label">
+        <FormSection htmlFor="recipe-title-input" title={t("recipe.form.title_label")} titleId="recipe-title-label">
           <input
+            id="recipe-title-input"
             type="text"
             aria-labelledby="recipe-title-label"
             value={title}
@@ -532,18 +533,26 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
           <ol style={{ display: "flex", flexDirection: "column", gap: 12, listStyle: "none", margin: 0, padding: 0 }}>
             {steps.map((step, i) => (
               <li key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <span aria-hidden="true" style={{
+                {/* <span aria-hidden="true" style={{
                   width: 28, height: 28, borderRadius: "50%", flexShrink: 0, marginTop: 10,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 12, fontWeight: 700,
                   backgroundColor: "var(--color-primary)", color: "#171210",
                 }}>
                   {i + 1}
-                </span>
+                </span> */}
+                <label htmlFor={`step-${i}`} aria-hidden="true" style={{
+                  width: 28, height: 28, borderRadius: "50%", flexShrink: 0, marginTop: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 12, fontWeight: 700,
+                  backgroundColor: "var(--color-primary)", color: "#171210",
+                }}>
+                  {i + 1}
+                </label>
                 <div style={{ flex: 1 }}>
-                  <label htmlFor={`step-${i}`} style={visuallyHiddenStyle}>
+                  {/* <label htmlFor={`step-${i}`} style={visuallyHiddenStyle}>
                     {t("recipe.form.step_placeholder", { n: i + 1 })}
-                  </label>
+                  </label> */}
                   <textarea
                     id={`step-${i}`}
                     value={step}
@@ -589,8 +598,9 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
         </FormSection>
 
         {/* ── Astuces ── */}
-        <FormSection title={t("recipe.form.tips_label")} titleId="recipe-tips-label" badge={t("common.badges.optional")}>
+        <FormSection htmlFor="recipe-tips-input" title={t("recipe.form.tips_label")} titleId="recipe-tips-label" badge={t("common.badges.optional")}>
           <textarea
+            id="recipe-tips-input"
             aria-labelledby="recipe-tips-label"
             value={tips}
             onChange={(e) => setTips(e.target.value)}
