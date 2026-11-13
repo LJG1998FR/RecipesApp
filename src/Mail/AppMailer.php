@@ -14,7 +14,7 @@ class AppMailer
     public function __construct(
         private readonly MailerInterface $mailer,
         private readonly TranslatorInterface $translator,
-        private readonly string $fromAddress = 'no-reply@saveurs.app',
+        private readonly string $fromAddress = 'lgueret.dev@gmail.com', //'no-reply@saveurs.app',
         private readonly string $fromName = 'Saveurs',
     ) {}
 
