@@ -94,7 +94,7 @@
             "email_placeholder": "marie@example.com",
             "submit_button": "Envoyer le lien",
             "submitting": "Envoi…",
-            "success_message": "Si un compte existe avec l'adresse {email}, vous allez recevoir un e-mail contenant un lien de réinitialisation.",
+            "success_message": "Si un compte existe avec l'adresse {email}, vous allez recevoir un e-mail contenant un lien de réinitialisation. Si le message n'apparaît pas dans votre boîte mail, vérifiez votre dossier Spam.",
             "back_to_login": "Retour à la connexion",
             "error_generic": "Une erreur est survenue. Réessayez dans quelques instants."
         },

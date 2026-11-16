@@ -1,7 +1,10 @@
 FRONT-OFFICE:
-- AddRecipePage: add <label htmlFor>
+- logout
+- UpdateRecipePage: scroll up onUpdate
+- Clean database
 
 BACK-OFFICE:
 - rate limiter
 - rewrite tests
 - automatisation on project init
+- CRON backups
