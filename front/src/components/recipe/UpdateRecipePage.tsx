@@ -301,6 +301,7 @@ export default function UpdateRecipePage({ recipeId, onCancel, onSaved, onDelete
       const refreshed = await fetchRecipe(recipeId);
       setExistingPhotos(refreshed.photos);
 
+      scrollTo({top:0});
       setSavedMessage(t("recipe.update.success_message"));
       // Le bandeau disparaît tout seul après 3s — même pattern que ProfilePage.
       setTimeout(() => setSavedMessage(""), 3000);

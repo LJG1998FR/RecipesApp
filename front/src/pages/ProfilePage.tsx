@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { getInitials, useUser } from "../context/UserContext";
-import { logout, updateUser, deleteCurrentUser } from "../api";
+import { logout, updateUser, deleteCurrentUser, deleteUser } from "../api";
 import Loading from '../components/layout/Loading';
 import { LockIcon, EyeIcon, CheckIcon, ChevronLeft } from "../components/icons";
 import { formatMemberSince } from "./AuthPage";
@@ -8,6 +8,7 @@ import { useTranslation } from "@/context/LocaleContext";
 import { isPasswordValid } from "@/utils/passwordPolicy";
 import PasswordRequirements from "@/components/form/PasswordRequirements";
 import { ApiValidationError } from "@/api/errors";
+import { tokenStorage } from "@/api/client";
 
 // ── Champ lecture seule ────────────────────────────────────────────────────
 const ReadonlyField = ({ label, value, readonlyBadge }: { label: string; value: string; readonlyBadge: string }) => (
@@ -100,9 +101,12 @@ export default function ProfilePage({ onOpenMyRecipes }: Props) {
   const [saved,            setSaved]            = useState(false);
   const [error,            setError]            = useState("");
 
+
+
   // ── Nouvel état pour la confirmation de suppression ────────────────────────
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading,     setDeleteLoading]     = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const handleSave = async () => {
     setError("");
@@ -127,31 +131,42 @@ export default function ProfilePage({ onOpenMyRecipes }: Props) {
   };
 
   const handleLogout = async () => {
+    // Le nettoyage local (état React + redirection) ne doit JAMAIS dépendre
+    // du succès de l'appel réseau : même si /api/logout échoue (token déjà
+    // expiré, réseau coupé, etc.), l'utilisateur doit pouvoir se déconnecter
+    // côté front. On isole donc l'appel réseau dans son propre try/catch et
+    // on place le nettoyage dans un `finally`, qui s'exécute toujours.
     try {
       await logout();
+    } catch (error) {
+      console.error("Erreur lors de l'appel réseau de déconnexion :", error);
+    } finally {
       setUser(null);
       window.location.href = "/";
-    } catch (error) {
-      console.error("Erreur lors de la déconnexion :", error);
     }
   };
 
   // ── Suppression du compte ──────────────────────────────────────────────────
-  const handleDeleteAccount = async () => {
+  async function handleDeleteAccount() {
+    if (!user) return;
     setDeleteLoading(true);
+    setDeleteError("");
+
     try {
-      await deleteCurrentUser(user.id);
-      // On déconnecte proprement après suppression
-      await logout();
+      // 1. Le token doit ENCORE être présent pour que la requête soit authentifiée
+      await deleteUser(user.id);
+
+      // 2. On nettoie tout de suite, sans attendre l'intercepteur 401
+      tokenStorage.clear();
       setUser(null);
+
+      // 3. Redirection "dure" : on force un vrai rechargement de l'app
       window.location.href = "/";
     } catch {
-      setError("Impossible de supprimer le compte. Veuillez réessayer.");
-      setShowDeleteConfirm(false);
-    } finally {
       setDeleteLoading(false);
+      setDeleteError("La suppression a échoué, réessaie dans un instant.");
     }
-  };
+  }
 
   if (!user) return <Loading />;
 
@@ -410,10 +425,13 @@ export default function ProfilePage({ onOpenMyRecipes }: Props) {
           </button>
         ) : (
           /* Confirmation inline — évite une modale pour une action aussi destructrice */
-          <div style={{
-            padding: 16, borderRadius: 16,
-            backgroundColor: "rgba(180,50,50,0.08)",
-            border: "1px solid rgba(180,50,50,0.25)",
+          <div role="alertdialog"
+            aria-labelledby="delete-title"
+            aria-describedby="delete-desc"
+            style={{
+              padding: 16, borderRadius: 16,
+              backgroundColor: "rgba(180,50,50,0.08)",
+              border: "1px solid rgba(180,50,50,0.25)",
           }}>
             <p style={{ fontSize: 14, fontWeight: 600, color: "#e07070", marginBottom: 6 }}>
               {t("profile.delete_account_subtitle")}
@@ -421,6 +439,17 @@ export default function ProfilePage({ onOpenMyRecipes }: Props) {
             <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 16 }}>
               {t("profile.delete_account_warning")}
             </p>
+
+            {/* role="alert" : annoncé immédiatement par les lecteurs d'écran
+                (ARIA live region implicite), sans avoir à déplacer le focus.
+                Avant ce correctif, cette erreur existait en state mais
+                n'était jamais rendue à l'écran : échec totalement silencieux. */}
+            {error && (
+              <p role="alert" aria-live="assertive" style={{ fontSize: 13, color: "#e07070", marginBottom: 12 }}>
+                {deleteError}
+              </p>
+            )}
+
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
@@ -435,8 +464,9 @@ export default function ProfilePage({ onOpenMyRecipes }: Props) {
                 {t("common.buttons.cancel")}
               </button>
               <button
-                onClick={handleDeleteAccount}
+                onClick={() => handleDeleteAccount()}
                 disabled={deleteLoading}
+                aria-busy={deleteLoading}
                 style={{
                   flex: 1, padding: "12px 0", borderRadius: 12,
                   fontSize: 14, fontWeight: 600,

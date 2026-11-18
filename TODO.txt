@@ -1,9 +1,9 @@
 FRONT-OFFICE:
-- logout
-- UpdateRecipePage: scroll up onUpdate
-- Clean database
+
+- Clean preprod database
 
 BACK-OFFICE:
+
 - rate limiter
 - rewrite tests
 - automatisation on project init
